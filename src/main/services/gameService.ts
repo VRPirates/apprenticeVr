@@ -181,7 +181,9 @@ class GameService {
 
   private async fetchVrpPublicInfo(): Promise<void> {
     try {
-      const response = await axios.get('https://vrpirates.wiki/downloads/vrp-public.json')
+      const response = await axios.get('https://vrpirates.wiki/downloads/vrp-public.json', {
+        timeout: 10000
+      })
       this.vrpConfig = response.data as VrpConfig
 
       console.log(

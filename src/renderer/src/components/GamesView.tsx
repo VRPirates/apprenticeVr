@@ -117,7 +117,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'name', // Keep accessor as 'name' for sorting
         header: 'Name / Package',
-        size: 670, // Restore a default size
+        size: 600, // Restore a default size
         cell: ({ row }) => (
           <div className="name-package-cell">
             <div className="game-name-main">{row.original.name}</div>
