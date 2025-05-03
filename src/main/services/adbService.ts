@@ -104,6 +104,44 @@ class AdbService extends EventEmitter {
       return []
     }
   }
+
+  async getPackageVersionCode(serial: string, packageName: string): Promise<number | null> {
+    try {
+      const device = this.client.getDevice(serial)
+      const command = `dumpsys package ${packageName} | grep versionCode`
+      const output = await device.shell(command)
+      const result = await Adb.util.readAll(output)
+      const resultString = result.toString().trim()
+
+      // Extract the versionCode number (e.g., "    versionCode=723 minSdk=23 targetSdk=23")
+      const match = resultString.match(/versionCode=(\d+)/)
+
+      if (match && match[1]) {
+        return parseInt(match[1], 10)
+      }
+
+      console.warn(`Could not find versionCode for ${packageName} in output: "${resultString}"`)
+      // Check if the package was found at all
+      if (resultString.includes('Unable to find package')) {
+        console.warn(`Package ${packageName} not found on device ${serial} during version check.`)
+      }
+      return null
+    } catch (error) {
+      console.error(
+        `Error getting version code for package ${packageName} on device ${serial}:`,
+        error
+      )
+      // Handle specific errors like package not found if ADB command itself fails
+      if (
+        error instanceof Error &&
+        (error.message.includes('closed') || error.message.includes('Failure'))
+      ) {
+        // Could indicate device disconnected or adb issue
+        console.warn(`ADB command failed for ${packageName}, possibly disconnected?`)
+      }
+      return null
+    }
+  }
 }
 
 export default new AdbService()

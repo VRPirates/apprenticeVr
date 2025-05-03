@@ -1,24 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import { GameInfo } from '../main/services/gameService'
 
-// Define device info interface
+// Type definitions (consider moving to a shared types file)
 interface DeviceInfo {
   id: string
   type: string
-  [key: string]: unknown
 }
 
-// Define game info interface
-interface GameInfo {
-  id: string
-  name: string
-  size?: string
-  version?: string
-  [key: string]: unknown
-}
-
-// Define download progress interface
 interface DownloadProgress {
+  type: string
+  progress: number
+}
+
+interface ExtractProgress {
   type: string
   progress: number
 }
@@ -31,6 +26,8 @@ const api = {
       ipcRenderer.invoke('connect-device', serial),
     getInstalledPackages: (serial: string): Promise<Array<{ packageName: string }>> =>
       ipcRenderer.invoke('get-installed-packages', serial),
+    getPackageVersionCode: (serial: string, packageName: string): Promise<number | null> =>
+      ipcRenderer.invoke('adb:getPackageVersionCode', serial, packageName),
     startTrackingDevices: (): void => ipcRenderer.send('start-tracking-devices'),
     stopTrackingDevices: (): void => ipcRenderer.send('stop-tracking-devices'),
     onDeviceAdded: (callback: (device: DeviceInfo) => void): (() => void) => {
@@ -63,8 +60,8 @@ const api = {
       ipcRenderer.on('download-progress', listener)
       return () => ipcRenderer.removeListener('download-progress', listener)
     },
-    onExtractProgress: (callback: (progress: DownloadProgress) => void): (() => void) => {
-      const listener = (_: unknown, progress: DownloadProgress): void => callback(progress)
+    onExtractProgress: (callback: (progress: ExtractProgress) => void): (() => void) => {
+      const listener = (_: unknown, progress: ExtractProgress): void => callback(progress)
       ipcRenderer.on('extract-progress', listener)
       return () => ipcRenderer.removeListener('extract-progress', listener)
     }
@@ -82,8 +79,8 @@ if (process.contextIsolated) {
     console.error(error)
   }
 } else {
-  // @ts-ignore (define in dts)
+  // @ts-ignore (define in d.ts file for type safety)
   window.electron = electronAPI
-  // @ts-ignore (define in dts)
+  // @ts-ignore (define in d.ts file for type safety)
   window.api = api
 }

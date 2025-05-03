@@ -19,7 +19,9 @@ export interface GameInfo {
   releaseName: string
   downloads: number
   thumbnailPath: string
-  isInstalled?: boolean
+  isInstalled: boolean
+  deviceVersionCode?: number
+  hasUpdate?: boolean
 }
 
 export interface DownloadProgress {
@@ -45,6 +47,7 @@ export interface AdbAPI {
   listDevices: () => Promise<DeviceInfo[]>
   connectDevice: (serial: string) => Promise<boolean>
   getInstalledPackages: (serial: string) => Promise<PackageInfo[]>
+  getPackageVersionCode: (serial: string, packageName: string) => Promise<number | null>
   startTrackingDevices: () => void
   stopTrackingDevices: () => void
   onDeviceAdded: (callback: (device: DeviceInfo) => void) => () => void

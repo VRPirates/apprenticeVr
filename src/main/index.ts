@@ -75,41 +75,56 @@ app.whenReady().then(async () => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
-  // ADB IPC handlers
+  // --------- IPC Handlers --------- //
+
+  // --- ADB Handlers ---
   ipcMain.handle('list-devices', async () => {
     return await adbService.listDevices()
   })
 
-  ipcMain.handle('connect-device', async (_, serial: string) => {
+  ipcMain.handle('connect-device', async (_event, serial: string) => {
     return await adbService.connectToDevice(serial)
   })
 
-  ipcMain.handle('get-installed-packages', async (_, serial: string) => {
+  ipcMain.handle('get-installed-packages', async (_event, serial: string) => {
     return await adbService.getInstalledPackages(serial)
   })
 
-  // Game service IPC handlers
-  ipcMain.handle('get-games', () => {
-    return gameService.getGames()
-  })
-
-  ipcMain.handle('get-last-sync-time', () => {
-    return gameService.getLastSyncTime()
-  })
-
-  ipcMain.handle('force-sync-games', async () => {
-    await gameService.forceSync()
-    return gameService.getGames()
-  })
+  // NEW: Handle getPackageVersionCode
+  ipcMain.handle(
+    'adb:getPackageVersionCode',
+    async (_event, serial: string, packageName: string) => {
+      console.log(`IPC adb:getPackageVersionCode called for ${packageName} on ${serial}`) // Added log
+      return await adbService.getPackageVersionCode(serial, packageName)
+    }
+  )
 
   ipcMain.on('start-tracking-devices', () => {
+    // Check if mainWindow exists before passing
     if (mainWindow) {
       adbService.startTrackingDevices(mainWindow)
+    } else {
+      console.error('Cannot start tracking devices, mainWindow is not available.')
     }
   })
 
   ipcMain.on('stop-tracking-devices', () => {
     adbService.stopTrackingDevices()
+  })
+
+  // --- Game Handlers ---
+  ipcMain.handle('get-games', async () => {
+    return gameService.getGames()
+  })
+
+  ipcMain.handle('get-last-sync-time', async () => {
+    return gameService.getLastSyncTime()
+  })
+
+  ipcMain.handle('force-sync-games', async () => {
+    await gameService.forceSync()
+    // Send progress updates back to renderer during sync if needed here
+    return gameService.getGames()
   })
 
   // Create window
@@ -129,6 +144,7 @@ app.whenReady().then(async () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
+  adbService.stopTrackingDevices() // Stop tracking when app quits
   if (process.platform !== 'darwin') {
     app.quit()
   }

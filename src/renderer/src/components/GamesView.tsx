@@ -110,8 +110,26 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'version',
         header: 'Version',
-        size: 120,
-        cell: (info) => (info.getValue() ? `v${info.getValue()}` : '-')
+        size: 180,
+        cell: ({ row }) => {
+          const listVersion = row.original.version
+          const isInstalled = row.original.isInstalled
+          const deviceVersion = row.original.deviceVersionCode
+          // hasUpdate is used for row styling now, not text
+
+          const displayListVersion = listVersion ? `v${listVersion}` : '-'
+
+          return (
+            <div className="version-cell">
+              <div className="list-version-main">{displayListVersion}</div>
+              {isInstalled && (
+                <div className="installed-version-info">
+                  {deviceVersion !== undefined ? `Installed: v${deviceVersion}` : 'Installed'}
+                </div>
+              )}
+            </div>
+          )
+        }
       },
       {
         accessorKey: 'size',
@@ -343,10 +361,18 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                 >
                   {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                     const row = rows[virtualRow.index] as Row<GameInfo> // Get the actual row data
+                    // Combine class names
+                    const rowClasses = [
+                      row.original.isInstalled ? 'row-installed' : 'row-not-installed',
+                      row.original.hasUpdate ? 'row-update-available' : ''
+                    ]
+                      .filter(Boolean) // Remove empty strings
+                      .join(' ')
+
                     return (
                       <tr
                         key={row.id}
-                        className={row.original.isInstalled ? 'row-installed' : 'row-not-installed'}
+                        className={rowClasses} // Apply combined classes
                         style={{
                           position: 'absolute',
                           top: 0,
