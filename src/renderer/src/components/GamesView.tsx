@@ -21,6 +21,9 @@ interface GamesViewProps {
   onBackToDevices: () => void
 }
 
+// Define the expanded filter type
+type FilterType = 'all' | 'installed' | 'update'
+
 // Filter function specifically for game name AND package name
 const filterGameNameAndPackage: FilterFn<GameInfo> = (row, columnId, filterValue) => {
   const searchStr = String(filterValue).toLowerCase()
@@ -56,21 +59,38 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [globalFilter, setGlobalFilter] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [installedFilter, setInstalledFilter] = useState<'all' | 'installed' | 'not_installed'>(
-    'all'
-  )
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all')
 
-  // Update column filter when installedFilter state changes
+  // Calculate counts based on the full games list
+  const counts = useMemo(() => {
+    const total = games.length
+    const installed = games.filter((g) => g.isInstalled).length
+    const updates = games.filter((g) => g.hasUpdate).length
+    return { total, installed, updates }
+  }, [games])
+
+  // Update column filter when activeFilter state changes
   useEffect(() => {
-    if (installedFilter === 'all') {
-      setColumnFilters((prev) => prev.filter((f) => f.id !== 'isInstalled'))
-    } else {
-      setColumnFilters((prev) => [
-        ...prev.filter((f) => f.id !== 'isInstalled'),
-        { id: 'isInstalled', value: installedFilter === 'installed' }
-      ])
-    }
-  }, [installedFilter])
+    setColumnFilters((prev) => {
+      // Remove existing isInstalled and hasUpdate filters first
+      const otherFilters = prev.filter((f) => f.id !== 'isInstalled' && f.id !== 'hasUpdate')
+
+      switch (activeFilter) {
+        case 'installed':
+          return [...otherFilters, { id: 'isInstalled', value: true }]
+        case 'update':
+          // Ensure the game is also considered 'installed' when filtering for updates
+          return [
+            ...otherFilters,
+            { id: 'isInstalled', value: true },
+            { id: 'hasUpdate', value: true }
+          ]
+        case 'all':
+        default:
+          return otherFilters
+      }
+    })
+  }, [activeFilter])
 
   // Columns definition updated
   const columns = useMemo<ColumnDef<GameInfo>[]>(
@@ -148,6 +168,11 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         accessorKey: 'isInstalled', // Hidden column remains
         header: 'Installed Status',
         enableResizing: false
+      },
+      {
+        accessorKey: 'hasUpdate',
+        header: 'Update Status',
+        enableResizing: false
       }
     ],
     []
@@ -165,7 +190,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       sorting,
       globalFilter,
       columnFilters,
-      columnVisibility: { isInstalled: false }
+      columnVisibility: { isInstalled: false, hasUpdate: false }
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
@@ -262,30 +287,29 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             {isConnected && (
               <div className="filter-buttons">
                 <button
-                  onClick={() => setInstalledFilter('all')}
-                  className={installedFilter === 'all' ? 'active' : ''}
+                  onClick={() => setActiveFilter('all')}
+                  className={activeFilter === 'all' ? 'active' : ''}
                 >
-                  All
+                  All ({counts.total})
                 </button>
                 <button
-                  onClick={() => setInstalledFilter('installed')}
-                  className={installedFilter === 'installed' ? 'active' : ''}
+                  onClick={() => setActiveFilter('installed')}
+                  className={activeFilter === 'installed' ? 'active' : ''}
                 >
-                  Installed
+                  Installed ({counts.installed})
                 </button>
                 <button
-                  onClick={() => setInstalledFilter('not_installed')}
-                  className={installedFilter === 'not_installed' ? 'active' : ''}
+                  onClick={() => setActiveFilter('update')}
+                  className={activeFilter === 'update' ? 'active' : ''}
+                  disabled={counts.updates === 0} // Disable if no updates
                 >
-                  Not Installed
+                  Updates ({counts.updates})
                 </button>
               </div>
             )}
           </div>
           <div className="games-toolbar-right">
-            <span className="game-count">
-              {table.getFilteredRowModel().rows.length} / {games.length} games
-            </span>
+            <span className="game-count">{table.getFilteredRowModel().rows.length} displayed</span>
             <input
               type="text"
               value={globalFilter ?? ''}
