@@ -1,0 +1,9 @@
+GetPublicConfigAsync vrp-public.json
+https://vrpirates.wiki/downloads/vrp-public.json
+
+{
+  "baseUri":"https://go.vrpyourself.online/",
+  "password":"Z0w1OVZmZ1B4b0hS" // base64 decoded -> gL59VfgPxoHR
+}
+
+--inplace --http-url "https://go.vrpyourself.online/" --tpslimit 1.0 --tpslimit-burst 3

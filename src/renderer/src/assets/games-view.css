@@ -101,6 +101,17 @@
   flex-shrink: 0; /* Prevent toolbar from shrinking */
 }
 
+.games-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.last-synced {
+  color: #5f6368;
+  font-size: 0.9em;
+}
+
 .refresh-button {
   background-color: #1a73e8;
   color: white;
@@ -143,6 +154,15 @@
   text-align: center;
 }
 
+.error-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #d93025;
+  text-align: center;
+}
+
 .games-list {
   list-style: none;
   padding: 0;
@@ -152,9 +172,12 @@
 }
 
 .game-item {
-  padding: 12px 16px;
+  padding: 16px;
   border-bottom: 1px solid #e0e0e0;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .game-item:hover {
@@ -165,15 +188,99 @@
   border-bottom: none;
 }
 
+.game-thumbnail {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #f1f3f4;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.game-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .game-info {
   display: flex;
   flex-direction: column;
+  flex-grow: 1;
 }
 
-.package-name {
-  font-family: monospace;
+.game-name {
+  font-weight: 500;
   color: #202124;
-  font-size: 14px;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.game-details-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.game-version {
+  color: #5f6368;
+  font-size: 12px;
+  background-color: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.game-size {
+  color: #5f6368;
+  font-size: 12px;
+  background-color: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.game-updated {
+  color: #5f6368;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.game-rating {
+  color: #fbbc04;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rating-count {
+  color: #5f6368;
+  margin-left: 4px;
+}
+
+.game-downloads {
+  color: #5f6368;
+  font-size: 12px;
+}
+
+.game-package {
+  font-size: 12px;
+  color: #5f6368;
+  font-family: monospace;
+  background-color: #f1f3f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 4px;
+}
+
+.game-package .label {
+  color: #1a73e8;
+  font-weight: 500;
 }
 
 .games-placeholder {
@@ -205,4 +312,257 @@
 
 .connect-device-button:hover {
   background-color: #1765cc;
-} 
+}
+
+.download-progress {
+  margin: 20px 0;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: #1a73e8;
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 0.8em;
+  color: #5f6368;
+  text-align: center;
+}
+
+/* TanStack Table Styles */
+.games-container-table {
+  background-color: white;
+  border-radius: 4px;
+  padding: 16px;
+  flex-grow: 1; /* Allow container to grow */
+  overflow: hidden; /* Hide overflow to allow inner scrolling */
+  display: flex;
+  flex-direction: column;
+}
+
+.games-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.search-input {
+  padding: 6px 10px;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-size: 0.9em;
+  width: 250px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+.table-wrapper {
+  overflow-y: auto; /* Make table body scrollable */
+  flex-grow: 1;
+  margin-top: 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  /* Ensure it has a constrained height for virtualization */
+  /* flex-grow: 1 combined with parent flex setup should handle this */
+  /* Or set a specific max-height if needed: max-height: 60vh; */
+}
+
+.games-table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Ensure fixed layout is active */
+  table-layout: fixed; 
+}
+
+.games-table tbody {
+  /* Required for virtualizer absolute positioning context */
+  position: relative; 
+}
+
+.games-table th,
+.games-table td {
+  /* Remove border-bottom */
+  /* border-bottom: 1px solid #e0e0e0; */
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 13px;
+  vertical-align: middle;
+  transition: background-color 0.2s;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.games-table td {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  /* Add a subtle bottom border for row separation */
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.games-table th {
+  /* background-color: #f8f9fa; */
+  font-weight: 500;
+  color: #3c4043;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  position: relative;
+   /* Remove left border */
+  /* border-left: 1px solid #e0e0e0; */
+   /* Add bottom border to header row */
+  border-bottom: 1px solid #e0e0e0;
+}
+
+
+
+/* Cell Styling for Name/Package */
+.name-package-cell {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3; /* Adjust line height for spacing */
+   /* Ensure this wrapper itself handles overflow if needed, though td should handle it */
+  overflow: hidden;
+  /* flex: 1;
+  width: 100%; */
+  /* width: 100%; // Usually not needed if TD handles width */
+}
+
+.game-name-main {
+  font-weight: 500;
+  color: #202124;
+  /* Ensure truncation if name alone is too long */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.game-package-sub {
+  font-size: 11px; /* Smaller font size */
+  color: #5f6368; /* Grey color */
+  font-family: monospace;
+  margin-top: 2px; /* Small space between name and package */
+   /* Ensure truncation */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Remove specific game-package-cell styles that are now handled by game-package-sub */
+/* .game-package-cell { ... } */
+
+/* Ensure thumbnail cell aligns correctly */
+.game-thumbnail-cell {
+  width: 60px;
+  height: 60px;
+  padding: 5px; /* Adjust padding as needed */
+  display: flex; /* Use flex to center content vertically */
+  align-items: center;
+  justify-content: center;
+  /* Remove fixed height here if set on parent TR */
+}
+
+.game-thumbnail-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block; /* Remove extra space below image */
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.select-none {
+  user-select: none;
+}
+
+/* Filter Buttons Styles */
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.filter-buttons button {
+  padding: 4px 10px;
+  font-size: 0.85em;
+  background-color: #f8f9fa;
+  border: 1px solid #dadce0;
+  border-radius: 12px; /* More rounded */
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.filter-buttons button:hover {
+  background-color: #f1f3f4;
+  border-color: #c6c8cc;
+}
+
+.filter-buttons button.active {
+  background-color: #e8f0fe; /* Light blue */
+  border-color: #1a73e8;
+  color: #174ea6; /* Darker blue */
+  font-weight: 500;
+}
+
+/* Add Row Background Styles */
+.row-installed {
+  background-color: rgba(208, 248, 215, 0.3); /* Lighter green, slightly transparent */
+}
+
+.row-installed:hover {
+  background-color: rgba(167, 216, 174, 0.5); /* Darker green on hover */
+}
+
+.row-not-installed {
+  /* Default background, no extra style needed unless desired */
+}
+
+.row-not-installed:hover {
+  background-color: #f1f3f4; /* Standard hover for non-installed */
+}
+
+/* Resizer Styles */
+.resizer {
+  position: absolute;
+  right: 0;
+  top: 0;
+  height: 100%;
+  width: 5px; /* Handle width */
+  background: rgba(0, 0, 0, 0.1); /* Subtle handle color */
+  cursor: col-resize;
+  user-select: none;
+  touch-action: none; /* Disable touch scrolling */
+  opacity: 0; /* Hide by default */
+  transition: opacity 0.2s;
+}
+
+.resizer:hover,
+.resizer.isResizing {
+  opacity: 1; /* Show on hover or when resizing */
+  background: #1a73e8; /* Highlight color */
+}
+
+/* Apply left border to TH except the first one to visually separate */
+.games-table th:not(:first-child) {
+  border-right: 1px solid #e0e0e0;
+}
+

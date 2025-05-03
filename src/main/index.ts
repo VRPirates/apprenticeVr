@@ -1,22 +1,34 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, protocol } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import adbService from './services/adbService'
+import gameService from './services/gameService'
 
 let mainWindow: BrowserWindow | null = null
+
+// Initialize services
+async function initializeServices(): Promise<void> {
+  try {
+    // Initialize gameService
+    await gameService.initialize()
+  } catch (error) {
+    console.error('Error initializing services:', error)
+  }
+}
 
 function createWindow(): void {
   // Create the browser window.
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1280,
+    height: 800,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      webSecurity: false // Allow loading local resources (thumbnails)
     }
   })
 
@@ -43,9 +55,15 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
+
+  // Setup file protocol handler for local resources
+  protocol.registerFileProtocol('file', (request, callback) => {
+    const pathname = decodeURI(request.url.replace('file:///', ''))
+    callback(pathname)
+  })
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -70,6 +88,20 @@ app.whenReady().then(() => {
     return await adbService.getInstalledPackages(serial)
   })
 
+  // Game service IPC handlers
+  ipcMain.handle('get-games', () => {
+    return gameService.getGames()
+  })
+
+  ipcMain.handle('get-last-sync-time', () => {
+    return gameService.getLastSyncTime()
+  })
+
+  ipcMain.handle('force-sync-games', async () => {
+    await gameService.forceSync()
+    return gameService.getGames()
+  })
+
   ipcMain.on('start-tracking-devices', () => {
     if (mainWindow) {
       adbService.startTrackingDevices(mainWindow)
@@ -80,7 +112,11 @@ app.whenReady().then(() => {
     adbService.stopTrackingDevices()
   })
 
+  // Create window
   createWindow()
+
+  // Initialize services
+  await initializeServices()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

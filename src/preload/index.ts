@@ -8,6 +8,21 @@ interface DeviceInfo {
   [key: string]: unknown
 }
 
+// Define game info interface
+interface GameInfo {
+  id: string
+  name: string
+  size?: string
+  version?: string
+  [key: string]: unknown
+}
+
+// Define download progress interface
+interface DownloadProgress {
+  type: string
+  progress: number
+}
+
 // Custom APIs for renderer
 const api = {
   adb: {
@@ -37,6 +52,21 @@ const api = {
       const listener = (_: unknown, error: string): void => callback(error)
       ipcRenderer.on('device-tracker-error', listener)
       return () => ipcRenderer.removeListener('device-tracker-error', listener)
+    }
+  },
+  games: {
+    getGames: (): Promise<GameInfo[]> => ipcRenderer.invoke('get-games'),
+    getLastSyncTime: (): Promise<Date | null> => ipcRenderer.invoke('get-last-sync-time'),
+    forceSync: (): Promise<GameInfo[]> => ipcRenderer.invoke('force-sync-games'),
+    onDownloadProgress: (callback: (progress: DownloadProgress) => void): (() => void) => {
+      const listener = (_: unknown, progress: DownloadProgress): void => callback(progress)
+      ipcRenderer.on('download-progress', listener)
+      return () => ipcRenderer.removeListener('download-progress', listener)
+    },
+    onExtractProgress: (callback: (progress: DownloadProgress) => void): (() => void) => {
+      const listener = (_: unknown, progress: DownloadProgress): void => callback(progress)
+      ipcRenderer.on('extract-progress', listener)
+      return () => ipcRenderer.removeListener('extract-progress', listener)
     }
   }
 }
