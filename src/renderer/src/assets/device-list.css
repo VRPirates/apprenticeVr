@@ -20,6 +20,11 @@
   margin-bottom: 16px;
 }
 
+.device-list-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .device-list-header button {
   background-color: #4285f4;
   color: white;
@@ -38,6 +43,17 @@
 .device-list-header button:disabled {
   background-color: #9aa0a6;
   cursor: not-allowed;
+}
+
+.device-list-header .skip-button {
+  background-color: #f8f9fa;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+}
+
+.device-list-header .skip-button:hover {
+  background-color: #f1f3f4;
+  border-color: #d2d5d9;
 }
 
 .error-message {

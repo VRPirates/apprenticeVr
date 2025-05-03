@@ -4,6 +4,17 @@ export interface DeviceInfo {
   [key: string]: unknown
 }
 
+export interface AdbContextType {
+  devices: DeviceInfo[]
+  selectedDevice: string | null
+  isConnected: boolean
+  isLoading: boolean
+  error: string | null
+  connectToDevice: (serial: string) => Promise<boolean>
+  refreshDevices: () => Promise<void>
+  disconnectDevice: () => void
+}
+
 export interface AdbAPI {
   listDevices: () => Promise<DeviceInfo[]>
   connectDevice: (serial: string) => Promise<boolean>
