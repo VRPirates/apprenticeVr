@@ -14,6 +14,8 @@ const api = {
     listDevices: (): Promise<DeviceInfo[]> => ipcRenderer.invoke('list-devices'),
     connectDevice: (serial: string): Promise<boolean> =>
       ipcRenderer.invoke('connect-device', serial),
+    getInstalledPackages: (serial: string): Promise<Array<{ packageName: string }>> =>
+      ipcRenderer.invoke('get-installed-packages', serial),
     startTrackingDevices: (): void => ipcRenderer.send('start-tracking-devices'),
     stopTrackingDevices: (): void => ipcRenderer.send('stop-tracking-devices'),
     onDeviceAdded: (callback: (device: DeviceInfo) => void): (() => void) => {

@@ -6,7 +6,8 @@ interface GamesViewProps {
 }
 
 const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
-  const { selectedDevice, isConnected, disconnectDevice } = useAdb()
+  const { selectedDevice, isConnected, disconnectDevice, packages, loadingPackages, loadPackages } =
+    useAdb()
 
   // Handle disconnect and navigation back to device list
   const handleDisconnectAndGoBack = (): void => {
@@ -14,6 +15,13 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       disconnectDevice()
     }
     onBackToDevices()
+  }
+
+  // Handle refresh packages
+  const handleRefreshPackages = (): void => {
+    if (isConnected && selectedDevice) {
+      loadPackages()
+    }
   }
 
   return (
@@ -43,24 +51,46 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       </div>
 
       <div className="games-container">
-        <div className="games-placeholder">
-          <p>
-            This is where your Quest games will be displayed. You&apos;ll be able to manage and
-            launch games from here.
-          </p>
-          {isConnected ? (
-            <p>Loading games from your connected device...</p>
-          ) : (
-            <>
-              <p>Please connect to a device to see your games.</p>
-              <button className="connect-device-button" onClick={handleDisconnectAndGoBack}>
-                Connect to Device
+        {isConnected ? (
+          <>
+            <div className="games-toolbar">
+              <button
+                className="refresh-button"
+                onClick={handleRefreshPackages}
+                disabled={loadingPackages}
+              >
+                {loadingPackages ? 'Loading...' : 'Refresh Games'}
               </button>
-            </>
-          )}
-        </div>
+              <div className="game-count">{packages.length} games found</div>
+            </div>
 
-        {/* Game list will be implemented here */}
+            {loadingPackages ? (
+              <div className="loading-indicator">Loading games from device...</div>
+            ) : packages.length === 0 ? (
+              <div className="no-games-message">No games found on this device.</div>
+            ) : (
+              <ul className="games-list">
+                {packages.map((pkg) => (
+                  <li key={pkg.packageName} className="game-item">
+                    <div className="game-info">
+                      <div className="package-name">{pkg.packageName}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <div className="games-placeholder">
+            <p>
+              Connect to your Quest to see your installed games. You&apos;ll be able to manage and
+              launch games from here.
+            </p>
+            <button className="connect-device-button" onClick={handleDisconnectAndGoBack}>
+              Connect to Device
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

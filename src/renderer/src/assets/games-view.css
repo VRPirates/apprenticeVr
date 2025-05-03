@@ -84,6 +84,88 @@
   min-height: 300px;
 }
 
+.games-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.refresh-button {
+  background-color: #1a73e8;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.refresh-button:hover {
+  background-color: #1765cc;
+}
+
+.refresh-button:disabled {
+  background-color: #8ab4f8;
+  cursor: not-allowed;
+}
+
+.game-count {
+  color: #5f6368;
+  font-size: 0.9em;
+}
+
+.loading-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #5f6368;
+}
+
+.no-games-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #5f6368;
+  text-align: center;
+}
+
+.games-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.game-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  transition: background-color 0.2s;
+}
+
+.game-item:hover {
+  background-color: #f8f9fa;
+}
+
+.game-item:last-child {
+  border-bottom: none;
+}
+
+.game-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.package-name {
+  font-family: monospace;
+  color: #202124;
+  font-size: 14px;
+}
+
 .games-placeholder {
   display: flex;
   flex-direction: column;

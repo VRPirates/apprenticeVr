@@ -66,6 +66,10 @@ app.whenReady().then(() => {
     return await adbService.connectToDevice(serial)
   })
 
+  ipcMain.handle('get-installed-packages', async (_, serial: string) => {
+    return await adbService.getInstalledPackages(serial)
+  })
+
   ipcMain.on('start-tracking-devices', () => {
     if (mainWindow) {
       adbService.startTrackingDevices(mainWindow)

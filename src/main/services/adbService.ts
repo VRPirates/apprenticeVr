@@ -3,6 +3,11 @@ import Tracker from '@devicefarmer/adbkit/dist/src/adb/tracker'
 import { BrowserWindow } from 'electron'
 import { EventEmitter } from 'events'
 
+interface PackageInfo {
+  packageName: string
+  // More metadata fields will be added in the future
+}
+
 class AdbService extends EventEmitter {
   private client: ReturnType<typeof Adb.createClient>
   private deviceTracker: Tracker | null = null
@@ -73,6 +78,30 @@ class AdbService extends EventEmitter {
     } catch (error) {
       console.error(`Error connecting to device ${serial}:`, error)
       return false
+    }
+  }
+
+  async getInstalledPackages(serial: string): Promise<PackageInfo[]> {
+    try {
+      const device = this.client.getDevice(serial)
+
+      // Execute the shell command to list third-party packages
+      const output = await device.shell('pm list packages -3')
+      const result = await Adb.util.readAll(output)
+
+      // Convert the buffer to string and parse the packages
+      const packages = result.toString().trim().split('\n')
+
+      // Extract package names (format is "package:com.example.package")
+      return packages
+        .filter((line) => line.startsWith('package:'))
+        .map((line) => {
+          const packageName = line.substring(8).trim() // Remove "package:" prefix
+          return { packageName }
+        })
+    } catch (error) {
+      console.error(`Error getting installed packages for device ${serial}:`, error)
+      return []
     }
   }
 }

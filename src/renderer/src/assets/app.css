@@ -18,17 +18,3 @@
   color: #202124;
   font-weight: 500;
 }
-
-.info-section {
-  background-color: #e8f0fe;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 24px 0;
-  border-left: 4px solid #4285f4;
-}
-
-.info-section p {
-  margin: 0;
-  color: #3c4043;
-  line-height: 1.5;
-} 

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, ReactNode } from 'react'
-import { DeviceInfo } from '../types/adb'
+import React, { useEffect, useState, ReactNode, useCallback } from 'react'
+import { DeviceInfo, PackageInfo } from '../types/adb'
 import { AdbContext } from './AdbContext'
 
 interface AdbProviderProps {
@@ -12,6 +12,8 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
   const [isConnected, setIsConnected] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [packages, setPackages] = useState<PackageInfo[]>([])
+  const [loadingPackages, setLoadingPackages] = useState<boolean>(false)
 
   // Initialize device tracking when provider mounts
   useEffect(() => {
@@ -36,6 +38,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
       if (selectedDevice === device.id) {
         setSelectedDevice(null)
         setIsConnected(false)
+        setPackages([]) // Clear packages when device is removed
       }
     })
 
@@ -59,6 +62,32 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
       removeTrackerError()
     }
   }, [selectedDevice])
+
+  // Load installed packages from connected device
+  const loadPackages = useCallback(async (): Promise<void> => {
+    console.log('Loading packages for device:', selectedDevice)
+    if (!selectedDevice) return
+    try {
+      setLoadingPackages(true)
+      setError(null)
+      const installedPackages = await window.api.adb.getInstalledPackages(selectedDevice)
+      setPackages(installedPackages)
+    } catch (err) {
+      setError('Failed to load packages')
+      console.error('Error loading packages:', err)
+    } finally {
+      setLoadingPackages(false)
+    }
+  }, [selectedDevice])
+
+  // Load packages when device is connected
+  useEffect(() => {
+    if (isConnected && selectedDevice) {
+      loadPackages()
+    } else {
+      setPackages([])
+    }
+  }, [isConnected, selectedDevice, loadPackages])
 
   // Load available devices
   const refreshDevices = async (): Promise<void> => {
@@ -99,6 +128,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
   const disconnectDevice = (): void => {
     setSelectedDevice(null)
     setIsConnected(false)
+    setPackages([])
   }
 
   const value = {
@@ -107,9 +137,12 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     isConnected,
     isLoading,
     error,
+    packages,
+    loadingPackages,
     connectToDevice,
     refreshDevices,
-    disconnectDevice
+    disconnectDevice,
+    loadPackages
   }
 
   return <AdbContext.Provider value={value}>{children}</AdbContext.Provider>
