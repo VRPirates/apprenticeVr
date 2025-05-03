@@ -20,6 +20,10 @@ const AppLayout: React.FC = () => {
     setCurrentView(AppView.GAMES)
   }
 
+  const handleBackToDeviceList = (): void => {
+    setCurrentView(AppView.DEVICE_LIST)
+  }
+
   return (
     <AdbProvider>
       <div className="app-header">
@@ -30,7 +34,7 @@ const AppLayout: React.FC = () => {
       {currentView === AppView.DEVICE_LIST ? (
         <DeviceList onConnected={handleDeviceConnected} onSkip={handleSkipConnection} />
       ) : (
-        <GamesView />
+        <GamesView onBackToDevices={handleBackToDeviceList} />
       )}
     </AdbProvider>
   )

@@ -1,13 +1,30 @@
 import React from 'react'
 import { useAdb } from '../hooks/useAdb'
 
-const GamesView: React.FC = () => {
+interface GamesViewProps {
+  onBackToDevices: () => void
+}
+
+const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const { selectedDevice, isConnected, disconnectDevice } = useAdb()
+
+  // Handle disconnect and navigation back to device list
+  const handleDisconnectAndGoBack = (): void => {
+    if (isConnected) {
+      disconnectDevice()
+    }
+    onBackToDevices()
+  }
 
   return (
     <div className="games-view">
       <div className="games-header">
-        <h2>Games on Your Meta Quest</h2>
+        <div className="games-header-left">
+          <button className="back-button" onClick={onBackToDevices}>
+            ← Back to Devices
+          </button>
+          <h2>Games on Your Meta Quest</h2>
+        </div>
 
         <div className="device-info-bar">
           {isConnected ? (
@@ -34,7 +51,12 @@ const GamesView: React.FC = () => {
           {isConnected ? (
             <p>Loading games from your connected device...</p>
           ) : (
-            <p>Please connect to a device to see your games.</p>
+            <>
+              <p>Please connect to a device to see your games.</p>
+              <button className="connect-device-button" onClick={handleDisconnectAndGoBack}>
+                Connect to Device
+              </button>
+            </>
           )}
         </div>
 
