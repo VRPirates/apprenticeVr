@@ -26,16 +26,20 @@ const AppLayout: React.FC = () => {
 
   return (
     <AdbProvider>
-      <div className="app-header">
-        <img alt="logo" className="logo" src={electronLogo} />
-        <h1>Apprentice VR - Meta Quest ADB Manager</h1>
-      </div>
+      <div className="app-content">
+        <div className="app-header">
+          <img alt="logo" className="logo" src={electronLogo} />
+          <h1>Apprentice VR - Meta Quest ADB Manager</h1>
+        </div>
 
-      {currentView === AppView.DEVICE_LIST ? (
-        <DeviceList onConnected={handleDeviceConnected} onSkip={handleSkipConnection} />
-      ) : (
-        <GamesView onBackToDevices={handleBackToDeviceList} />
-      )}
+        <div className="app-main">
+          {currentView === AppView.DEVICE_LIST ? (
+            <DeviceList onConnected={handleDeviceConnected} onSkip={handleSkipConnection} />
+          ) : (
+            <GamesView onBackToDevices={handleBackToDeviceList} />
+          )}
+        </div>
+      </div>
     </AdbProvider>
   )
 }

@@ -4,6 +4,9 @@
   padding: 20px;
   margin: 20px 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 150px); /* Limit height to ensure it fits in viewport */
 }
 
 .games-header {
@@ -13,6 +16,7 @@
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0; /* Prevent header from shrinking */
 }
 
 .games-header-left {
@@ -81,7 +85,10 @@
   background-color: white;
   border-radius: 4px;
   padding: 16px;
-  min-height: 300px;
+  flex-grow: 1; /* Allow container to grow */
+  overflow: hidden; /* Hide overflow to allow inner scrolling */
+  display: flex;
+  flex-direction: column;
 }
 
 .games-toolbar {
@@ -91,6 +98,7 @@
   margin-bottom: 16px;
   padding-bottom: 12px;
   border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0; /* Prevent toolbar from shrinking */
 }
 
 .refresh-button {
@@ -139,6 +147,8 @@
   list-style: none;
   padding: 0;
   margin: 0;
+  overflow-y: auto; /* Make list scrollable */
+  flex-grow: 1; /* Allow list to grow */
 }
 
 .game-item {
