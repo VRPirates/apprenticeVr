@@ -28,6 +28,8 @@ const api = {
       ipcRenderer.invoke('get-installed-packages', serial),
     getPackageVersionCode: (serial: string, packageName: string): Promise<number | null> =>
       ipcRenderer.invoke('adb:getPackageVersionCode', serial, packageName),
+    uninstallPackage: (serial: string, packageName: string): Promise<boolean> =>
+      ipcRenderer.invoke('adb:uninstallPackage', serial, packageName),
     startTrackingDevices: (): void => ipcRenderer.send('start-tracking-devices'),
     stopTrackingDevices: (): void => ipcRenderer.send('stop-tracking-devices'),
     onDeviceAdded: (callback: (device: DeviceInfo) => void): (() => void) => {

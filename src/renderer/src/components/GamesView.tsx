@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react'
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -44,8 +44,77 @@ declare module '@tanstack/react-table' {
   // ... FilterMeta if needed ...
 }
 
+// Simple Popover Component (can be moved to its own file)
+interface GameActionPopoverProps {
+  game: GameInfo | null
+  position: { top: number; left: number } | null
+  onClose: () => void
+  onDelete: (game: GameInfo) => void // Add other actions later (onInstall, onReinstall, onUpdate)
+}
+
+const GameActionPopover: React.FC<GameActionPopoverProps> = ({
+  game,
+  position,
+  onClose,
+  onDelete
+}) => {
+  if (!game || !position) return null
+
+  const isInstalled = game.isInstalled
+  const hasUpdate = game.hasUpdate
+
+  const handleActionClick = (action: () => void): void => {
+    action()
+    onClose()
+  }
+
+  // Placeholder actions
+  const handleInstall = (): void => console.log('Install clicked for:', game.packageName)
+  const handleReinstall = (): void => console.log('Reinstall clicked for:', game.packageName)
+  const handleUpdate = (): void => console.log('Update clicked for:', game.packageName)
+
+  return (
+    <div
+      className="game-action-popover"
+      style={{ top: `${position.top}px`, left: `${position.left}px` }}
+      // Add click outside listener later if needed
+    >
+      <div className="popover-header">
+        <span>{game.name}</span>
+        <button
+          onClick={() => handleActionClick(() => onDelete(game))}
+          className="close-popover-btn"
+        >
+          ×
+        </button>
+      </div>
+      <ul className="popover-actions">
+        {!isInstalled && <li onClick={() => handleActionClick(() => handleInstall())}>Install</li>}
+        {isInstalled && !hasUpdate && (
+          <>
+            <li onClick={() => handleActionClick(() => handleReinstall())}>Reinstall</li>
+            <li onClick={() => handleActionClick(() => onDelete(game))}>Delete</li>
+          </>
+        )}
+        {isInstalled && hasUpdate && (
+          <>
+            <li onClick={() => handleActionClick(() => handleUpdate())}>Update</li>
+            <li onClick={() => handleActionClick(() => onDelete(game))}>Delete</li>
+          </>
+        )}
+      </ul>
+    </div>
+  )
+}
+
 const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
-  const { selectedDevice, isConnected, disconnectDevice, isLoading: adbLoading } = useAdb()
+  const {
+    selectedDevice,
+    isConnected,
+    disconnectDevice,
+    isLoading: adbLoading,
+    loadPackages
+  } = useAdb()
   const {
     games,
     isLoading: loadingGames,
@@ -60,6 +129,11 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
+  const [isLoading, setIsLoading] = useState<boolean>(false)
+  const [popoverGame, setPopoverGame] = useState<GameInfo | null>(null)
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null)
+  const tableContainerRef = useRef<HTMLDivElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null) // Ref for the popover element itself
 
   // Calculate counts based on the full games list
   const counts = useMemo(() => {
@@ -203,7 +277,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   })
 
   // Virtualizer setup
-  const tableContainerRef = useRef<HTMLDivElement>(null)
   const { rows } = table.getRowModel()
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -246,6 +319,113 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     return 0
   }
 
+  // Handle Row Click - Consolidated Logic
+  const handleRowClick = (
+    event: React.MouseEvent<HTMLTableRowElement>,
+    row: Row<GameInfo>
+  ): void => {
+    // If the click is inside the currently open popover, let the popover handle it (e.g., action clicks)
+    if (popoverRef.current && popoverRef.current.contains(event.target as Node)) {
+      console.log('Row click ignored: click target was inside the popover.')
+      return
+    }
+
+    // If a popover is open (and the click wasn't inside it), close it.
+    if (popoverGame) {
+      console.log('Row click detected while popover open (click outside popover), closing.')
+      handleClosePopover()
+      // We stop here because the requirement is to not open a new one immediately
+      return
+    }
+
+    // If we reach here, no popover was open, and the click wasn't inside a potential popover.
+    // So, open a new one for the clicked row.
+    console.log('No popover open, opening for row:', row.original.id)
+    const clickY = event.clientY
+    const clickX = event.clientX
+    setPopoverPosition({ top: clickY + 5, left: clickX + 5 })
+    setPopoverGame(row.original)
+  }
+
+  const handleClosePopover = useCallback((): void => {
+    // Only log if actually closing
+    if (popoverGame) {
+      console.log('Closing popover')
+      setPopoverGame(null)
+      setPopoverPosition(null)
+    }
+  }, [popoverGame]) // Add popoverGame dependency to useCallback if logging change
+
+  // Click Outside Handler (Handles clicks truly outside the table/popover area)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent): void => {
+      // Double check: Popover exists, Ref exists, and click is outside Ref
+      if (popoverGame && popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        // Important: Check if the click target is *also* outside the rows/table area
+        // to prevent conflict with handleRowClick. Clicks on rows are handled by handleRowClick now.
+        if (!tableContainerRef.current?.contains(event.target as Node)) {
+          console.log(
+            'Document click listener: Target outside table container and popover, closing.'
+          )
+          handleClosePopover()
+        } else {
+          console.log(
+            'Document click listener: Target inside table container, ignored (handled by row click).'
+          )
+        }
+      }
+    }
+
+    if (popoverPosition) {
+      document.addEventListener('mousedown', handleClickOutside)
+    } else {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+    // Update dependencies for useCallback change
+  }, [popoverPosition, popoverGame, handleClosePopover])
+
+  // Handle Delete Action
+  const handleDeleteGame = useCallback(
+    async (gameToDelete: GameInfo): Promise<void> => {
+      if (!selectedDevice || !gameToDelete.packageName) return
+
+      const confirmDelete = window.confirm(
+        `Are you sure you want to uninstall ${gameToDelete.name} (${gameToDelete.packageName})? This will also remove associated OBB and Data files.`
+      )
+
+      if (confirmDelete) {
+        console.log(`Uninstalling ${gameToDelete.packageName}...`)
+        setIsLoading(true)
+        try {
+          const success = await window.api.adb.uninstallPackage(
+            selectedDevice,
+            gameToDelete.packageName
+          )
+          if (success) {
+            console.log('Uninstall successful, refreshing package list...')
+            await loadPackages()
+          } else {
+            console.error('Uninstall failed.')
+            window.alert('Failed to uninstall the game.')
+          }
+        } catch (error) {
+          console.error('Error during uninstall IPC call:', error)
+          window.alert('An error occurred during uninstallation.')
+        } finally {
+          setIsLoading(false)
+        }
+      }
+    },
+    [selectedDevice, loadPackages]
+  )
+
+  // Combine loading states for display/disabling elements
+  const isBusy = adbLoading || loadingGames || isLoading
+
   return (
     <div className="games-view">
       <div className="games-header">
@@ -272,15 +452,11 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         </div>
       </div>
 
-      <div className="games-container-table">
+      <div className="games-container-table" ref={tableContainerRef}>
         <div className="games-toolbar">
           <div className="games-toolbar-left">
-            <button
-              className="refresh-button"
-              onClick={refreshGames}
-              disabled={loadingGames || adbLoading}
-            >
-              {loadingGames ? 'Refreshing...' : 'Refresh Games'}
+            <button className="refresh-button" onClick={refreshGames} disabled={isBusy}>
+              {isBusy ? 'Working...' : 'Refresh Games'}
             </button>
             <span className="last-synced">Last synced: {formatDate(lastSyncTime)}</span>
             {/* Install Status Filter Buttons */}
@@ -320,6 +496,10 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           </div>
         </div>
 
+        {isBusy && !loadingGames && !downloadProgress && !extractProgress && (
+          <div className="loading-indicator">Processing...</div>
+        )}
+
         {loadingGames && (downloadProgress > 0 || extractProgress > 0) && (
           <div className="download-progress">
             <div className="progress-bar">
@@ -339,7 +519,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           </div>
         ) : (
           <>
-            <div ref={tableContainerRef} className="table-wrapper">
+            <div className="table-wrapper">
               <table className="games-table" style={{ width: table.getTotalSize() }}>
                 <thead>
                   {table.getHeaderGroups().map((headerGroup) => (
@@ -405,6 +585,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                           height: `${virtualRow.size}px`,
                           transform: `translateY(${virtualRow.start}px)`
                         }}
+                        onClick={(e) => handleRowClick(e, row)} // Add onClick handler
                       >
                         {row.getVisibleCells().map((cell) => (
                           <td
@@ -422,6 +603,15 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                   })}
                 </tbody>
               </table>
+            </div>
+            {/* Render Popover and forward the ref */}
+            <div ref={popoverRef}>
+              <GameActionPopover
+                game={popoverGame}
+                position={popoverPosition}
+                onClose={handleClosePopover}
+                onDelete={handleDeleteGame}
+              />
             </div>
           </>
         )}

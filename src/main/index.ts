@@ -50,6 +50,11 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // Initialize Game Service (Keep this initialization if needed here, but it's also in whenReady)
+  gameService.initialize().catch((err) => {
+    console.error('Error initializing gameService:', err)
+  })
 }
 
 // This method will be called when Electron has finished
@@ -75,62 +80,49 @@ app.whenReady().then(async () => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
-  // --------- IPC Handlers --------- //
+  // --------- IPC Handlers (Register here *before* creating the window) --------- //
 
   // --- ADB Handlers ---
-  ipcMain.handle('list-devices', async () => {
-    return await adbService.listDevices()
-  })
-
+  ipcMain.handle('list-devices', async () => await adbService.listDevices())
   ipcMain.handle('connect-device', async (_event, serial: string) => {
     return await adbService.connectToDevice(serial)
   })
-
-  ipcMain.handle('get-installed-packages', async (_event, serial: string) => {
-    return await adbService.getInstalledPackages(serial)
+  ipcMain.handle('disconnect-device', async () => {
+    // Implementation needed
   })
-
-  // NEW: Handle getPackageVersionCode
+  ipcMain.handle(
+    'get-installed-packages',
+    async (_event, serial: string) => await adbService.getInstalledPackages(serial)
+  )
   ipcMain.handle(
     'adb:getPackageVersionCode',
     async (_event, serial: string, packageName: string) => {
-      console.log(`IPC adb:getPackageVersionCode called for ${packageName} on ${serial}`) // Added log
+      console.log(`IPC adb:getPackageVersionCode called for ${packageName} on ${serial}`)
       return await adbService.getPackageVersionCode(serial, packageName)
     }
   )
-
   ipcMain.on('start-tracking-devices', () => {
-    // Check if mainWindow exists before passing
-    if (mainWindow) {
-      adbService.startTrackingDevices(mainWindow)
-    } else {
-      console.error('Cannot start tracking devices, mainWindow is not available.')
-    }
+    if (mainWindow) adbService.startTrackingDevices(mainWindow)
+    else console.error('Cannot start tracking devices, mainWindow is not available.')
   })
-
-  ipcMain.on('stop-tracking-devices', () => {
-    adbService.stopTrackingDevices()
+  ipcMain.on('stop-tracking-devices', () => adbService.stopTrackingDevices())
+  ipcMain.handle('adb:uninstallPackage', async (_event, serial: string, packageName: string) => {
+    console.log(`IPC adb:uninstallPackage called for ${packageName} on ${serial}`)
+    return await adbService.uninstallPackage(serial, packageName)
   })
 
   // --- Game Handlers ---
-  ipcMain.handle('get-games', async () => {
-    return gameService.getGames()
-  })
-
-  ipcMain.handle('get-last-sync-time', async () => {
-    return gameService.getLastSyncTime()
-  })
-
+  ipcMain.handle('get-games', async () => gameService.getGames())
+  ipcMain.handle('get-last-sync-time', async () => gameService.getLastSyncTime())
   ipcMain.handle('force-sync-games', async () => {
     await gameService.forceSync()
-    // Send progress updates back to renderer during sync if needed here
     return gameService.getGames()
   })
 
   // Create window
   createWindow()
 
-  // Initialize services
+  // Initialize services (Consider initializing gameService only once, perhaps here)
   await initializeServices()
 
   app.on('activate', function () {

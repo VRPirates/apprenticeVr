@@ -142,6 +142,55 @@ class AdbService extends EventEmitter {
       return null
     }
   }
+
+  async uninstallPackage(serial: string, packageName: string): Promise<boolean> {
+    console.log(`Attempting to uninstall ${packageName} from ${serial}...`)
+    try {
+      const device = this.client.getDevice(serial)
+
+      // 1. Uninstall the package
+      console.log(`Running: pm uninstall ${packageName}`)
+      await device.uninstall(packageName)
+      console.log(`Successfully uninstalled ${packageName}.`)
+
+      // 2. Remove OBB directory (ignore errors)
+      const obbPath = `/sdcard/Android/obb/${packageName}`
+      console.log(`Running: rm -r ${obbPath} || true`)
+      try {
+        await device.shell(`rm -r ${obbPath}`)
+        console.log(`Successfully removed ${obbPath} (if it existed).`)
+      } catch (obbError) {
+        // Check if error is because the directory doesn't exist (common case)
+        if (obbError instanceof Error && obbError.message.includes('No such file or directory')) {
+          console.log(`OBB directory ${obbPath} did not exist.`)
+        } else {
+          // Log other potential errors but continue
+          console.warn(`Could not remove OBB directory ${obbPath}:`, obbError)
+        }
+      }
+
+      // 3. Remove Data directory (ignore errors)
+      const dataPath = `/sdcard/Android/data/${packageName}`
+      console.log(`Running: rm -r ${dataPath} || true`)
+      try {
+        await device.shell(`rm -r ${dataPath}`)
+        console.log(`Successfully removed ${dataPath} (if it existed).`)
+      } catch (dataError) {
+        if (dataError instanceof Error && dataError.message.includes('No such file or directory')) {
+          console.log(`Data directory ${dataPath} did not exist.`)
+        } else {
+          console.warn(`Could not remove Data directory ${dataPath}:`, dataError)
+        }
+      }
+
+      console.log(`Uninstall process completed for ${packageName}.`)
+      return true
+    } catch (error) {
+      console.error(`Error uninstalling package ${packageName} on device ${serial}:`, error)
+      // Rethrow or return false based on how you want to handle errors upstream
+      return false
+    }
+  }
 }
 
 export default new AdbService()

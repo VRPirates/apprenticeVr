@@ -44,10 +44,12 @@ export interface AdbContextType {
 }
 
 export interface AdbAPI {
-  listDevices: () => Promise<DeviceInfo[]>
-  connectDevice: (serial: string) => Promise<boolean>
+  llistDevices: () => Promise<DeviceInfo[]>
+  connectDevice: (serial: string) => Promise<boolean> // Assuming boolean indicates success
+  disconnectDevice: () => Promise<void>
   getInstalledPackages: (serial: string) => Promise<PackageInfo[]>
-  getPackageVersionCode: (serial: string, packageName: string) => Promise<number | null>
+  getPackageVersionCode: (serial: string, packageName: string) => Promise<number | null> // Added type
+  uninstallPackage: (serial: string, packageName: string) => Promise<boolean> // Added type
   startTrackingDevices: () => void
   stopTrackingDevices: () => void
   onDeviceAdded: (callback: (device: DeviceInfo) => void) => () => void
@@ -62,13 +64,4 @@ export interface GamesAPI {
   forceSync: () => Promise<GameInfo[]>
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
   onExtractProgress: (callback: (progress: DownloadProgress) => void) => () => void
-}
-
-declare global {
-  interface Window {
-    api: {
-      adb: AdbAPI
-      games: GamesAPI
-    }
-  }
 }
