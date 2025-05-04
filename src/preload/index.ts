@@ -55,6 +55,7 @@ const api = {
   },
   games: {
     getGames: (): Promise<GameInfo[]> => ipcRenderer.invoke('get-games'),
+    getNote: (releaseName: string): Promise<string> => ipcRenderer.invoke('get-note', releaseName),
     getLastSyncTime: (): Promise<Date | null> => ipcRenderer.invoke('get-last-sync-time'),
     forceSync: (): Promise<GameInfo[]> => ipcRenderer.invoke('force-sync-games'),
     onDownloadProgress: (callback: (progress: DownloadProgress) => void): (() => void) => {

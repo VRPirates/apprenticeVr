@@ -8,6 +8,7 @@ declare global {
       adb: AdbAPI
       games: {
         getGames: () => Promise<GameInfo[]>
+        getNote: (releaseName: string) => Promise<string>
         getLastSyncTime: () => Promise<string | null> // Returns ISO string
         forceSync: () => Promise<GameInfo[]>
         onDownloadProgress: (

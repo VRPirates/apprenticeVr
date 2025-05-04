@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { promises as fs } from 'fs'
+import { promises as fs, readFileSync } from 'fs'
 import axios from 'axios'
 import { execa } from 'execa'
 import { app, BrowserWindow } from 'electron'
@@ -34,7 +34,6 @@ export interface GameInfo {
   releaseName: string
   downloads: number
   thumbnailPath: string
-  notePath: string
   isInstalled: boolean
   deviceVersionCode?: number
   hasUpdate?: boolean
@@ -537,10 +536,7 @@ class GameService {
           ? join(this.metaPath, 'thumbnails', `${packageName}.jpg`)
           : ''
 
-        const notePath = releaseName ? join(this.metaPath, 'notes', `${releaseName}.txt`) : ''
-
         const thumbnailExists = existsSync(thumbnailPath)
-        //const noteExists = existsSync(notePath)
 
         const gameInfo: GameInfo = {
           id: packageName || gameName.replace(/\s+/g, '-').toLowerCase(),
@@ -552,8 +548,6 @@ class GameService {
           releaseName,
           downloads: parseInt(downloads) || 0,
           thumbnailPath: thumbnailExists ? thumbnailPath : '',
-          // notePath: noteExists ? notePath : '',
-          notePath,
           isInstalled: false
         }
 
@@ -577,6 +571,12 @@ class GameService {
 
   getLastSyncTime(): Date | null {
     return this.vrpConfig?.lastSync || null
+  }
+
+  getNote(releaseName: string): string {
+    const notePath = join(this.metaPath, 'notes', `${releaseName}.txt`)
+    const noteExists = existsSync(notePath)
+    return noteExists ? readFileSync(notePath, 'utf-8') : ''
   }
 }
 

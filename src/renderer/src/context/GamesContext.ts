@@ -9,6 +9,7 @@ export interface GamesContextType {
   downloadProgress: number
   extractProgress: number
   refreshGames: () => Promise<void>
+  getNote: (releaseName: string) => Promise<string>
 }
 
 export const GamesContext = createContext<GamesContextType | undefined>(undefined)

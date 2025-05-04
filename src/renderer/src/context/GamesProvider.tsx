@@ -187,6 +187,10 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     loadGames()
   }, [loadGames])
 
+  const getNote = useCallback(async (releaseName: string): Promise<string> => {
+    return await window.api.games.getNote(releaseName)
+  }, [])
+
   const value = {
     games, // This now includes isInstalled, deviceVersionCode, hasUpdate
     isLoading: isLoading || isCheckingVersions, // Combine loading states
@@ -194,7 +198,8 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     lastSyncTime,
     downloadProgress,
     extractProgress,
-    refreshGames
+    refreshGames,
+    getNote
     // No need to expose deviceVersionCodes or isCheckingVersions directly
   }
 

@@ -118,6 +118,9 @@ app.whenReady().then(async () => {
     await gameService.forceSync()
     return gameService.getGames()
   })
+  ipcMain.handle('get-note', async (_event, releaseName: string) => {
+    return gameService.getNote(releaseName)
+  })
 
   // Create window
   createWindow()

@@ -189,7 +189,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     lastSyncTime,
     downloadProgress,
     extractProgress,
-    refreshGames
+    refreshGames,
+    getNote
   } = useGames()
 
   const styles = useStyles()
@@ -202,6 +203,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [dialogGame, setDialogGame] = useState<GameInfo | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false)
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<boolean>(false)
+  const [currentGameNote, setCurrentGameNote] = useState<string | null>(null)
+  const [loadingNote, setLoadingNote] = useState<boolean>(false)
   const tableContainerRef = useRef<HTMLDivElement>(null)
 
   // Calculate counts based on the full games list
@@ -234,6 +237,37 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       }
     })
   }, [activeFilter])
+
+  // Fetch note when dialog opens
+  useEffect(() => {
+    if (isDialogOpen && dialogGame && dialogGame.releaseName) {
+      let isMounted = true // Prevent state update on unmounted component
+      const fetchNote = async (): Promise<void> => {
+        setLoadingNote(true)
+        setCurrentGameNote(null) // Clear previous note
+        try {
+          const note = await getNote(dialogGame.releaseName)
+          if (isMounted) {
+            setCurrentGameNote(note)
+          }
+        } catch (err) {
+          console.error(`Error fetching note for \${dialogGame.releaseName}:`, err)
+          if (isMounted) {
+            setCurrentGameNote('Error loading note.') // Show error in dialog
+          }
+        } finally {
+          if (isMounted) {
+            setLoadingNote(false)
+          }
+        }
+      }
+      fetchNote()
+
+      return () => {
+        isMounted = false
+      }
+    }
+  }, [isDialogOpen, dialogGame, getNote])
 
   // Columns definition updated
   const columns = useMemo<ColumnDef<GameInfo>[]>(
@@ -845,6 +879,45 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                             {/* Downloads REMOVED */}
                           </div>
                         </div>
+                      </div>
+                    )}
+
+                    {/* Divider before Note */}
+                    <Divider style={{ marginTop: tokens.spacingVerticalS }} />
+
+                    {/* Note Section */}
+                    {dialogGame && (
+                      <div
+                        style={{
+                          marginTop: tokens.spacingVerticalL,
+                          marginBottom: tokens.spacingVerticalL
+                        }}
+                      >
+                        <Text
+                          weight="semibold"
+                          style={{ marginBottom: tokens.spacingVerticalS, display: 'block' }}
+                        >
+                          Note:
+                        </Text>
+                        {loadingNote ? (
+                          <Text>Loading note...</Text>
+                        ) : currentGameNote ? (
+                          // Using a pre-wrap div to respect newlines in the note
+                          <div
+                            style={{
+                              whiteSpace: 'pre-wrap',
+                              maxHeight: '150px',
+                              overflowY: 'auto',
+                              backgroundColor: tokens.colorNeutralBackground2,
+                              padding: tokens.spacingVerticalS,
+                              borderRadius: tokens.borderRadiusMedium
+                            }}
+                          >
+                            <Text>{currentGameNote}</Text>
+                          </div>
+                        ) : (
+                          <Text>No note available.</Text>
+                        )}
                       </div>
                     )}
 
