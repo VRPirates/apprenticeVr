@@ -27,20 +27,30 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
     const removeCompleteListener = window.api.onDependencySetupComplete((finalStatus) => {
       console.log('Dependency setup complete:', finalStatus)
       setStatus(finalStatus)
-      // Determine overall readiness (currently only based on 7zip)
-      setIsReady(finalStatus.sevenZip.ready)
-      setError(
-        finalStatus.sevenZip.ready
-          ? null
-          : finalStatus.sevenZip.error || '7zip failed without specific error'
-      )
+      // Determine overall readiness based on ALL dependencies
+      const allReady = finalStatus.sevenZip.ready && finalStatus.rclone.ready
+      setIsReady(allReady)
+
+      // Determine error message if not all ready
+      let combinedError: string | null = null
+      if (!allReady) {
+        const errors: string[] = []
+        if (!finalStatus.sevenZip.ready)
+          errors.push(`7zip (${finalStatus.sevenZip.error || 'unknown error'})`)
+        if (!finalStatus.rclone.ready)
+          errors.push(`rclone (${finalStatus.rclone.error || 'unknown error'})`)
+        combinedError = `Required dependencies failed: ${errors.join('; ')}`
+      }
+      setError(combinedError)
+
       setProgress(null) // Clear progress
     })
 
     const removeErrorListener = window.api.onDependencySetupError((errorInfo) => {
       console.error('Dependency setup error:', errorInfo)
-      setStatus(errorInfo.status) // Store status even on error
+      setStatus(errorInfo.status)
       setIsReady(false)
+      // Simplify error message here, completion listener provides details
       setError(errorInfo.message || 'Unknown dependency setup error')
       setProgress(null) // Clear progress
     })

@@ -4,6 +4,7 @@ import axios from 'axios'
 import { execa } from 'execa'
 import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
+import dependencyService from './dependencyService'
 
 interface VrpConfig {
   baseUri: string
@@ -226,7 +227,7 @@ class GameService {
       console.log(`Downloading meta.7z from ${baseUri}...`)
 
       // Get the appropriate rclone path based on platform
-      const rclonePath = this.getRclonePath()
+      const rclonePath = dependencyService.getRclonePath()
 
       // Get the main window to send progress updates
       const mainWindow = BrowserWindow.getAllWindows()[0]
@@ -306,25 +307,6 @@ class GameService {
     }
   }
 
-  // Helper method to get the appropriate rclone binary path based on platform
-  private getRclonePath(): string {
-    // In production, use packaged rclone binaries
-    if (app.isPackaged) {
-      const platform = process.platform
-      if (platform === 'win32') {
-        return join(process.resourcesPath, 'bin', 'rclone.exe')
-      } else if (platform === 'darwin') {
-        return join(process.resourcesPath, 'bin', 'rclone')
-      } else {
-        // Linux
-        return join(process.resourcesPath, 'bin', 'rclone')
-      }
-    } else {
-      // In development, assume rclone is in PATH
-      return 'rclone'
-    }
-  }
-
   private async extractMetaArchive(archive: string): Promise<void> {
     try {
       console.log(`Extracting ${archive} to ${this.dataPath}...`)
@@ -339,7 +321,7 @@ class GameService {
         console.log('Successfully decoded password for extraction')
 
         // Get the appropriate 7z path based on platform
-        const sevenZipPath = this.get7zPath()
+        const sevenZipPath = dependencyService.get7zPath()
 
         // Get the main window to send progress updates
         const mainWindow = BrowserWindow.getAllWindows()[0]
@@ -444,26 +426,6 @@ class GameService {
     } catch (error) {
       console.error('Error extracting meta archive:', error)
       throw error
-    }
-  }
-
-  // Helper method to get the appropriate 7z binary path based on platform
-  private get7zPath(): string {
-    // In production, use packaged 7z binaries
-    if (app.isPackaged) {
-      const platform = process.platform
-      if (platform === 'win32') {
-        return join(process.resourcesPath, 'bin', '7z.exe')
-      } else if (platform === 'darwin') {
-        return join(process.resourcesPath, 'bin', '7z')
-      } else {
-        // Linux
-        return join(process.resourcesPath, 'bin', '7z')
-      }
-    } else {
-      // In development, assume 7z is in PATH
-      const platform = process.platform
-      return platform === 'win32' ? '7z.exe' : '7z'
     }
   }
 

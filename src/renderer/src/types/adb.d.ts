@@ -32,7 +32,12 @@ export interface DependencyStatus {
     error: string | null
     downloading: boolean
   }
-  // Add rclone status later
+  rclone: {
+    ready: boolean
+    path: string | null
+    error: string | null
+    downloading: boolean
+  }
 }
 
 export interface DownloadProgress {

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { GameInfo } from '../main/services/gameService'
+import { DependencyStatus } from '../renderer/src/types/adb'
 
 // Type definitions (consider moving to a shared types file)
 interface DeviceInfo {
@@ -16,15 +17,6 @@ interface DownloadProgress {
 interface ExtractProgress {
   type: string
   progress: number
-}
-
-interface DependencyStatus {
-  sevenZip: {
-    ready: boolean
-    path: string | null
-    error: string | null
-    downloading: boolean
-  }
 }
 
 // Custom APIs for renderer

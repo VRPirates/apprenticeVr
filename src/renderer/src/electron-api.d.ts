@@ -1,15 +1,8 @@
 import { IpcRenderer } from 'electron'
-import { GameInfo, AdbAPI } from './types/adb' // Ensure PackageInfo is imported or defined if needed
+import { GameInfo, AdbAPI, DependencyStatus } from './types/adb' // Import DependencyStatus here
 
-interface DependencyStatus {
-  // Define this type if not already present
-  sevenZip: {
-    ready: boolean
-    path: string | null
-    error: string | null
-    downloading: boolean
-  }
-}
+// REMOVE local DependencyStatus definition if present
+// interface DependencyStatus { ... }
 
 declare global {
   interface Window {
@@ -33,9 +26,11 @@ declare global {
       onDependencyProgress: (
         callback: (progress: { name: string; percentage: number }) => void
       ) => () => void
-      onDependencySetupComplete: (callback: (status: DependencyStatus) => void) => () => void
+      onDependencySetupComplete: (
+        callback: (status: DependencyStatus) => void // Uses imported type
+      ) => () => void
       onDependencySetupError: (
-        callback: (errorInfo: { message: string; status: DependencyStatus }) => void
+        callback: (errorInfo: { message: string; status: DependencyStatus }) => void // Uses imported type
       ) => () => void
     }
   }

@@ -3,6 +3,7 @@ import { join } from 'path'
 import { promises as fsPromises, existsSync, createWriteStream } from 'fs'
 import axios, { AxiosProgressEvent } from 'axios'
 import { execa } from 'execa'
+import extract from 'extract-zip'
 
 // Type definitions
 type ProgressCallback = (progress: { name: string; percentage: number }) => void
@@ -14,7 +15,12 @@ interface DependencyStatus {
     error: string | null
     downloading: boolean
   }
-  // Add rclone status here later
+  rclone: {
+    ready: boolean
+    path: string | null
+    error: string | null
+    downloading: boolean
+  }
 }
 
 // Simple interface for GitHub Release Asset
@@ -33,7 +39,8 @@ class DependencyService {
     // Binaries will be stored in a 'bin' directory within userData
     this.targetDir = join(app.getPath('userData'), 'bin')
     this.status = {
-      sevenZip: { ready: false, path: null, error: null, downloading: false }
+      sevenZip: { ready: false, path: null, error: null, downloading: false },
+      rclone: { ready: false, path: null, error: null, downloading: false }
     }
     this.isInitializing = false
     this.isInitialized = false
@@ -52,6 +59,7 @@ class DependencyService {
     console.log('Initializing DependencyService...')
     await fsPromises.mkdir(this.targetDir, { recursive: true })
     await this.checkOrDownload7zip(progressCallback)
+    await this.checkOrDownloadRclone(progressCallback)
     console.log('DependencyService initialization finished.')
     this.isInitializing = false
     this.isInitialized = true
@@ -59,7 +67,7 @@ class DependencyService {
 
   // --- 7zip ---
 
-  private get7zPath(): string {
+  public get7zPath(): string {
     const platform = process.platform
     const exeSuffix = platform === 'win32' ? '.exe' : ''
     // Store the executable directly in the targetDir
@@ -297,13 +305,204 @@ class DependencyService {
     }
   }
 
+  // --- rclone ---
+
+  public getRclonePath(): string {
+    const platform = process.platform
+    const exeSuffix = platform === 'win32' ? '.exe' : ''
+    return join(this.targetDir, `rclone${exeSuffix}`)
+  }
+
+  private async checkOrDownloadRclone(progressCallback?: ProgressCallback): Promise<void> {
+    const expectedPath = this.getRclonePath()
+    this.status.rclone.path = expectedPath
+
+    if (existsSync(expectedPath)) {
+      console.log(`rclone found at ${expectedPath}`)
+      this.status.rclone.ready = true
+      this.status.rclone.downloading = false
+      this.status.rclone.error = null
+      return
+    }
+
+    console.log(`rclone not found at ${expectedPath}, attempting download.`)
+    this.status.rclone.ready = false
+    this.status.rclone.downloading = true
+    this.status.rclone.error = null
+    progressCallback?.({ name: 'rclone', percentage: 0 })
+
+    let tempArchivePath: string | null = null
+    let tempExtractDir: string | null = null
+
+    try {
+      const downloadUrl = await this.getRcloneDownloadUrl()
+      if (!downloadUrl) {
+        throw new Error('Could not find suitable rclone download URL.')
+      }
+
+      tempArchivePath = join(app.getPath('temp'), `rclone-download-${Date.now()}.zip`)
+      console.log(`Downloading rclone from ${downloadUrl} to ${tempArchivePath}`)
+
+      const response = await axios.get(downloadUrl, {
+        responseType: 'stream',
+        onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
+          if (progressEvent.total) {
+            const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            progressCallback?.({ name: 'rclone', percentage })
+          }
+        }
+      })
+
+      const writer = createWriteStream(tempArchivePath)
+      response.data.pipe(writer)
+      await new Promise<void>((resolve, reject) => {
+        writer.on('finish', resolve)
+        writer.on('error', reject)
+        response.data.on('error', reject)
+      })
+
+      console.log(`rclone download complete: ${tempArchivePath}`)
+      progressCallback?.({ name: 'rclone', percentage: 100 })
+
+      // --- Extraction Step ---
+      tempExtractDir = join(app.getPath('temp'), `rclone-extract-${Date.now()}`)
+      console.log(`Extracting archive: ${tempArchivePath} to ${tempExtractDir}`)
+      progressCallback?.({ name: 'rclone-extract', percentage: 0 })
+
+      await extract(tempArchivePath, { dir: tempExtractDir })
+      console.log(`Archive extracted to ${tempExtractDir}`)
+
+      // Find the binary within the extracted files (usually in a subdirectory)
+      const binaryName = process.platform === 'win32' ? 'rclone.exe' : 'rclone'
+      let foundBinaryPath: string | null = null
+
+      // Rclone zip extracts into a folder like rclone-vX.Y.Z-os-arch/
+      const entries = await fsPromises.readdir(tempExtractDir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const potentialPath = join(tempExtractDir, entry.name, binaryName)
+          if (existsSync(potentialPath)) {
+            foundBinaryPath = potentialPath
+            break
+          }
+        }
+      }
+
+      if (!foundBinaryPath) {
+        console.error(`Could not find ${binaryName} within extracted files in ${tempExtractDir}`)
+        throw new Error(`Could not locate ${binaryName} after extraction.`)
+      }
+
+      console.log(`Found rclone binary at ${foundBinaryPath}. Copying to ${expectedPath}...`)
+      await fsPromises.copyFile(foundBinaryPath, expectedPath)
+      console.log(`Successfully copied rclone binary to ${expectedPath}`)
+
+      // Clean up temp dirs and archive
+      console.log(`Cleaning up temporary files: ${tempExtractDir} and ${tempArchivePath}`)
+      await fsPromises.rm(tempExtractDir, { recursive: true, force: true })
+      await fsPromises.unlink(tempArchivePath)
+      tempArchivePath = null
+
+      this.status.rclone.ready = true
+      this.status.rclone.error = null
+      progressCallback?.({ name: 'rclone-extract', percentage: 100 })
+
+      // Set executable permissions
+      if (process.platform !== 'win32') {
+        try {
+          await fsPromises.chmod(expectedPath, 0o755)
+          console.log(`Set executable permissions for ${expectedPath}`)
+        } catch (chmodError) {
+          console.warn(`Failed to set executable permissions for ${expectedPath}:`, chmodError)
+        }
+      }
+    } catch (error) {
+      console.error(
+        'Error during rclone download/extraction:',
+        error instanceof Error ? error.message : String(error)
+      )
+      this.status.rclone.ready = false
+      this.status.rclone.downloading = false
+      this.status.rclone.error = error instanceof Error ? error.message : 'Unknown download error'
+      try {
+        if (tempArchivePath && existsSync(tempArchivePath)) {
+          await fsPromises.unlink(tempArchivePath)
+          console.log(`Cleaned up rclone temp archive: ${tempArchivePath}`)
+        }
+        if (tempExtractDir && existsSync(tempExtractDir)) {
+          await fsPromises.rm(tempExtractDir, { recursive: true, force: true })
+          console.log(`Cleaned up rclone temp extraction directory: ${tempExtractDir}`)
+        }
+      } catch (cleanupError) {
+        console.error('Failed to cleanup rclone temp files on error:', cleanupError)
+      }
+    } finally {
+      this.status.rclone.downloading = false
+    }
+  }
+
+  private async getRcloneDownloadUrl(): Promise<string | null> {
+    const repo = 'rclone/rclone'
+    const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`
+    console.log(`Fetching latest rclone release info from ${apiUrl}`)
+
+    try {
+      const response = await axios.get(apiUrl, { timeout: 15000 })
+      const release = response.data
+      const assets: GitHubAsset[] = release?.assets
+
+      if (!assets || !Array.isArray(assets)) {
+        console.error('No rclone assets found in the latest release data.')
+        return null
+      }
+
+      console.log(`Found ${assets.length} rclone assets for release ${release.tag_name}`)
+
+      const platform = process.platform
+      const arch = process.arch
+      let platformSuffix = ''
+      let archSuffix = ''
+
+      // Determine platform suffix
+      if (platform === 'win32') platformSuffix = 'windows'
+      else if (platform === 'darwin') platformSuffix = 'osx'
+      else if (platform === 'linux') platformSuffix = 'linux'
+      else return null // Unsupported platform
+
+      // Determine arch suffix
+      if (arch === 'x64') archSuffix = 'amd64'
+      else if (arch === 'arm64') archSuffix = 'arm64'
+      else if (arch === 'ia32')
+        archSuffix = '386' // rclone uses 386 for ia32
+      // Add arm? rclone might use 'arm'
+      else return null // Unsupported arch
+
+      const targetFileNamePattern = `-${platformSuffix}-${archSuffix}.zip`
+      console.log(`Searching for rclone asset ending with: ${targetFileNamePattern}`)
+
+      const targetAsset = assets.find((a) => a.name.endsWith(targetFileNamePattern))
+
+      if (!targetAsset?.browser_download_url) {
+        console.error(`Could not find a suitable rclone asset for pattern ${targetFileNamePattern}`)
+        return null
+      }
+
+      console.log(`Selected rclone asset: ${targetAsset.name}`)
+      return targetAsset.browser_download_url
+    } catch (error) {
+      console.error(
+        `Error fetching rclone release info from GitHub:`,
+        error instanceof Error ? error.message : String(error)
+      )
+      return null
+    }
+  }
+
   // --- Public Methods ---
 
   getStatus(): DependencyStatus {
     return this.status
   }
-
-  // Add checkOrDownloadRclone later
 }
 
 export default new DependencyService()
