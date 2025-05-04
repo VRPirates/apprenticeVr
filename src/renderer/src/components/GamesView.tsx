@@ -60,7 +60,7 @@ interface GamesViewProps {
 type FilterType = 'all' | 'installed' | 'update'
 
 // Filter function specifically for game name AND package name
-const filterGameNameAndPackage: FilterFn<GameInfo> = (row, columnId, filterValue) => {
+const filterGameNameAndPackage: FilterFn<GameInfo> = (row, _columnId, filterValue) => {
   const searchStr = String(filterValue).toLowerCase()
   const gameName = String(row.original.name ?? '').toLowerCase()
   const packageName = String(row.original.packageName ?? '').toLowerCase()
@@ -240,8 +240,9 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
 
   // Fetch note when dialog opens
   useEffect(() => {
+    let isMounted = true // Prevent state update on unmounted component
+
     if (isDialogOpen && dialogGame && dialogGame.releaseName) {
-      let isMounted = true // Prevent state update on unmounted component
       const fetchNote = async (): Promise<void> => {
         setLoadingNote(true)
         setCurrentGameNote(null) // Clear previous note
@@ -262,10 +263,9 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         }
       }
       fetchNote()
-
-      return () => {
-        isMounted = false
-      }
+    }
+    return () => {
+      isMounted = false
     }
   }, [isDialogOpen, dialogGame, getNote])
 
@@ -424,7 +424,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
 
   // Handle Row Click - Updated to open Dialog
   const handleRowClick = (
-    event: React.MouseEvent<HTMLTableRowElement>,
+    _event: React.MouseEvent<HTMLTableRowElement>,
     row: Row<GameInfo>
   ): void => {
     console.log('Row clicked for game:', row.original.name)
