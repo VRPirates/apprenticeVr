@@ -105,15 +105,10 @@ class DependencyService {
         throw new Error('Could not find suitable 7zip download URL.')
       }
 
-      // Determine target path for download
-      const downloadTargetPath =
-        platform === 'win32' && !isArchive
-          ? expectedPath // Download exe directly to final path
-          : join(
-              app.getPath('temp'),
-              `7zip-download-${Date.now()}${isArchive ? '.archive' : '.exe'}`
-            )
-      tempArchivePath = platform === 'win32' && !isArchive ? null : downloadTargetPath // Only set temp path if it's an archive
+      // Determine target path for download - ALWAYS use a temp path for the download itself
+      const downloadFileName = `7zip-download-${Date.now()}${isArchive ? '.archive' : '.exe'}`
+      const downloadTargetPath = join(app.getPath('temp'), downloadFileName)
+      tempArchivePath = downloadTargetPath // Keep track for cleanup
 
       console.log(`Downloading 7zip from ${downloadUrl} to ${downloadTargetPath}`)
 
@@ -139,7 +134,7 @@ class DependencyService {
       console.log(`7zip download complete: ${downloadTargetPath}`)
       progressCallback?.({ name: '7z', percentage: 100 })
 
-      // --- Extraction Step ---
+      // --- Extraction Step / Installation Step ---
       if (isArchive) {
         tempExtractDir = join(app.getPath('temp'), `7zip-extract-${Date.now()}`)
         console.log(`Extracting archive: ${downloadTargetPath} to ${tempExtractDir}`)
@@ -196,25 +191,56 @@ class DependencyService {
         console.log(`Cleaning up temporary files: ${tempExtractDir} and ${downloadTargetPath}`)
         await fsPromises.rm(tempExtractDir, { recursive: true, force: true })
         await fsPromises.unlink(downloadTargetPath)
+        console.log(`Cleaned up temp archive: ${downloadTargetPath}`)
         tempArchivePath = null // Archive handled
 
         this.status.sevenZip.ready = true
         this.status.sevenZip.error = null
         progressCallback?.({ name: '7z-extract', percentage: 100 })
-      } else {
-        // If it wasn't an archive (Windows .exe), it's already in place
-        this.status.sevenZip.ready = true
-        this.status.sevenZip.error = null
-        // Ensure executable permissions (especially on non-Windows)
-        if (platform !== 'win32') {
-          try {
-            await fsPromises.chmod(expectedPath, 0o755)
-            console.log(`Set executable permissions for ${expectedPath}`)
-          } catch (chmodError) {
-            console.warn(`Failed to set executable permissions for ${expectedPath}:`, chmodError)
-            // Decide if this is a fatal error or just a warning
+      } else if (platform === 'win32') {
+        // Windows: Run the downloaded .exe installer silently FROM the temp path
+        console.log(
+          `Running 7zip installer silently: ${downloadTargetPath} /S /D=${this.targetDir}`
+        )
+        progressCallback?.({ name: '7z-install', percentage: 0 })
+        try {
+          await fsPromises.mkdir(this.targetDir, { recursive: true })
+          // Run the installer FROM temp path, no need to store result if unused
+          await execa(downloadTargetPath, ['/S', `/D=${this.targetDir}`])
+          console.log(`7zip installer process finished.`) // Simplified log
+
+          // Verify the actual binary exists now
+          if (!existsSync(expectedPath)) {
+            throw new Error(`Installer ran, but ${expectedPath} was not found.`)
           }
+          console.log(`Successfully installed 7z.exe to ${expectedPath}`)
+
+          this.status.sevenZip.ready = true
+          this.status.sevenZip.error = null
+          progressCallback?.({ name: '7z-install', percentage: 100 })
+        } catch (installError) {
+          console.error('7zip silent installation failed:', installError)
+          throw new Error(
+            `Failed to install 7zip: ${installError instanceof Error ? installError.message : String(installError)}`
+          )
+        } finally {
+          // Clean up the downloaded installer exe from the temp path
+          console.log(`Cleaning up downloaded installer: ${downloadTargetPath}`)
+          try {
+            if (existsSync(downloadTargetPath)) {
+              // Check if it still exists before unlinking
+              await fsPromises.unlink(downloadTargetPath)
+            }
+          } catch (cleanupError) {
+            console.warn(`Failed to clean up installer exe: ${cleanupError}`)
+          }
+          tempArchivePath = null // Mark as handled
         }
+      } else {
+        // Should not happen based on get7zDownloadUrl logic
+        throw new Error(
+          `Unsupported platform configuration: platform=${platform}, isArchive=${isArchive}`
+        )
       }
     } catch (error) {
       console.error(
