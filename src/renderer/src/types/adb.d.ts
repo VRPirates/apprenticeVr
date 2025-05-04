@@ -45,7 +45,7 @@ export interface AdbContextType {
 }
 
 export interface AdbAPI {
-  llistDevices: () => Promise<DeviceInfo[]>
+  listDevices: () => Promise<DeviceInfo[]>
   connectDevice: (serial: string) => Promise<boolean> // Assuming boolean indicates success
   disconnectDevice: () => Promise<void>
   getInstalledPackages: (serial: string) => Promise<PackageInfo[]>
