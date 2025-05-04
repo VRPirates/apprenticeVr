@@ -8,10 +8,14 @@ import {
   Title1,
   makeStyles,
   tokens,
+  Spinner,
+  Text,
   // teamsDarkTheme,
   teamsLightTheme as theTheme
 } from '@fluentui/react-components'
 import electronLogo from '../assets/electron.svg'
+import { useDependency } from '../hooks/useDependency'
+import { DependencyProvider } from '../context/DependencyProvider'
 
 enum AppView {
   DEVICE_LIST,
@@ -39,8 +43,86 @@ const useStyles = makeStyles({
     flexGrow: 1,
     display: 'flex',
     flexDirection: 'column'
+  },
+  loadingOrErrorContainer: {
+    flexGrow: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: tokens.spacingVerticalL
   }
 })
+
+// Define props for the inner MainContent component
+interface MainContentProps {
+  currentView: AppView
+  onDeviceConnected: () => void
+  onSkipConnection: () => void
+  onBackToDeviceList: () => void
+}
+
+// Inner component that consumes the DependencyContext
+const MainContent: React.FC<MainContentProps> = ({
+  currentView,
+  onDeviceConnected,
+  onSkipConnection,
+  onBackToDeviceList
+}) => {
+  const styles = useStyles()
+  const {
+    isReady: dependenciesReady,
+    error: dependencyError,
+    progress: dependencyProgress,
+    status: dependencyStatus
+  } = useDependency()
+
+  if (!dependenciesReady) {
+    if (dependencyError) {
+      const errorDetails: string[] = []
+      if (!dependencyStatus?.sevenZip.ready) errorDetails.push('7zip')
+      // Add rclone check later
+      const failedDeps = errorDetails.length > 0 ? ` (${errorDetails.join(', ')})` : ''
+
+      return (
+        <div className={styles.loadingOrErrorContainer}>
+          <Text weight="semibold" style={{ color: tokens.colorPaletteRedForeground1 }}>
+            Dependency Error{failedDeps}
+          </Text>
+          <Text>{dependencyError}</Text>
+          {/* Add instructions or retry logic? */}
+        </div>
+      )
+    }
+    // Show progress if available
+    let progressText = 'Checking requirements...'
+    if (dependencyProgress) {
+      progressText = `Setting up ${dependencyProgress.name}... ${dependencyProgress.percentage}%`
+      if (dependencyProgress.name.endsWith('-extract')) {
+        progressText = `Extracting ${dependencyProgress.name.replace('-extract', '')}...`
+      }
+    }
+    return (
+      <div className={styles.loadingOrErrorContainer}>
+        <Spinner size="huge" />
+        <Text>{progressText}</Text>
+      </div>
+    )
+  }
+
+  // Dependencies are ready, render the rest of the app providers here
+  return (
+    <AdbProvider>
+      <GamesProvider>
+        {currentView === AppView.DEVICE_LIST ? (
+          <DeviceList onConnected={onDeviceConnected} onSkip={onSkipConnection} />
+        ) : (
+          <GamesView onBackToDevices={onBackToDeviceList} />
+        )}
+      </GamesProvider>
+    </AdbProvider>
+  )
+}
 
 const AppLayout: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DEVICE_LIST)
@@ -62,24 +144,22 @@ const AppLayout: React.FC = () => {
 
   return (
     <FluentProvider theme={currentTheme}>
-      <AdbProvider>
-        <GamesProvider>
-          <div className={styles.root}>
-            <div className={styles.header}>
-              <img alt="logo" className={styles.logo} src={electronLogo} />
-              <Title1>Apprentice VR</Title1>
-            </div>
-
-            <div className={styles.mainContent}>
-              {currentView === AppView.DEVICE_LIST ? (
-                <DeviceList onConnected={handleDeviceConnected} onSkip={handleSkipConnection} />
-              ) : (
-                <GamesView onBackToDevices={handleBackToDeviceList} />
-              )}
-            </div>
+      <DependencyProvider>
+        <div className={styles.root}>
+          <div className={styles.header}>
+            <img alt="logo" className={styles.logo} src={electronLogo} />
+            <Title1>Apprentice VR</Title1>
           </div>
-        </GamesProvider>
-      </AdbProvider>
+          <div className={styles.mainContent}>
+            <MainContent
+              currentView={currentView}
+              onDeviceConnected={handleDeviceConnected}
+              onSkipConnection={handleSkipConnection}
+              onBackToDeviceList={handleBackToDeviceList}
+            />
+          </div>
+        </div>
+      </DependencyProvider>
     </FluentProvider>
   )
 }

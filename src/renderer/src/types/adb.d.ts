@@ -25,6 +25,16 @@ export interface GameInfo {
   hasUpdate?: boolean
 }
 
+export interface DependencyStatus {
+  sevenZip: {
+    ready: boolean
+    path: string | null
+    error: string | null
+    downloading: boolean
+  }
+  // Add rclone status later
+}
+
 export interface DownloadProgress {
   type: string
   progress: number

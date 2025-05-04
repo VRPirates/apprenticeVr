@@ -46,7 +46,8 @@ class GameService {
   private metaPath: string
   private vrpConfig: VrpConfig | null = null
   private games: GameInfo[] = []
-
+  private isInitialized: boolean = false
+  private isInitializing: boolean = false
   constructor() {
     this.dataPath = join(app.getPath('userData'), 'vrp-data')
     this.configPath = join(this.dataPath, 'vrp-config.json')
@@ -54,11 +55,19 @@ class GameService {
     this.metaPath = join(this.dataPath, '.meta')
   }
 
-  async initialize(): Promise<void> {
+  async initialize(force?: boolean): Promise<void> {
+    if (this.isInitializing) {
+      console.log('GameService already initializing, skipping.')
+      return
+    }
+    if (!force && this.isInitialized) {
+      console.log('GameService already initialized, skipping.')
+      return
+    }
+    this.isInitializing = true
+    console.log('Initializing GameService...')
+    await fs.mkdir(this.dataPath, { recursive: true })
     try {
-      // Ensure data directory exists
-      await fs.mkdir(this.dataPath, { recursive: true })
-
       // Load configuration if exists
       await this.loadConfig()
 
@@ -74,6 +83,9 @@ class GameService {
       }
     } catch (error) {
       console.error('Error initializing game service:', error)
+    } finally {
+      this.isInitializing = false
+      this.isInitialized = true
     }
   }
 

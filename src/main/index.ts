@@ -4,16 +4,15 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import adbService from './services/adbService'
 import gameService from './services/gameService'
+import dependencyService from './services/dependencyService'
+// DELETE import { existsSync } from 'fs'
 
 let mainWindow: BrowserWindow | null = null
 
-// Initialize services
-async function initializeServices(): Promise<void> {
-  try {
-    // Initialize gameService
-    await gameService.initialize()
-  } catch (error) {
-    console.error('Error initializing services:', error)
+// Function to send dependency progress to renderer
+function sendDependencyProgress(progress: { name: string; percentage: number }): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('dependency-progress', progress)
   }
 }
 
@@ -35,6 +34,10 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) {
       mainWindow.show()
+      // Don't initialize here anymore, do it after window creation in whenReady
+      // gameService.initialize().catch((err) => {
+      //   console.error('Error initializing gameService:', err)
+      // })
     }
   })
 
@@ -50,11 +53,6 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
-
-  // Initialize Game Service (Keep this initialization if needed here, but it's also in whenReady)
-  gameService.initialize().catch((err) => {
-    console.error('Error initializing gameService:', err)
-  })
 }
 
 // This method will be called when Electron has finished
@@ -77,10 +75,44 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+  // --------- IPC Handlers --------- //
 
-  // --------- IPC Handlers (Register here *before* creating the window) --------- //
+  // --- Dependency Handlers ---
+  ipcMain.on('initialize-dependencies', async () => {
+    // Use .on, could be requested again?
+    console.log('Received initialize-dependencies request.')
+    try {
+      await dependencyService.initialize(sendDependencyProgress)
+      console.log('Dependency initialization complete. Sending status.')
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
+      }
+    } catch (error) {
+      console.error('Error during dependency initialization:', error)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('dependency-setup-error', {
+          message:
+            error instanceof Error ? error.message : 'Unknown dependency initialization error',
+          status: dependencyService.getStatus() // Send current status even on error
+        })
+      }
+    }
+  })
+
+  // --- Game Service Initializer ---
+  ipcMain.handle('initialize-game-service', async () => {
+    console.log('Received initialize-game-service request.')
+    try {
+      await gameService.initialize()
+      console.log('Game service initialized successfully.')
+      // Optionally return something, or just resolve promise
+      return true
+    } catch (error) {
+      console.error('Error initializing game service:', error)
+      // Rethrow or handle error appropriately
+      throw error // Let renderer know it failed
+    }
+  })
 
   // --- ADB Handlers ---
   ipcMain.handle('list-devices', async () => await adbService.listDevices())
@@ -122,11 +154,8 @@ app.whenReady().then(async () => {
     return gameService.getNote(releaseName)
   })
 
-  // Create window
+  // Create window FIRST
   createWindow()
-
-  // Initialize services (Consider initializing gameService only once, perhaps here)
-  await initializeServices()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

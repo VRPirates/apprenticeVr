@@ -1,7 +1,8 @@
 import React, { ReactNode, useEffect, useState, useCallback, useMemo } from 'react'
 import { GameInfo } from '../types/adb'
-import { GamesContext } from './GamesContext'
+import { GamesContext, GamesContextType } from './GamesContext'
 import { useAdb } from '../hooks/useAdb'
+import { useDependency } from '../hooks/useDependency'
 
 interface GamesProviderProps {
   children: ReactNode
@@ -24,7 +25,7 @@ const parseVersion = (versionString: string): number | null => {
 
 export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const [rawGames, setRawGames] = useState<GameInfo[]>([])
-  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isLoading, setIsLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [downloadProgress, setDownloadProgress] = useState<number>(0)
@@ -32,18 +33,17 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const [deviceVersionCodes, setDeviceVersionCodes] = useState<{ [packageName: string]: number }>(
     {}
   )
-  const [isCheckingVersions, setIsCheckingVersions] = useState<boolean>(false)
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
 
   const { packages: installedPackages, isConnected: isDeviceConnected, selectedDevice } = useAdb()
+  const dependencyContext = useDependency()
 
-  // Fetch version codes for installed packages on the connected device
   const fetchDeviceVersionCodes = useCallback(async () => {
     if (!isDeviceConnected || !selectedDevice || installedPackages.length === 0) {
       setDeviceVersionCodes({})
       return
     }
 
-    setIsCheckingVersions(true)
     const versions: { [packageName: string]: number } = {}
     const installedGamePackages = rawGames
       .filter(
@@ -58,7 +58,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     const results = await Promise.allSettled(
       installedGamePackages.map(async (pkgName) => {
         try {
-          const versionCode = await window.api.adb.getPackageVersionCode(selectedDevice, pkgName)
+          const versionCode = await window.api.adb.getPackageVersionCode(selectedDevice!, pkgName)
           if (versionCode !== null) {
             return { packageName: pkgName, versionCode }
           }
@@ -77,17 +77,14 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
     console.log('Fetched device versions:', versions)
     setDeviceVersionCodes(versions)
-    setIsCheckingVersions(false)
   }, [isDeviceConnected, selectedDevice, installedPackages, rawGames])
 
-  // Trigger version fetching when connection status or installed packages change
   useEffect(() => {
     if (isDeviceConnected) {
       fetchDeviceVersionCodes()
     }
-  }, [fetchDeviceVersionCodes, isDeviceConnected]) // Rerun when fetch function identity changes (deps change)
+  }, [fetchDeviceVersionCodes, isDeviceConnected])
 
-  // Enrich games with installed status AND update status
   const games = useMemo((): GameInfo[] => {
     const installedSet = new Set(installedPackages.map((pkg) => pkg.packageName))
 
@@ -115,8 +112,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     })
   }, [rawGames, installedPackages, deviceVersionCodes])
 
-  // Original loadGames and refreshGames remain largely the same,
-  // but refresh might implicitly trigger version re-check via useEffect
   const loadGames = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true)
@@ -134,23 +129,24 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       setError('Failed to load games')
     } finally {
       setIsLoading(false)
+      if (!isInitialLoadComplete) {
+        setIsInitialLoadComplete(true)
+      }
     }
-  }, [])
+  }, [isInitialLoadComplete])
 
   const refreshGames = useCallback(async (): Promise<void> => {
-    // ... (keep existing implementation)
     try {
       setIsLoading(true)
       setError(null)
       setDownloadProgress(0)
       setExtractProgress(0)
-      // Resetting versions might be good here before fetching new list
       setDeviceVersionCodes({})
 
       const gamesList = await window.api.games.forceSync()
-      setRawGames(gamesList)
-
       const syncTime = await window.api.games.getLastSyncTime()
+
+      setRawGames(gamesList)
       setLastSyncTime(syncTime ? new Date(syncTime) : null)
     } catch (err) {
       console.error('Error refreshing games:', err)
@@ -159,7 +155,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       setIsLoading(false)
       setDownloadProgress(0)
       setExtractProgress(0)
-      // Version check will trigger via useEffect if device is still connected
     }
   }, [])
 
@@ -184,23 +179,37 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   }, [])
 
   useEffect(() => {
-    loadGames()
-  }, [loadGames])
+    const initializeAndLoad = async (): Promise<void> => {
+      if (dependencyContext.isReady && !isInitialLoadComplete) {
+        console.log('Dependencies ready, initializing game service and loading games...')
+        try {
+          setIsLoading(true)
+          await window.api.initializeGameService()
+          await loadGames()
+        } catch (initError) {
+          console.error('Failed to initialize game service or load games:', initError)
+          setError(initError instanceof Error ? initError.message : 'Failed to load game data')
+          setIsInitialLoadComplete(true)
+        }
+      }
+    }
+    initializeAndLoad()
+  }, [dependencyContext.isReady, loadGames, isInitialLoadComplete])
 
   const getNote = useCallback(async (releaseName: string): Promise<string> => {
     return await window.api.games.getNote(releaseName)
   }, [])
 
-  const value = {
-    games, // This now includes isInstalled, deviceVersionCode, hasUpdate
-    isLoading: isLoading || isCheckingVersions, // Combine loading states
+  const value: GamesContextType = {
+    games,
+    isLoading,
     error,
     lastSyncTime,
     downloadProgress,
     extractProgress,
     refreshGames,
-    getNote
-    // No need to expose deviceVersionCodes or isCheckingVersions directly
+    getNote,
+    isInitialLoadComplete
   }
 
   return <GamesContext.Provider value={value}>{children}</GamesContext.Provider>

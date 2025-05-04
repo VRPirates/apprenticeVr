@@ -18,8 +18,19 @@ interface ExtractProgress {
   progress: number
 }
 
+interface DependencyStatus {
+  sevenZip: {
+    ready: boolean
+    path: string | null
+    error: string | null
+    downloading: boolean
+  }
+}
+
 // Custom APIs for renderer
 const api = {
+  initializeDependencies: (): void => ipcRenderer.send('initialize-dependencies'),
+  initializeGameService: (): Promise<void> => ipcRenderer.invoke('initialize-game-service'),
   adb: {
     listDevices: (): Promise<DeviceInfo[]> => ipcRenderer.invoke('list-devices'),
     connectDevice: (serial: string): Promise<boolean> =>
@@ -68,6 +79,28 @@ const api = {
       ipcRenderer.on('extract-progress', listener)
       return () => ipcRenderer.removeListener('extract-progress', listener)
     }
+  },
+  // Dependency Status Listeners
+  onDependencyProgress: (
+    callback: (progress: { name: string; percentage: number }) => void
+  ): (() => void) => {
+    const listener = (_: unknown, progress: { name: string; percentage: number }): void =>
+      callback(progress)
+    ipcRenderer.on('dependency-progress', listener)
+    return () => ipcRenderer.removeListener('dependency-progress', listener)
+  },
+  onDependencySetupComplete: (callback: (status: DependencyStatus) => void): (() => void) => {
+    const listener = (_: unknown, status: DependencyStatus): void => callback(status)
+    ipcRenderer.on('dependency-setup-complete', listener)
+    return () => ipcRenderer.removeListener('dependency-setup-complete', listener)
+  },
+  onDependencySetupError: (
+    callback: (errorInfo: { message: string; status: DependencyStatus }) => void
+  ): (() => void) => {
+    const listener = (_: unknown, errorInfo: { message: string; status: DependencyStatus }): void =>
+      callback(errorInfo)
+    ipcRenderer.on('dependency-setup-error', listener)
+    return () => ipcRenderer.removeListener('dependency-setup-error', listener)
   }
 }
 
