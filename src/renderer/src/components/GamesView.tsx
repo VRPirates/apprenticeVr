@@ -16,6 +16,41 @@ import { useAdb } from '../hooks/useAdb'
 import { useGames } from '../hooks/useGames'
 import { GameInfo } from '../types/adb' // Make sure GameInfo is imported
 import placeholderImage from '../assets/images/game-placeholder.png'
+// Import Dialog components
+import {
+  Dialog,
+  DialogTrigger,
+  DialogSurface,
+  DialogBody,
+  DialogTitle,
+  DialogActions,
+  Button, // Keep Button import
+  DialogContent,
+  tokens,
+  shorthands,
+  makeStyles,
+  Title2,
+  Text,
+  Input,
+  Image,
+  Badge,
+  Divider
+} from '@fluentui/react-components'
+import {
+  ArrowClockwiseRegular,
+  DismissRegular,
+  PlugDisconnectedRegular,
+  DocumentDataRegular,
+  CalendarClockRegular,
+  ArrowDownloadRegular as DownloadIcon,
+  TagRegular,
+  DeleteRegular,
+  ArrowSyncRegular,
+  ArrowUpRegular,
+  InfoRegular
+} from '@fluentui/react-icons'
+import { CheckmarkCircleRegular } from '@fluentui/react-icons'
+import { ArrowLeftRegular } from '@fluentui/react-icons'
 
 interface GamesViewProps {
   onBackToDevices: () => void
@@ -44,68 +79,100 @@ declare module '@tanstack/react-table' {
   // ... FilterMeta if needed ...
 }
 
-// Simple Popover Component (can be moved to its own file)
-interface GameActionPopoverProps {
-  game: GameInfo | null
-  position: { top: number; left: number } | null
-  onClose: () => void
-  onDelete: (game: GameInfo) => void // Add other actions later (onInstall, onReinstall, onUpdate)
-}
-
-const GameActionPopover: React.FC<GameActionPopoverProps> = ({
-  game,
-  position,
-  onClose,
-  onDelete
-}) => {
-  if (!game || !position) return null
-
-  const isInstalled = game.isInstalled
-  const hasUpdate = game.hasUpdate
-
-  const handleActionClick = (action: () => void): void => {
-    action()
-    onClose()
+const useStyles = makeStyles({
+  root: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    overflow: 'hidden',
+    backgroundColor: tokens.colorNeutralBackground1
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    ...shorthands.padding(tokens.spacingVerticalL, tokens.spacingHorizontalL),
+    ...shorthands.borderBottom(tokens.strokeWidthThin, 'solid', tokens.colorNeutralStroke1),
+    backgroundColor: tokens.colorNeutralBackground3,
+    flexShrink: 0
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalM
+  },
+  deviceInfoBar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS
+  },
+  connectedDeviceText: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXS
+  },
+  deviceWarningText: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXS,
+    color: tokens.colorPaletteRedForeground1
+  },
+  tableContainer: {
+    flexGrow: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    ...shorthands.padding(tokens.spacingVerticalL, tokens.spacingHorizontalL),
+    overflow: 'hidden'
+  },
+  toolbar: {
+    // Rely on Fluent UI Toolbar component for styling
+    marginBottom: tokens.spacingVerticalL,
+    flexShrink: 0
+  },
+  filterButtons: {
+    display: 'flex',
+    gap: tokens.spacingHorizontalS
+  },
+  toolbarRight: {
+    // Style the right group in toolbar
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalM
+  },
+  searchInput: {
+    width: '250px'
+  },
+  statusArea: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shorthands.padding(tokens.spacingVerticalXXL),
+    flexGrow: 1
+  },
+  progressBarContainer: {
+    width: '100%',
+    maxWidth: '400px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalS,
+    alignItems: 'center'
+  },
+  tableWrapper: {
+    flexGrow: 1,
+    overflow: 'auto', // Scroll for table content
+    position: 'relative' // Needed for virtualizer
+  },
+  dialogContentLayout: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalM,
+    marginTop: tokens.spacingVerticalL
+  },
+  deleteConfirmText: {
+    ...shorthands.padding(tokens.spacingVerticalM, 0)
   }
-
-  // Placeholder actions
-  const handleInstall = (): void => console.log('Install clicked for:', game.packageName)
-  const handleReinstall = (): void => console.log('Reinstall clicked for:', game.packageName)
-  const handleUpdate = (): void => console.log('Update clicked for:', game.packageName)
-
-  return (
-    <div
-      className="game-action-popover"
-      style={{ top: `${position.top}px`, left: `${position.left}px` }}
-      // Add click outside listener later if needed
-    >
-      <div className="popover-header">
-        <span>{game.name}</span>
-        <button
-          onClick={() => handleActionClick(() => onDelete(game))}
-          className="close-popover-btn"
-        >
-          ×
-        </button>
-      </div>
-      <ul className="popover-actions">
-        {!isInstalled && <li onClick={() => handleActionClick(() => handleInstall())}>Install</li>}
-        {isInstalled && !hasUpdate && (
-          <>
-            <li onClick={() => handleActionClick(() => handleReinstall())}>Reinstall</li>
-            <li onClick={() => handleActionClick(() => onDelete(game))}>Delete</li>
-          </>
-        )}
-        {isInstalled && hasUpdate && (
-          <>
-            <li onClick={() => handleActionClick(() => handleUpdate())}>Update</li>
-            <li onClick={() => handleActionClick(() => onDelete(game))}>Delete</li>
-          </>
-        )}
-      </ul>
-    </div>
-  )
-}
+})
 
 const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const {
@@ -125,15 +192,17 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     refreshGames
   } = useGames()
 
+  const styles = useStyles()
+
   const [globalFilter, setGlobalFilter] = useState('')
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [popoverGame, setPopoverGame] = useState<GameInfo | null>(null)
-  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(null)
+  const [dialogGame, setDialogGame] = useState<GameInfo | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false)
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<boolean>(false)
   const tableContainerRef = useRef<HTMLDivElement>(null)
-  const popoverRef = useRef<HTMLDivElement>(null) // Ref for the popover element itself
 
   // Calculate counts based on the full games list
   const counts = useMemo(() => {
@@ -319,116 +388,84 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     return 0
   }
 
-  // Handle Row Click - Consolidated Logic
+  // Handle Row Click - Updated to open Dialog
   const handleRowClick = (
     event: React.MouseEvent<HTMLTableRowElement>,
     row: Row<GameInfo>
   ): void => {
-    // If the click is inside the currently open popover, let the popover handle it (e.g., action clicks)
-    if (popoverRef.current && popoverRef.current.contains(event.target as Node)) {
-      console.log('Row click ignored: click target was inside the popover.')
-      return
-    }
-
-    // If a popover is open (and the click wasn't inside it), close it.
-    if (popoverGame) {
-      console.log('Row click detected while popover open (click outside popover), closing.')
-      handleClosePopover()
-      // We stop here because the requirement is to not open a new one immediately
-      return
-    }
-
-    // If we reach here, no popover was open, and the click wasn't inside a potential popover.
-    // So, open a new one for the clicked row.
-    console.log('No popover open, opening for row:', row.original.id)
-    const clickY = event.clientY
-    const clickX = event.clientX
-    setPopoverPosition({ top: clickY + 5, left: clickX + 5 })
-    setPopoverGame(row.original)
+    console.log('Row clicked for game:', row.original.name)
+    setDialogGame(row.original)
+    setIsDialogOpen(true)
   }
 
-  const handleClosePopover = useCallback((): void => {
-    // Only log if actually closing
-    if (popoverGame) {
-      console.log('Closing popover')
-      setPopoverGame(null)
-      setPopoverPosition(null)
-    }
-  }, [popoverGame]) // Add popoverGame dependency to useCallback if logging change
+  // Simple handler to close main dialog
+  const handleCloseDialog = (): void => {
+    setIsDialogOpen(false)
+    setTimeout(() => {
+      setDialogGame(null)
+    }, 300)
+  }
 
-  // Click Outside Handler (Handles clicks truly outside the table/popover area)
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent): void => {
-      // Double check: Popover exists, Ref exists, and click is outside Ref
-      if (popoverGame && popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
-        // Important: Check if the click target is *also* outside the rows/table area
-        // to prevent conflict with handleRowClick. Clicks on rows are handled by handleRowClick now.
-        if (!tableContainerRef.current?.contains(event.target as Node)) {
-          console.log(
-            'Document click listener: Target outside table container and popover, closing.'
-          )
-          handleClosePopover()
-        } else {
-          console.log(
-            'Document click listener: Target inside table container, ignored (handled by row click).'
-          )
-        }
-      }
-    }
+  // Placeholder actions - Ensure they close the dialog
+  const handleInstall = (game: GameInfo | null): void => {
+    if (!game) return
+    console.log('Install action triggered for:', game.packageName)
+    handleCloseDialog()
+  }
+  const handleReinstall = (game: GameInfo | null): void => {
+    if (!game) return
+    console.log('Reinstall action triggered for:', game.packageName)
+    handleCloseDialog()
+  }
+  const handleUpdate = (game: GameInfo | null): void => {
+    if (!game) return
+    console.log('Update action triggered for:', game.packageName)
+    handleCloseDialog()
+  }
 
-    if (popoverPosition) {
-      document.addEventListener('mousedown', handleClickOutside)
-    } else {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
+  // Delete Action - Opens confirmation dialog
+  const handleDeleteRequest = (): void => {
+    console.log('Delete requested for:', dialogGame?.packageName)
+    setIsDeleteConfirmOpen(true)
+  }
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-    }
-    // Update dependencies for useCallback change
-  }, [popoverPosition, popoverGame, handleClosePopover])
+  // Confirmed Delete Action - Performs delete and closes dialogs
+  const handleConfirmDelete = useCallback(async (): Promise<void> => {
+    if (!dialogGame || !selectedDevice || !dialogGame.packageName) return
 
-  // Handle Delete Action
-  const handleDeleteGame = useCallback(
-    async (gameToDelete: GameInfo): Promise<void> => {
-      if (!selectedDevice || !gameToDelete.packageName) return
+    const gameToDelete = { ...dialogGame } // Capture game before closing dialogs
+    setIsDeleteConfirmOpen(false) // Close confirmation
+    setIsDialogOpen(false) // Close main action dialog
+    setDialogGame(null) // Clear game data
 
-      const confirmDelete = window.confirm(
-        `Are you sure you want to uninstall ${gameToDelete.name} (${gameToDelete.packageName})? This will also remove associated OBB and Data files.`
+    console.log(`Proceeding with uninstall for ${gameToDelete.packageName}...`)
+    setIsLoading(true)
+    try {
+      const success = await window.api.adb.uninstallPackage(
+        selectedDevice,
+        gameToDelete.packageName
       )
-
-      if (confirmDelete) {
-        console.log(`Uninstalling ${gameToDelete.packageName}...`)
-        setIsLoading(true)
-        try {
-          const success = await window.api.adb.uninstallPackage(
-            selectedDevice,
-            gameToDelete.packageName
-          )
-          if (success) {
-            console.log('Uninstall successful, refreshing package list...')
-            await loadPackages()
-          } else {
-            console.error('Uninstall failed.')
-            window.alert('Failed to uninstall the game.')
-          }
-        } catch (error) {
-          console.error('Error during uninstall IPC call:', error)
-          window.alert('An error occurred during uninstallation.')
-        } finally {
-          setIsLoading(false)
-        }
+      if (success) {
+        console.log('Uninstall successful, refreshing package list...')
+        await loadPackages()
+      } else {
+        console.error('Uninstall failed.')
+        window.alert('Failed to uninstall the game.')
       }
-    },
-    [selectedDevice, loadPackages]
-  )
+    } catch (error) {
+      console.error('Error during uninstall IPC call:', error)
+      window.alert('An error occurred during uninstallation.')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [dialogGame, selectedDevice, loadPackages]) // Dependencies
 
   // Combine loading states for display/disabling elements
   const isBusy = adbLoading || loadingGames || isLoading
 
   return (
     <div className="games-view">
-      <div className="games-header">
+      {/* <div className="games-header">
         <div className="games-header-left">
           <button className="back-button" onClick={onBackToDevices}>
             ← Back to Devices
@@ -450,14 +487,43 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             <span className="device-warning">No device connected</span>
           )}
         </div>
-      </div>
+      </div> */}
+      <header className={styles.header}>
+        <div className={styles.headerLeft}>
+          <Button icon={<ArrowLeftRegular />} onClick={onBackToDevices} appearance="transparent">
+            Back to Devices
+          </Button>
+          <Title2>VR Games Library</Title2>
+        </div>
+        <div className={styles.deviceInfoBar}>
+          {isConnected ? (
+            <>
+              <Text className={styles.connectedDeviceText}>
+                <CheckmarkCircleRegular fontSize={16} color={tokens.colorPaletteGreenForeground1} />
+                Connected: <strong>{selectedDevice}</strong>
+              </Text>
+              <Button
+                icon={<DismissRegular />}
+                onClick={disconnectDevice}
+                appearance="subtle"
+                size="small"
+                aria-label="Disconnect device"
+              />
+            </>
+          ) : (
+            <Text className={styles.deviceWarningText}>
+              <PlugDisconnectedRegular fontSize={16} /> No device connected
+            </Text>
+          )}
+        </div>
+      </header>
 
-      <div className="games-container-table" ref={tableContainerRef}>
+      <div className="games-container-table">
         <div className="games-toolbar">
           <div className="games-toolbar-left">
-            <button className="refresh-button" onClick={refreshGames} disabled={isBusy}>
+            <Button icon={<ArrowClockwiseRegular />} onClick={refreshGames} disabled={isBusy}>
               {isBusy ? 'Working...' : 'Refresh Games'}
-            </button>
+            </Button>
             <span className="last-synced">Last synced: {formatDate(lastSyncTime)}</span>
             {/* Install Status Filter Buttons */}
             {isConnected && (
@@ -486,12 +552,11 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           </div>
           <div className="games-toolbar-right">
             <span className="game-count">{table.getFilteredRowModel().rows.length} displayed</span>
-            <input
-              type="text"
+            <Input
               value={globalFilter ?? ''}
               onChange={(e) => setGlobalFilter(String(e.target.value))}
-              className="search-input"
               placeholder="Search name/package..."
+              type="search"
             />
           </div>
         </div>
@@ -519,7 +584,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           </div>
         ) : (
           <>
-            <div className="table-wrapper">
+            <div className="table-wrapper" ref={tableContainerRef}>
               <table className="games-table" style={{ width: table.getTotalSize() }}>
                 <thead>
                   {table.getHeaderGroups().map((headerGroup) => (
@@ -604,15 +669,280 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                 </tbody>
               </table>
             </div>
-            {/* Render Popover and forward the ref */}
-            <div ref={popoverRef}>
-              <GameActionPopover
-                game={popoverGame}
-                position={popoverPosition}
-                onClose={handleClosePopover}
-                onDelete={handleDeleteGame}
-              />
-            </div>
+
+            {/* ---- Main Action Dialog ---- */}
+            <Dialog
+              open={isDialogOpen}
+              onOpenChange={(_e, data) => !data.open && handleCloseDialog()}
+              modalType="modal"
+            >
+              <DialogSurface mountNode={tableContainerRef.current}>
+                <DialogBody style={{ zIndex: 1000 }}>
+                  <DialogTitle>{dialogGame?.name}</DialogTitle>
+                  <DialogContent>
+                    {/* Game Details */}
+                    {dialogGame && (
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '150px 1fr',
+                          gap: tokens.spacingHorizontalL,
+                          marginTop: tokens.spacingVerticalL,
+                          marginBottom: tokens.spacingVerticalXL,
+                          alignItems: 'start'
+                        }}
+                      >
+                        {/* Left Column: Thumbnail */}
+                        <div>
+                          <Image
+                            src={
+                              dialogGame.thumbnailPath
+                                ? `file://${dialogGame.thumbnailPath}`
+                                : placeholderImage
+                            }
+                            alt={`${dialogGame.name} thumbnail`}
+                            shape="rounded"
+                            width={150}
+                            height={150}
+                            fit="cover"
+                          />
+                        </div>
+
+                        {/* Right Column: Details (Using Flexbox now) */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: tokens.spacingVerticalL
+                          }}
+                        >
+                          {/* Top Info: Name, Package, Status */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: tokens.spacingVerticalXS
+                            }}
+                          >
+                            <Text size={600} weight="semibold">
+                              {dialogGame.name}
+                            </Text>
+                            <Text
+                              size={300}
+                              weight="regular"
+                              style={{ color: tokens.colorNeutralForeground2 }}
+                            >
+                              {dialogGame.packageName}
+                            </Text>
+                            {/* Container for Badges and Inline Info */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                gap: tokens.spacingHorizontalL,
+                                alignItems: 'center',
+                                marginTop: tokens.spacingVerticalS,
+                                flexWrap: 'wrap'
+                              }}
+                            >
+                              {/* Status Badges */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  gap: tokens.spacingHorizontalS,
+                                  alignItems: 'center'
+                                }}
+                              >
+                                <Badge
+                                  shape="rounded"
+                                  color={dialogGame.isInstalled ? 'success' : 'informative'}
+                                  appearance="filled"
+                                >
+                                  {dialogGame.isInstalled ? 'Installed' : 'Not Installed'}
+                                </Badge>
+                                {dialogGame.hasUpdate && (
+                                  <Badge shape="rounded" color="brand" appearance="filled">
+                                    Update Available
+                                  </Badge>
+                                )}
+                              </div>
+                              {/* Inline Info: Size */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: tokens.spacingHorizontalXS
+                                }}
+                              >
+                                <DocumentDataRegular fontSize={16} />
+                                <Text size={300}>{dialogGame.size || '-'}</Text>
+                              </div>
+                              {/* Inline Info: Downloads */}
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: tokens.spacingHorizontalXS
+                                }}
+                              >
+                                <DownloadIcon fontSize={16} />
+                                <Text size={300}>
+                                  {dialogGame.downloads?.toLocaleString() || '-'}
+                                </Text>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Divider */}
+                          <Divider />
+
+                          {/* Detail List with Icons (Size and Downloads Removed) */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: tokens.spacingVerticalM
+                            }}
+                          >
+                            {/* Version Info */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: tokens.spacingHorizontalS
+                              }}
+                            >
+                              <InfoRegular fontSize={16} />
+                              <Text>
+                                {dialogGame.version ? `v${dialogGame.version}` : '-'}
+                                {dialogGame.isInstalled &&
+                                  dialogGame.deviceVersionCode &&
+                                  ` (Device: v${dialogGame.deviceVersionCode})`}
+                              </Text>
+                            </div>
+                            {/* Release Name */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: tokens.spacingHorizontalS
+                              }}
+                            >
+                              <TagRegular fontSize={16} />
+                              <Text>{dialogGame.releaseName || '-'}</Text>
+                            </div>
+                            {/* Size REMOVED */}
+                            {/* Last Updated */}
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: tokens.spacingHorizontalS
+                              }}
+                            >
+                              <CalendarClockRegular fontSize={16} />
+                              <Text>{dialogGame.lastUpdated || '-'}</Text>
+                            </div>
+                            {/* Downloads REMOVED */}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions List - Adding Icons */}
+                    {dialogGame && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: tokens.spacingVerticalS // Consistent spacing
+                        }}
+                      >
+                        {!dialogGame.isInstalled && (
+                          <Button
+                            appearance="primary"
+                            icon={<DownloadIcon />}
+                            onClick={() => handleInstall(dialogGame)}
+                          >
+                            Install
+                          </Button>
+                        )}
+                        {dialogGame.isInstalled && !dialogGame.hasUpdate && (
+                          <>
+                            <Button
+                              appearance="secondary"
+                              icon={<ArrowSyncRegular />}
+                              onClick={() => handleReinstall(dialogGame)}
+                            >
+                              Reinstall
+                            </Button>
+                            <Button
+                              appearance="danger"
+                              icon={<DeleteRegular />}
+                              onClick={handleDeleteRequest}
+                            >
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                        {dialogGame.isInstalled && dialogGame.hasUpdate && (
+                          <>
+                            <Button
+                              appearance="primary"
+                              icon={<ArrowUpRegular />}
+                              onClick={() => handleUpdate(dialogGame)}
+                            >
+                              Update
+                            </Button>
+                            <Button
+                              appearance="danger"
+                              icon={<DeleteRegular />}
+                              onClick={handleDeleteRequest}
+                            >
+                              Delete
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </DialogContent>
+                  <DialogActions>
+                    <DialogTrigger disableButtonEnhancement>
+                      <Button appearance="secondary" onClick={handleCloseDialog}>
+                        Close
+                      </Button>
+                    </DialogTrigger>
+                  </DialogActions>
+                </DialogBody>
+              </DialogSurface>
+            </Dialog>
+
+            {/* ---- Delete Confirmation Dialog ---- */}
+            <Dialog
+              open={isDeleteConfirmOpen}
+              onOpenChange={(_e, data) => !data.open && setIsDeleteConfirmOpen(false)}
+              modalType="alert"
+            >
+              <DialogSurface mountNode={tableContainerRef.current}>
+                <DialogBody>
+                  <DialogTitle>Confirm Uninstall</DialogTitle>
+                  <div>
+                    Are you sure you want to uninstall
+                    <strong> {dialogGame?.name} </strong>({dialogGame?.packageName})? This will also
+                    remove associated OBB and Data files.
+                  </div>
+                  <DialogActions>
+                    <DialogTrigger disableButtonEnhancement>
+                      <Button appearance="secondary" onClick={() => setIsDeleteConfirmOpen(false)}>
+                        Cancel
+                      </Button>
+                    </DialogTrigger>
+                    <Button appearance="primary" onClick={handleConfirmDelete}>
+                      Uninstall
+                    </Button>
+                  </DialogActions>
+                </DialogBody>
+              </DialogSurface>
+            </Dialog>
           </>
         )}
       </div>

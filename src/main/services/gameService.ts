@@ -34,6 +34,10 @@ export interface GameInfo {
   releaseName: string
   downloads: number
   thumbnailPath: string
+  notePath: string
+  isInstalled: boolean
+  deviceVersionCode?: number
+  hasUpdate?: boolean
 }
 
 class GameService {
@@ -533,7 +537,10 @@ class GameService {
           ? join(this.metaPath, 'thumbnails', `${packageName}.jpg`)
           : ''
 
+        const notePath = releaseName ? join(this.metaPath, 'notes', `${releaseName}.txt`) : ''
+
         const thumbnailExists = existsSync(thumbnailPath)
+        //const noteExists = existsSync(notePath)
 
         const gameInfo: GameInfo = {
           id: packageName || gameName.replace(/\s+/g, '-').toLowerCase(),
@@ -544,7 +551,10 @@ class GameService {
           lastUpdated,
           releaseName,
           downloads: parseInt(downloads) || 0,
-          thumbnailPath: thumbnailExists ? thumbnailPath : ''
+          thumbnailPath: thumbnailExists ? thumbnailPath : '',
+          // notePath: noteExists ? notePath : '',
+          notePath,
+          isInstalled: false
         }
 
         games.push(gameInfo)

@@ -3,6 +3,14 @@ import { AdbProvider } from '../context/AdbProvider'
 import { GamesProvider } from '../context/GamesProvider'
 import DeviceList from './DeviceList'
 import GamesView from './GamesView'
+import {
+  FluentProvider,
+  Title1,
+  makeStyles,
+  tokens,
+  // teamsDarkTheme,
+  teamsLightTheme as theTheme
+} from '@fluentui/react-components'
 import electronLogo from '../assets/electron.svg'
 
 enum AppView {
@@ -10,8 +18,33 @@ enum AppView {
   GAMES
 }
 
+const useStyles = makeStyles({
+  root: {
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '100vh'
+  },
+  header: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
+    borderBottom: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
+    backgroundColor: tokens.colorNeutralBackground3,
+    gap: tokens.spacingHorizontalM
+  },
+  logo: {
+    height: '32px'
+  },
+  mainContent: {
+    flexGrow: 1,
+    display: 'flex',
+    flexDirection: 'column'
+  }
+})
+
 const AppLayout: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DEVICE_LIST)
+  const styles = useStyles()
 
   const handleDeviceConnected = (): void => {
     setCurrentView(AppView.GAMES)
@@ -25,25 +58,29 @@ const AppLayout: React.FC = () => {
     setCurrentView(AppView.DEVICE_LIST)
   }
 
-  return (
-    <AdbProvider>
-      <GamesProvider>
-        <div className="app-content">
-          <div className="app-header">
-            <img alt="logo" className="logo" src={electronLogo} />
-            <h1>Apprentice VR - Meta Quest ADB Manager</h1>
-          </div>
+  const currentTheme = theTheme
 
-          <div className="app-main">
-            {currentView === AppView.DEVICE_LIST ? (
-              <DeviceList onConnected={handleDeviceConnected} onSkip={handleSkipConnection} />
-            ) : (
-              <GamesView onBackToDevices={handleBackToDeviceList} />
-            )}
+  return (
+    <FluentProvider theme={currentTheme}>
+      <AdbProvider>
+        <GamesProvider>
+          <div className={styles.root}>
+            <div className={styles.header}>
+              <img alt="logo" className={styles.logo} src={electronLogo} />
+              <Title1>Apprentice VR</Title1>
+            </div>
+
+            <div className={styles.mainContent}>
+              {currentView === AppView.DEVICE_LIST ? (
+                <DeviceList onConnected={handleDeviceConnected} onSkip={handleSkipConnection} />
+              ) : (
+                <GamesView onBackToDevices={handleBackToDeviceList} />
+              )}
+            </div>
           </div>
-        </div>
-      </GamesProvider>
-    </AdbProvider>
+        </GamesProvider>
+      </AdbProvider>
+    </FluentProvider>
   )
 }
 

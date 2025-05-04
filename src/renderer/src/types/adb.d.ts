@@ -19,6 +19,7 @@ export interface GameInfo {
   releaseName: string
   downloads: number
   thumbnailPath: string
+  notePath: string
   isInstalled: boolean
   deviceVersionCode?: number
   hasUpdate?: boolean
