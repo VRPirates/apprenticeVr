@@ -118,7 +118,7 @@ class DependencyService {
 
     switch (platform) {
       case 'win32':
-        platformDir = 'win32'
+        platformDir = 'win'
         binaryName = '7za.exe'
         break
       case 'linux':
@@ -126,7 +126,7 @@ class DependencyService {
         binaryName = '7zzs'
         break
       case 'darwin':
-        platformDir = 'darwin'
+        platformDir = 'mac'
         binaryName = '7zz'
         break
       default:
@@ -134,7 +134,7 @@ class DependencyService {
         throw new Error(`Unsupported platform for bundled 7zip: ${platform}`)
     }
 
-    const fullPath = join(this.resourcesBinDir, platformDir, binaryName)
+    const fullPath = join(this.resourcesBinDir, app.isPackaged ? '' : platformDir, binaryName)
     console.log(`Calculated 7zip path for ${platform}: ${fullPath}`)
     return fullPath
   }
