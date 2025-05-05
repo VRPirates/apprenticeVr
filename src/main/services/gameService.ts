@@ -5,6 +5,7 @@ import { execa } from 'execa'
 import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
 import dependencyService from './dependencyService'
+import { ServiceStatus } from './service'
 
 interface VrpConfig {
   baseUri: string
@@ -56,14 +57,14 @@ class GameService {
     this.metaPath = join(this.dataPath, '.meta')
   }
 
-  async initialize(force?: boolean): Promise<void> {
+  async initialize(force?: boolean): Promise<ServiceStatus> {
     if (this.isInitializing) {
       console.log('GameService already initializing, skipping.')
-      return
+      return 'INITIALIZING'
     }
     if (!force && this.isInitialized) {
       console.log('GameService already initialized, skipping.')
-      return
+      return 'INITIALIZED'
     }
     this.isInitializing = true
     console.log('Initializing GameService...')
@@ -84,10 +85,12 @@ class GameService {
       }
     } catch (error) {
       console.error('Error initializing game service:', error)
+      return 'ERROR'
     } finally {
       this.isInitializing = false
       this.isInitialized = true
     }
+    return 'INITIALIZED'
   }
 
   private async loadConfig(): Promise<void> {

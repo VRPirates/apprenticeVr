@@ -1,6 +1,7 @@
 import React, { useEffect, useState, ReactNode, useCallback } from 'react'
 import { DeviceInfo, PackageInfo } from '../types/adb'
 import { AdbContext } from './AdbContext'
+import { useDependency } from '@renderer/hooks/useDependency'
 
 interface AdbProviderProps {
   children: ReactNode
@@ -14,9 +15,32 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [packages, setPackages] = useState<PackageInfo[]>([])
   const [loadingPackages, setLoadingPackages] = useState<boolean>(false)
+  const dependencyContext = useDependency()
+  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
+
+  useEffect(() => {
+    const initializeAndLoad = async (): Promise<void> => {
+      if (dependencyContext.isReady && !isInitialLoadComplete) {
+        console.log('Dependencies ready, initializing adb service...')
+        try {
+          setIsLoading(true)
+          await window.api.initializeADBService()
+          setIsLoading(false)
+          setIsInitialLoadComplete(true)
+        } catch (initError) {
+          console.error('Failed to initialize adb service:', initError)
+          setError(
+            initError instanceof Error ? initError.message : 'Failed to initialize adb service'
+          )
+        }
+      }
+    }
+    initializeAndLoad()
+  }, [dependencyContext.isReady, isInitialLoadComplete])
 
   // Initialize device tracking when provider mounts
   useEffect(() => {
+    if (!isInitialLoadComplete) return
     // Start device tracking
     window.api.adb.startTrackingDevices()
 
@@ -61,7 +85,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
       removeDeviceChanged()
       removeTrackerError()
     }
-  }, [selectedDevice])
+  }, [selectedDevice, isInitialLoadComplete])
 
   // Load installed packages from connected device
   const loadPackages = useCallback(async (): Promise<void> => {
@@ -143,6 +167,10 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     refreshDevices,
     disconnectDevice,
     loadPackages
+  }
+
+  if (!isInitialLoadComplete) {
+    return <div>Loading...</div>
   }
 
   return <AdbContext.Provider value={value}>{children}</AdbContext.Provider>

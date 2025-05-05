@@ -10,6 +10,7 @@ declare global {
     api: {
       initializeDependencies: () => void
       initializeGameService: () => Promise<void>
+      initializeADBService: () => Promise<void>
       adb: AdbAPI
       games: {
         getGames: () => Promise<GameInfo[]>
@@ -24,7 +25,7 @@ declare global {
         ) => () => void
       }
       onDependencyProgress: (
-        callback: (progress: { name: string; percentage: number }) => void
+        callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void
       ) => () => void
       onDependencySetupComplete: (
         callback: (status: DependencyStatus) => void // Uses imported type

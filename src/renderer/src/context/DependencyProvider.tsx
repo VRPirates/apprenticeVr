@@ -18,8 +18,9 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
     window.api.initializeDependencies() // No await needed, fire-and-forget request
 
     // Setup listeners
-    const removeProgressListener = window.api.onDependencyProgress((progressData) => {
+    const removeProgressListener = window.api.onDependencyProgress((status, progressData) => {
       console.log('Received dependency progress:', progressData)
+      setStatus(status)
       setProgress(progressData)
       setError(null) // Clear error on progress
     })
@@ -28,7 +29,8 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
       console.log('Dependency setup complete:', finalStatus)
       setStatus(finalStatus)
       // Determine overall readiness based on ALL dependencies
-      const allReady = finalStatus.sevenZip.ready && finalStatus.rclone.ready
+      const allReady =
+        finalStatus.sevenZip.ready && finalStatus.rclone.ready && finalStatus.adb.ready
       setIsReady(allReady)
 
       // Determine error message if not all ready
@@ -39,6 +41,7 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
           errors.push(`7zip (${finalStatus.sevenZip.error || 'unknown error'})`)
         if (!finalStatus.rclone.ready)
           errors.push(`rclone (${finalStatus.rclone.error || 'unknown error'})`)
+        if (!finalStatus.adb.ready) errors.push(`adb (${finalStatus.adb.error || 'unknown error'})`)
         combinedError = `Required dependencies failed: ${errors.join('; ')}`
       }
       setError(combinedError)

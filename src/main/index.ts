@@ -5,14 +5,18 @@ import icon from '../../resources/icon.png?asset'
 import adbService from './services/adbService'
 import gameService from './services/gameService'
 import dependencyService from './services/dependencyService'
-// DELETE import { existsSync } from 'fs'
+import { DependencyStatus } from '../renderer/src/types/adb'
 
 let mainWindow: BrowserWindow | null = null
 
 // Function to send dependency progress to renderer
-function sendDependencyProgress(progress: { name: string; percentage: number }): void {
+function sendDependencyProgress(
+  status: DependencyStatus,
+  progress: { name: string; percentage: number }
+): void {
+  console.log('Sending dependency progress:', progress)
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('dependency-progress', progress)
+    mainWindow.webContents.send('dependency-progress', status, progress)
   }
 }
 
@@ -82,7 +86,10 @@ app.whenReady().then(async () => {
     // Use .on, could be requested again?
     console.log('Received initialize-dependencies request.')
     try {
-      await dependencyService.initialize(sendDependencyProgress)
+      const initialized = await dependencyService.initialize(sendDependencyProgress)
+      if (initialized === 'INITIALIZING') {
+        return
+      }
       console.log('Dependency initialization complete. Sending status.')
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
@@ -99,11 +106,28 @@ app.whenReady().then(async () => {
     }
   })
 
+  ipcMain.handle('initialize-adb-service', async () => {
+    console.log('Received initialize-adb-service request.')
+    try {
+      await adbService.initialize()
+      console.log('ADB service initialized successfully.')
+      // Optionally return something, or just resolve promise
+      return true
+    } catch (error) {
+      console.error('Error initializing adb service:', error)
+      // Rethrow or handle error appropriately
+      throw error // Let renderer know it failed
+    }
+  })
+
   // --- Game Service Initializer ---
   ipcMain.handle('initialize-game-service', async () => {
     console.log('Received initialize-game-service request.')
     try {
-      await gameService.initialize()
+      const initialized = await gameService.initialize()
+      if (initialized === 'INITIALIZING') {
+        return
+      }
       console.log('Game service initialized successfully.')
       // Optionally return something, or just resolve promise
       return true

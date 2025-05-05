@@ -3,9 +3,14 @@ import { join } from 'path'
 import { promises as fsPromises, existsSync, createWriteStream, chmodSync } from 'fs'
 import axios, { AxiosProgressEvent } from 'axios'
 import { execa } from 'execa'
+import * as yauzl from 'yauzl'
+import { ServiceStatus } from './service'
 
 // Type definitions
-type ProgressCallback = (progress: { name: string; percentage: number }) => void
+type ProgressCallback = (
+  status: DependencyStatus,
+  progress: { name: string; percentage: number }
+) => void
 
 interface DependencyInfo {
   ready: boolean
@@ -16,9 +21,15 @@ interface DependencyInfo {
 interface RcloneDependencyInfo extends DependencyInfo {
   downloading: boolean
 }
-interface DependencyStatus {
+
+interface AdbDependencyInfo extends DependencyInfo {
+  downloading: boolean
+}
+
+export interface DependencyStatus {
   sevenZip: DependencyInfo
   rclone: RcloneDependencyInfo
+  adb: AdbDependencyInfo
 }
 
 // Simple interface for GitHub Release Asset
@@ -44,20 +55,21 @@ class DependencyService {
     this.status = {
       // 7zip status simplified - only checks existence
       sevenZip: { ready: false, path: null, error: null },
-      rclone: { ready: false, path: null, error: null, downloading: false }
+      rclone: { ready: false, path: null, error: null, downloading: false },
+      adb: { ready: false, path: null, error: null, downloading: false }
     }
     this.isInitializing = false
     this.isInitialized = false
   }
 
-  async initialize(progressCallback?: ProgressCallback, force?: boolean): Promise<void> {
+  async initialize(progressCallback?: ProgressCallback, force?: boolean): Promise<ServiceStatus> {
     if (this.isInitializing) {
       console.log('DependencyService already initializing, skipping.')
-      return
+      return 'INITIALIZING'
     }
     if (!force && this.isInitialized) {
       console.log('DependencyService already initialized, skipping.')
-      return
+      return 'INITIALIZED'
     }
     this.isInitializing = true
     console.log('Initializing DependencyService...')
@@ -70,30 +82,36 @@ class DependencyService {
     // Check or download rclone (this remains the same)
     await this.checkOrDownloadRclone(progressCallback)
 
+    // Check or download adb
+    await this.checkOrDownloadAdb(progressCallback)
+
     console.log('DependencyService initialization finished.')
     this.isInitializing = false
     this.isInitialized = true
 
     // Check if all dependencies are ready after initialization
-    if (!this.status.sevenZip.ready || !this.status.rclone.ready) {
+    if (!this.status.sevenZip.ready || !this.status.rclone.ready || !this.status.adb.ready) {
       // Throw an error or handle the situation where dependencies aren't ready
-      const missing: ('7zip' | 'rclone')[] = []
+      const missing: ('7zip' | 'rclone' | 'adb')[] = []
       if (!this.status.sevenZip.ready) missing.push('7zip')
       if (!this.status.rclone.ready) missing.push('rclone')
+      if (!this.status.adb.ready) missing.push('adb')
       // Construct error message based on what failed
       let errorMessage = `Dependency setup failed. Missing or failed: ${missing.join(', ')}. `
       if (this.status.sevenZip.error) errorMessage += `7zip Error: ${this.status.sevenZip.error} `
       if (this.status.rclone.error) errorMessage += `Rclone Error: ${this.status.rclone.error}`
+      if (this.status.adb.error) errorMessage += `ADB Error: ${this.status.adb.error}`
 
       console.error(errorMessage)
       throw new Error(errorMessage) // Propagate error to caller
     }
+    return 'INITIALIZED'
   }
 
   // --- 7zip ---
 
   // Updated to point to bundled location
-  public get7zPath(): string | null {
+  public get7zPath(): string {
     const platform = process.platform
     let platformDir: string
     let binaryName: string
@@ -113,7 +131,7 @@ class DependencyService {
         break
       default:
         console.error(`Unsupported platform for bundled 7zip: ${platform}`)
-        return null // Or throw an error
+        throw new Error(`Unsupported platform for bundled 7zip: ${platform}`)
     }
 
     const fullPath = join(this.resourcesBinDir, platformDir, binaryName)
@@ -181,7 +199,7 @@ class DependencyService {
     this.status.rclone.ready = false
     this.status.rclone.downloading = true
     this.status.rclone.error = null
-    progressCallback?.({ name: 'rclone', percentage: 0 })
+    progressCallback?.(this.status, { name: 'rclone', percentage: 0 })
 
     let tempArchivePath: string | null = null
     let tempExtractDir: string | null = null
@@ -200,7 +218,7 @@ class DependencyService {
         onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
           if (progressEvent.total) {
             const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            progressCallback?.({ name: 'rclone', percentage })
+            progressCallback?.(this.status, { name: 'rclone', percentage })
           }
         }
       })
@@ -214,12 +232,12 @@ class DependencyService {
       })
 
       console.log(`rclone download complete: ${tempArchivePath}`)
-      progressCallback?.({ name: 'rclone', percentage: 100 })
+      progressCallback?.(this.status, { name: 'rclone', percentage: 100 })
 
       // --- Extraction Step ---
       tempExtractDir = join(app.getPath('temp'), `rclone-extract-${Date.now()}`)
       console.log(`Extracting archive: ${tempArchivePath} to ${tempExtractDir}`)
-      progressCallback?.({ name: 'rclone-extract', percentage: 0 })
+      progressCallback?.(this.status, { name: 'rclone-extract', percentage: 0 })
 
       // Use the bundled 7zip for extraction if it's ready
       const sevenZipPath = this.status.sevenZip.ready ? this.status.sevenZip.path : null
@@ -270,7 +288,7 @@ class DependencyService {
 
       this.status.rclone.ready = true
       this.status.rclone.error = null
-      progressCallback?.({ name: 'rclone-extract', percentage: 100 })
+      progressCallback?.(this.status, { name: 'rclone-extract', percentage: 100 })
 
       // Set executable permissions
       if (process.platform !== 'win32') {
@@ -364,6 +382,205 @@ class DependencyService {
         error instanceof Error ? error.message : String(error)
       )
       return null
+    }
+  }
+
+  // --- ADB ---
+
+  public getAdbPath(): string {
+    const platform = process.platform
+    const exeSuffix = platform === 'win32' ? '.exe' : ''
+    // adb is downloaded to userData/bin
+    return join(this.binDir, `adb${exeSuffix}`)
+  }
+
+  private async checkOrDownloadAdb(progressCallback?: ProgressCallback): Promise<void> {
+    const expectedPath = this.getAdbPath()
+    this.status.adb.path = expectedPath
+
+    if (existsSync(expectedPath)) {
+      console.log(`adb found at ${expectedPath}`)
+      this.status.adb.ready = true
+      this.status.adb.downloading = false
+      this.status.adb.error = null
+      // Ensure executable permissions on non-windows (even if it exists)
+      if (process.platform !== 'win32') {
+        try {
+          await fsPromises.chmod(expectedPath, 0o755)
+        } catch (chmodError) {
+          console.warn(
+            `Failed to ensure execute permissions for existing adb ${expectedPath}:`,
+            chmodError
+          )
+          this.status.adb.ready = false // Mark as not ready if permissions fail
+          this.status.adb.error = `Permission error: ${chmodError instanceof Error ? chmodError.message : String(chmodError)}`
+        }
+      }
+      return
+    }
+
+    console.log(`adb not found at ${expectedPath}, attempting download.`)
+    this.status.adb.ready = false
+    this.status.adb.downloading = true
+    this.status.adb.error = null
+    progressCallback?.(this.status, { name: 'adb', percentage: 0 })
+
+    let tempArchivePath: string | null = null
+    // let tempExtractDir: string | null = null // No longer needed with direct yauzl extraction logic
+
+    try {
+      const platform = process.platform
+      let downloadUrl: string
+      if (platform === 'win32') {
+        downloadUrl = 'https://dl.google.com/android/repository/platform-tools-latest-windows.zip'
+      } else if (platform === 'darwin') {
+        downloadUrl = 'https://dl.google.com/android/repository/platform-tools-latest-darwin.zip'
+      } else if (platform === 'linux') {
+        downloadUrl = 'https://dl.google.com/android/repository/platform-tools-latest-linux.zip'
+      } else {
+        throw new Error(`Unsupported platform for adb download: ${platform}`)
+      }
+
+      tempArchivePath = join(app.getPath('temp'), `platform-tools-download-${Date.now()}.zip`)
+      console.log(`Downloading adb platform-tools from ${downloadUrl} to ${tempArchivePath}`)
+
+      const response = await axios.get(downloadUrl, {
+        responseType: 'stream',
+        timeout: 30000, // Increased timeout for potentially larger download
+        onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
+          if (progressEvent.total) {
+            const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            progressCallback?.(this.status, { name: 'adb', percentage })
+          }
+        }
+      })
+
+      const writer = createWriteStream(tempArchivePath)
+      response.data.pipe(writer)
+      await new Promise<void>((resolve, reject) => {
+        writer.on('finish', resolve)
+        writer.on('error', reject)
+        response.data.on('error', reject) // Propagate errors from the download stream
+      })
+
+      console.log(`adb platform-tools download complete: ${tempArchivePath}`)
+      progressCallback?.(this.status, { name: 'adb', percentage: 100 })
+
+      // --- Extraction Step using yauzl ---
+      console.log(`Extracting adb from archive: ${tempArchivePath} directly to ${this.binDir}`)
+      progressCallback?.(this.status, { name: 'adb-extract', percentage: 0 }) // Indicate start of extraction
+
+      const adbBinaryName = platform === 'win32' ? 'adb.exe' : 'adb'
+      const adbBinaryPathInZip = `platform-tools/${adbBinaryName}` // Path within the zip
+      let adbFoundInZip = false
+
+      await new Promise<void>((resolve, reject) => {
+        yauzl.open(tempArchivePath!, { lazyEntries: true }, (err, zipfile) => {
+          if (err || !zipfile) return reject(err || new Error('Failed to open zip file'))
+
+          zipfile.readEntry() // Start reading entries
+
+          zipfile.on('entry', (entry: yauzl.Entry) => {
+            // Check if the entry is the adb binary we need
+            if (entry.fileName.endsWith('/') || entry.fileName !== adbBinaryPathInZip) {
+              // It's a directory or not the file we want, read next entry
+              zipfile.readEntry()
+              return
+            }
+
+            // Found the adb binary
+            adbFoundInZip = true
+            console.log(`Found ${adbBinaryName} in zip. Extracting to ${expectedPath}...`)
+
+            zipfile.openReadStream(entry, (streamErr, readStream) => {
+              if (streamErr || !readStream) {
+                zipfile.close()
+                return reject(streamErr || new Error('Failed to open read stream for adb binary'))
+              }
+
+              const writeStream = createWriteStream(expectedPath)
+              readStream.pipe(writeStream)
+
+              readStream.on('error', (readErr) => {
+                console.error('Error reading zip stream:', readErr)
+                writeStream.close() // Ensure write stream is closed on read error
+                zipfile.close()
+                reject(readErr)
+              })
+
+              writeStream.on('finish', () => {
+                console.log(`Successfully extracted ${adbBinaryName} to ${expectedPath}`)
+                // Extraction of the target file is done, we can technically stop
+                // but let yauzl finish cleanly. Continue reading entries until 'end'.
+                zipfile.readEntry() // Read next (though we don't need more)
+              })
+              writeStream.on('error', (writeErr) => {
+                console.error('Error writing extracted file:', writeErr)
+                readStream.destroy() // Stop reading if write fails
+                zipfile.close()
+                reject(writeErr)
+              })
+            })
+          })
+
+          zipfile.on('end', () => {
+            console.log('Finished processing zip file entries.')
+            if (!adbFoundInZip) {
+              reject(
+                new Error(`Could not find ${adbBinaryPathInZip} inside the downloaded archive.`)
+              )
+            } else {
+              resolve()
+            }
+          })
+
+          zipfile.on('error', (zipErr) => {
+            reject(zipErr)
+          })
+        })
+      })
+
+      // Clean up temp archive
+      console.log(`Cleaning up temporary archive: ${tempArchivePath}`)
+      await fsPromises.unlink(tempArchivePath)
+      tempArchivePath = null
+
+      this.status.adb.ready = true
+      this.status.adb.error = null
+      progressCallback?.(this.status, { name: 'adb-extract', percentage: 100 })
+
+      // Set executable permissions
+      if (process.platform !== 'win32') {
+        try {
+          await fsPromises.chmod(expectedPath, 0o755)
+          console.log(`Set executable permissions for ${expectedPath}`)
+        } catch (chmodError) {
+          console.warn(`Failed to set executable permissions for ${expectedPath}:`, chmodError)
+          this.status.adb.ready = false // Mark as not ready if permissions fail
+          this.status.adb.error = `Permission error: ${chmodError instanceof Error ? chmodError.message : String(chmodError)}`
+        }
+      }
+    } catch (error) {
+      console.error(
+        'Error during adb download/extraction:',
+        error instanceof Error ? error.message : String(error)
+      )
+      console.error(error)
+      this.status.adb.ready = false
+      this.status.adb.downloading = false
+      this.status.adb.error =
+        error instanceof Error ? error.message : 'Unknown download/extraction error'
+      // Clean up temp archive on error if it exists
+      try {
+        if (tempArchivePath && existsSync(tempArchivePath)) {
+          await fsPromises.unlink(tempArchivePath)
+          console.log(`Cleaned up adb temp archive on error: ${tempArchivePath}`)
+        }
+      } catch (cleanupError) {
+        console.error('Failed to cleanup adb temp files on error:', cleanupError)
+      }
+    } finally {
+      this.status.adb.downloading = false
     }
   }
 

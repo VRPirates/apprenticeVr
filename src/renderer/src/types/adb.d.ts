@@ -30,9 +30,14 @@ export interface DependencyStatus {
     ready: boolean
     path: string | null
     error: string | null
-    downloading: boolean
   }
   rclone: {
+    ready: boolean
+    path: string | null
+    error: string | null
+    downloading: boolean
+  }
+  adb: {
     ready: boolean
     path: string | null
     error: string | null

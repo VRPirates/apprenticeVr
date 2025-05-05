@@ -2,6 +2,7 @@ import { Adb, Device } from '@devicefarmer/adbkit'
 import Tracker from '@devicefarmer/adbkit/dist/src/adb/tracker'
 import { BrowserWindow } from 'electron'
 import { EventEmitter } from 'events'
+import dependencyService from './dependencyService'
 
 interface PackageInfo {
   packageName: string
@@ -9,16 +10,25 @@ interface PackageInfo {
 }
 
 class AdbService extends EventEmitter {
-  private client: ReturnType<typeof Adb.createClient>
+  private client: ReturnType<typeof Adb.createClient> | null
   private deviceTracker: Tracker | null = null
   private isTracking = false
 
   constructor() {
     super()
-    this.client = Adb.createClient()
+    this.client = null
+  }
+
+  public async initialize(): Promise<void> {
+    this.client = Adb.createClient({
+      bin: dependencyService.getAdbPath()
+    })
   }
 
   async listDevices(): Promise<Device[]> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
     try {
       const devices = await this.client.listDevices()
       return devices
@@ -31,6 +41,9 @@ class AdbService extends EventEmitter {
   async startTrackingDevices(mainWindow: BrowserWindow): Promise<void> {
     if (this.isTracking) {
       return
+    }
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
     }
 
     this.isTracking = true
@@ -68,6 +81,9 @@ class AdbService extends EventEmitter {
   }
 
   async connectToDevice(serial: string): Promise<boolean> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
     try {
       // Create a device instance
       const device = this.client.getDevice(serial)
@@ -82,6 +98,9 @@ class AdbService extends EventEmitter {
   }
 
   async getInstalledPackages(serial: string): Promise<PackageInfo[]> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
     try {
       const device = this.client.getDevice(serial)
 
@@ -106,6 +125,9 @@ class AdbService extends EventEmitter {
   }
 
   async getPackageVersionCode(serial: string, packageName: string): Promise<number | null> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
     try {
       const device = this.client.getDevice(serial)
       const command = `dumpsys package ${packageName} | grep versionCode`
@@ -144,6 +166,9 @@ class AdbService extends EventEmitter {
   }
 
   async uninstallPackage(serial: string, packageName: string): Promise<boolean> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
     console.log(`Attempting to uninstall ${packageName} from ${serial}...`)
     try {
       const device = this.client.getDevice(serial)

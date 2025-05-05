@@ -23,6 +23,7 @@ interface ExtractProgress {
 const api = {
   initializeDependencies: (): void => ipcRenderer.send('initialize-dependencies'),
   initializeGameService: (): Promise<void> => ipcRenderer.invoke('initialize-game-service'),
+  initializeADBService: (): Promise<void> => ipcRenderer.invoke('initialize-adb-service'),
   adb: {
     listDevices: (): Promise<DeviceInfo[]> => ipcRenderer.invoke('list-devices'),
     connectDevice: (serial: string): Promise<boolean> =>
@@ -74,10 +75,13 @@ const api = {
   },
   // Dependency Status Listeners
   onDependencyProgress: (
-    callback: (progress: { name: string; percentage: number }) => void
+    callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void
   ): (() => void) => {
-    const listener = (_: unknown, progress: { name: string; percentage: number }): void =>
-      callback(progress)
+    const listener = (
+      _: unknown,
+      status: DependencyStatus,
+      progress: { name: string; percentage: number }
+    ): void => callback(status, progress)
     ipcRenderer.on('dependency-progress', listener)
     return () => ipcRenderer.removeListener('dependency-progress', listener)
   },

@@ -103,18 +103,28 @@ const MainContent: React.FC<MainContentProps> = ({
     }
     // Show progress if available - only rclone needs downloading/extracting now
     let progressText = 'Checking requirements...'
+    console.log('dependencyStatus', dependencyStatus)
+    console.log('dependencyProgress', dependencyProgress)
     if (dependencyStatus?.rclone.downloading && dependencyProgress) {
       // Show specific rclone progress only if it's downloading
       progressText = `Setting up ${dependencyProgress.name}... ${dependencyProgress.percentage}%`
       if (dependencyProgress.name === 'rclone-extract') {
         progressText = `Extracting ${dependencyProgress.name.replace('-extract', '')}...`
       }
+    } else if (dependencyStatus?.adb.downloading && dependencyProgress) {
+      // Show specific adb progress if it's downloading/extracting
+      progressText = `Setting up ${dependencyProgress.name}... ${dependencyProgress.percentage}%`
+      if (dependencyProgress.name === 'adb-extract') {
+        progressText = `Extracting ${dependencyProgress.name.replace('-extract', '')}...`
+      }
     } else if (
       dependencyStatus &&
-      (!dependencyStatus.sevenZip.ready || !dependencyStatus.rclone.ready)
+      (!dependencyStatus.sevenZip.ready ||
+        !dependencyStatus.rclone.ready ||
+        !dependencyStatus.adb.ready) // Added adb check
     ) {
       // Generic checking message if not downloading but still not ready
-      progressText = 'Checking required tools...'
+      progressText = 'Setting up requirements...'
     }
     // If all deps are ready, this block is skipped anyway by the `if (!dependenciesReady)` check above
 
@@ -178,7 +188,7 @@ const AppLayout: React.FC = () => {
               onChange={handleThemeChange}
             />
           </div>
-          <div id="mainContent">
+          <div className={styles.mainContent} id="mainContent">
             <MainContent
               currentView={currentView}
               onDeviceConnected={handleDeviceConnected}
