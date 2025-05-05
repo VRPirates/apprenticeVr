@@ -249,7 +249,7 @@ class GameService {
           '--tpslimit-burst',
           '3',
           '--no-check-certificate',
-          '--progress' // Enable progress reporting
+          '--progress'
         ],
         {
           stdio: ['ignore', 'pipe', 'pipe']
@@ -548,6 +548,19 @@ class GameService {
 
   getLastSyncTime(): Date | null {
     return this.vrpConfig?.lastSync || null
+  }
+
+  // Added method to expose VRP config needed by DownloadService
+  getVrpConfig(): { baseUri?: string; password?: string } | null {
+    if (!this.vrpConfig) {
+      console.warn('Attempted to get VRP config before it was loaded.')
+      return null
+    }
+    // Return only necessary parts, don't expose lastSync etc.
+    return {
+      baseUri: this.vrpConfig.baseUri,
+      password: this.vrpConfig.password
+    }
   }
 
   getNote(releaseName: string): string {

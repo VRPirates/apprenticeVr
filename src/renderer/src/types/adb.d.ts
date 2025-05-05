@@ -86,3 +86,22 @@ export interface GamesAPI {
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
   onExtractProgress: (callback: (progress: DownloadProgress) => void) => () => void
 }
+
+// Added Download Types Mirroring Main Process
+export type DownloadStatus = 'Queued' | 'Downloading' | 'Completed' | 'Error' | 'Cancelled'
+
+export interface DownloadItem {
+  gameId: string
+  releaseName: string
+  gameName: string
+  status: DownloadStatus
+  progress: number
+  error?: string
+  downloadPath?: string
+  pid?: number
+  addedDate: number
+  thumbnailPath?: string
+  speed?: string
+  eta?: string
+}
+// -----------------------------------------

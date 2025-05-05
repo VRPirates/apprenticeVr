@@ -14,6 +14,7 @@ import {
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAdb } from '../hooks/useAdb'
 import { useGames } from '../hooks/useGames'
+import { useDownload } from '../hooks/useDownload'
 import { GameInfo } from '../types/adb' // Make sure GameInfo is imported
 import placeholderImage from '../assets/images/game-placeholder.png'
 // Import Dialog components
@@ -192,6 +193,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     refreshGames,
     getNote
   } = useGames()
+  const { addToQueue: addDownloadToQueue } = useDownload()
 
   const styles = useStyles()
 
@@ -444,16 +446,54 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const handleInstall = (game: GameInfo | null): void => {
     if (!game) return
     console.log('Install action triggered for:', game.packageName)
+    addDownloadToQueue(game)
+      .then((success) => {
+        if (success) {
+          console.log(`Successfully added ${game.releaseName} to download queue.`)
+          // Optionally navigate to downloads view or show notification?
+        } else {
+          console.log(`Failed to add ${game.releaseName} to queue (might already exist).`)
+          // Optionally show notification?
+        }
+      })
+      .catch((err) => {
+        console.error('Error adding to queue:', err)
+        // Show error notification?
+      })
     handleCloseDialog()
   }
   const handleReinstall = (game: GameInfo | null): void => {
     if (!game) return
     console.log('Reinstall action triggered for:', game.packageName)
+    // Basic Reinstall: Just add to download queue again
+    addDownloadToQueue(game)
+      .then((success) => {
+        if (success) {
+          console.log(`Successfully added ${game.releaseName} to queue for reinstall.`)
+        } else {
+          console.log(
+            `Failed to add ${game.releaseName} to queue for reinstall (might already exist).`
+          )
+        }
+      })
+      .catch((err) => console.error('Error adding to queue for reinstall:', err))
     handleCloseDialog()
   }
   const handleUpdate = (game: GameInfo | null): void => {
     if (!game) return
     console.log('Update action triggered for:', game.packageName)
+    // Basic Update: Just add to download queue again
+    addDownloadToQueue(game)
+      .then((success) => {
+        if (success) {
+          console.log(`Successfully added ${game.releaseName} to queue for update.`)
+        } else {
+          console.log(
+            `Failed to add ${game.releaseName} to queue for update (might already exist).`
+          )
+        }
+      })
+      .catch((err) => console.error('Error adding to queue for update:', err))
     handleCloseDialog()
   }
 

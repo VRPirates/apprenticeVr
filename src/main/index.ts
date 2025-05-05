@@ -5,7 +5,9 @@ import icon from '../../resources/icon.png?asset'
 import adbService from './services/adbService'
 import gameService from './services/gameService'
 import dependencyService from './services/dependencyService'
+import downloadService from './services/downloadService'
 import { DependencyStatus } from '../renderer/src/types/adb'
+import { GameInfo } from './services/gameService'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -93,6 +95,37 @@ app.whenReady().then(async () => {
       console.log('Dependency initialization complete. Sending status.')
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
+        // --- Initialize other services that depend on dependencies ---
+        try {
+          console.log('Dependencies ready, initializing dependent services...')
+          // Initialize ADB Service (needs adb path from dependencyService)
+          await adbService.initialize()
+          console.log('ADB Service initialized.')
+          // Initialize Game Service (needs 7z and rclone from dependencyService)
+          const gameServiceStatus = await gameService.initialize()
+          console.log(`Game Service initialization status: ${gameServiceStatus}`)
+          // Initialize Download Service (needs rclone and VRP config from gameService)
+          if (gameServiceStatus === 'INITIALIZED') {
+            await downloadService.initialize(gameService.getVrpConfig()) // Pass VRP config
+            console.log('Download Service initialized.')
+          } else {
+            console.warn(
+              'Game service did not initialize correctly, skipping download service initialization.'
+            )
+          }
+        } catch (serviceInitError) {
+          console.error('Error initializing dependent services:', serviceInitError)
+          // Optionally notify the renderer about this failure
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('service-init-error', {
+              message:
+                serviceInitError instanceof Error
+                  ? serviceInitError.message
+                  : 'Unknown service initialization error'
+            })
+          }
+        }
+        // -----------------------------------------------------------
       }
     } catch (error) {
       console.error('Error during dependency initialization:', error)
@@ -177,6 +210,28 @@ app.whenReady().then(async () => {
   ipcMain.handle('get-note', async (_event, releaseName: string) => {
     return gameService.getNote(releaseName)
   })
+
+  // --- Download Handlers ---
+  ipcMain.handle('download:getQueue', () => {
+    return downloadService.getQueue()
+  })
+
+  ipcMain.handle('download:add', (_event, game: GameInfo) => {
+    return downloadService.addToQueue(game)
+  })
+
+  ipcMain.on('download:remove', (_event, releaseName: string) => {
+    downloadService.removeFromQueue(releaseName)
+  })
+
+  ipcMain.on('download:cancel', (_event, releaseName: string) => {
+    downloadService.cancelUserRequest(releaseName)
+  })
+
+  ipcMain.on('download:retry', (_event, releaseName: string) => {
+    downloadService.retryDownload(releaseName)
+  })
+  // -------------------------
 
   // Create window FIRST
   createWindow()

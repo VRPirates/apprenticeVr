@@ -1,5 +1,5 @@
 import { IpcRenderer } from 'electron'
-import { GameInfo, AdbAPI, DependencyStatus } from './types/adb' // Import DependencyStatus here
+import { GameInfo, AdbAPI, DependencyStatus, DownloadItem } from './types/adb' // Import DownloadItem
 
 // REMOVE local DependencyStatus definition if present
 // interface DependencyStatus { ... }
@@ -23,6 +23,14 @@ declare global {
         onExtractProgress: (
           callback: (progress: { type: string; progress: number }) => void
         ) => () => void
+      }
+      downloads: {
+        getQueue: () => Promise<DownloadItem[]>
+        add: (game: GameInfo) => Promise<boolean>
+        remove: (releaseName: string) => void
+        cancel: (releaseName: string) => void
+        retry: (releaseName: string) => void
+        onQueueUpdated: (callback: (queue: DownloadItem[]) => void) => () => void
       }
       onDependencyProgress: (
         callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void

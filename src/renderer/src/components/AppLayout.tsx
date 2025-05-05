@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { AdbProvider } from '../context/AdbProvider'
 import { GamesProvider } from '../context/GamesProvider'
 import DeviceList from './DeviceList'
 import GamesView from './GamesView'
+import DownloadsView from './DownloadsView'
 import {
   FluentProvider,
   Title1,
@@ -12,11 +13,21 @@ import {
   Text,
   teamsDarkTheme,
   teamsLightTheme,
-  Switch
+  Switch,
+  Button,
+  Drawer,
+  DrawerHeader,
+  DrawerHeaderTitle,
+  DrawerBody
 } from '@fluentui/react-components'
 import electronLogo from '../assets/electron.svg'
 import { useDependency } from '../hooks/useDependency'
 import { DependencyProvider } from '../context/DependencyProvider'
+import { DownloadProvider } from '../context/DownloadProvider'
+import {
+  ArrowDownloadRegular as DownloadIcon,
+  DismissRegular as CloseIcon
+} from '@fluentui/react-icons'
 
 enum AppView {
   DEVICE_LIST,
@@ -84,6 +95,19 @@ const MainContent: React.FC<MainContentProps> = ({
     status: dependencyStatus
   } = useDependency()
 
+  // Render function based on view
+  const renderCurrentView = (): React.ReactNode => {
+    switch (currentView) {
+      case AppView.DEVICE_LIST:
+        return <DeviceList onConnected={onDeviceConnected} onSkip={onSkipConnection} />
+      case AppView.GAMES:
+        return <GamesView onBackToDevices={onBackToDeviceList} />
+      default:
+        // Fallback to Device List if view is unknown
+        return <DeviceList onConnected={onDeviceConnected} onSkip={onSkipConnection} />
+    }
+  }
+
   if (!dependenciesReady) {
     if (dependencyError) {
       const errorDetails: string[] = []
@@ -139,13 +163,7 @@ const MainContent: React.FC<MainContentProps> = ({
   // Dependencies are ready, render the rest of the app providers here
   return (
     <AdbProvider>
-      <GamesProvider>
-        {currentView === AppView.DEVICE_LIST ? (
-          <DeviceList onConnected={onDeviceConnected} onSkip={onSkipConnection} />
-        ) : (
-          <GamesView onBackToDevices={onBackToDeviceList} />
-        )}
-      </GamesProvider>
+      <GamesProvider>{renderCurrentView()}</GamesProvider>
     </AdbProvider>
   )
 }
@@ -153,6 +171,8 @@ const MainContent: React.FC<MainContentProps> = ({
 const AppLayout: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DEVICE_LIST)
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isDownloadsOpen, setIsDownloadsOpen] = useState(false)
+  const mountNodeRef = useRef<HTMLDivElement>(null)
   const styles = useStyles()
 
   const handleDeviceConnected = (): void => {
@@ -175,36 +195,90 @@ const AppLayout: React.FC = () => {
 
   return (
     <FluentProvider theme={currentTheme}>
-      <DependencyProvider>
-        <div className={styles.root}>
-          <div className={styles.header}>
-            <div className={styles.headerContent}>
-              <img alt="logo" className={styles.logo} src={electronLogo} />
-              <Title1>Apprentice VR</Title1>
+      <DownloadProvider>
+        <DependencyProvider>
+          <div className={styles.root}>
+            <div className={styles.header}>
+              <div className={styles.headerContent}>
+                <img alt="logo" className={styles.logo} src={electronLogo} />
+                <Title1>Apprentice VR</Title1>
+              </div>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalL }}
+              >
+                {currentView !== AppView.DEVICE_LIST && (
+                  <Button
+                    onClick={() => {
+                      console.log('[AppLayout] Downloads button clicked')
+                      setIsDownloadsOpen(true)
+                    }}
+                    icon={<DownloadIcon />}
+                  >
+                    Downloads
+                  </Button>
+                )}
+                <Switch
+                  label={isDarkMode ? 'Dark mode' : 'Light mode'}
+                  checked={isDarkMode}
+                  onChange={handleThemeChange}
+                />
+              </div>
             </div>
-            <Switch
-              label={isDarkMode ? 'Dark mode' : 'Light mode'}
-              checked={isDarkMode}
-              onChange={handleThemeChange}
-            />
+            <div className={styles.mainContent} id="mainContent">
+              <MainContent
+                currentView={currentView}
+                onDeviceConnected={handleDeviceConnected}
+                onSkipConnection={handleSkipConnection}
+                onBackToDeviceList={handleBackToDeviceList}
+              />
+            </div>
+
+            <Drawer
+              type="overlay"
+              separator
+              open={isDownloadsOpen}
+              onOpenChange={(_, { open }) => setIsDownloadsOpen(open)}
+              position="end"
+              style={{ width: '700px' }}
+              mountNode={mountNodeRef.current}
+            >
+              <DrawerHeader>
+                <DrawerHeaderTitle
+                  action={
+                    <Button
+                      appearance="subtle"
+                      aria-label="Close"
+                      icon={<CloseIcon />}
+                      onClick={() => setIsDownloadsOpen(false)}
+                    />
+                  }
+                >
+                  Downloads
+                </DrawerHeaderTitle>
+              </DrawerHeader>
+              <DrawerBody>
+                <div>
+                  <DownloadsView />
+                </div>
+              </DrawerBody>
+            </Drawer>
           </div>
-          <div className={styles.mainContent} id="mainContent">
-            <MainContent
-              currentView={currentView}
-              onDeviceConnected={handleDeviceConnected}
-              onSkipConnection={handleSkipConnection}
-              onBackToDeviceList={handleBackToDeviceList}
-            />
+          <div
+            id="portal-parent"
+            style={{
+              zIndex: 1000,
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              pointerEvents: 'none'
+            }}
+          >
+            <div ref={mountNodeRef} id="portal" style={{ pointerEvents: 'auto' }}></div>
           </div>
-        </div>
-        <div
-          id="portal"
-          style={{
-            zIndex: 1000,
-            position: 'fixed'
-          }}
-        ></div>
-      </DependencyProvider>
+        </DependencyProvider>
+      </DownloadProvider>
     </FluentProvider>
   )
 }

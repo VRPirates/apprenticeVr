@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { GameInfo } from '../main/services/gameService'
 import { DependencyStatus } from '../renderer/src/types/adb'
+import { DownloadItem } from '../main/services/downloadTypes'
 
 // Type definitions (consider moving to a shared types file)
 interface DeviceInfo {
@@ -71,6 +72,19 @@ const api = {
       const listener = (_: unknown, progress: ExtractProgress): void => callback(progress)
       ipcRenderer.on('extract-progress', listener)
       return () => ipcRenderer.removeListener('extract-progress', listener)
+    }
+  },
+  // Download Queue APIs
+  downloads: {
+    getQueue: (): Promise<DownloadItem[]> => ipcRenderer.invoke('download:getQueue'),
+    add: (game: GameInfo): Promise<boolean> => ipcRenderer.invoke('download:add', game),
+    remove: (releaseName: string): void => ipcRenderer.send('download:remove', releaseName),
+    cancel: (releaseName: string): void => ipcRenderer.send('download:cancel', releaseName),
+    retry: (releaseName: string): void => ipcRenderer.send('download:retry', releaseName),
+    onQueueUpdated: (callback: (queue: DownloadItem[]) => void): (() => void) => {
+      const listener = (_: unknown, queue: DownloadItem[]): void => callback(queue)
+      ipcRenderer.on('download:queue-updated', listener)
+      return () => ipcRenderer.removeListener('download:queue-updated', listener)
     }
   },
   // Dependency Status Listeners
