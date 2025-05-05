@@ -398,20 +398,46 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             : undefined
           const isDownloading = downloadInfo?.status === 'Downloading'
           const isExtracting = downloadInfo?.status === 'Extracting'
+          const isQueued = downloadInfo?.status === 'Queued' // Check for Queued status
 
           return (
-            <div className={styles.namePackageCellContainer}>
-              <div className={styles.namePackageCellText}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                height: '100%',
+                position: 'relative',
+                paddingBottom: '8px'
+              }}
+            >
+              <div style={{ marginBottom: tokens.spacingVerticalXS }}>
+                {' '}
+                {/* Add some space below text */}
                 <div className="game-name-main">{game.name}</div>
                 <div className="game-package-sub">{game.packageName}</div>
               </div>
+              {/* Status Indicator Area */}
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS }}
+              >
+                {/* Add Queued Badge */}
+                {isQueued && (
+                  <Badge shape="rounded" color="informative" appearance="outline">
+                    Queued
+                  </Badge>
+                )}
+                {/* Add other badges or indicators here if needed in the future */}
+              </div>
+
+              {/* Progress Bar for Downloading/Extracting */}
               {(isDownloading || isExtracting) && downloadInfo && (
                 <ProgressBar
                   value={downloadInfo.progress}
                   max={100}
                   shape="rounded"
                   thickness="medium"
-                  className={styles.progressBarAcrossRow}
+                  className={styles.progressBarAcrossRow} // Keep using the style for positioning
                   aria-label={isDownloading ? 'Download progress' : 'Extraction progress'}
                 />
               )}
@@ -1136,13 +1162,17 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                       >
                         {(() => {
                           const status = downloadStatusMap.get(dialogGame.releaseName || '')?.status
-                          const isDownloadingOrExtracting =
-                            status === 'Downloading' || status === 'Extracting'
+                          // Combine conditions for showing cancel button
+                          const canCancel =
+                            status === 'Downloading' ||
+                            status === 'Extracting' ||
+                            status === 'Queued'
                           const isDownloaded = status === 'Completed'
                           const isInstalled = dialogGame.isInstalled
                           const hasUpdate = dialogGame.hasUpdate
 
-                          if (isDownloadingOrExtracting) {
+                          // Show cancel button if Downloading, Extracting, or Queued
+                          if (canCancel) {
                             return (
                               <Button
                                 appearance="danger"
@@ -1154,6 +1184,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                             )
                           }
 
+                          // Existing logic for other states (Install, Update, Reinstall, Delete)
                           if (isInstalled) {
                             if (hasUpdate) {
                               return (
@@ -1223,6 +1254,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                             )
                           }
 
+                          // Default: Show Install button
                           return (
                             <Button
                               appearance="primary"
