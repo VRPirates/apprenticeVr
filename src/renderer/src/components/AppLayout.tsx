@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useMemo } from 'react'
 import { AdbProvider } from '../context/AdbProvider'
 import { GamesProvider } from '../context/GamesProvider'
 import DeviceList from './DeviceList'
@@ -24,6 +24,7 @@ import electronLogo from '../assets/electron.svg'
 import { useDependency } from '../hooks/useDependency'
 import { DependencyProvider } from '../context/DependencyProvider'
 import { DownloadProvider } from '../context/DownloadProvider'
+import { useDownload } from '../hooks/useDownload'
 import {
   ArrowDownloadRegular as DownloadIcon,
   DismissRegular as CloseIcon
@@ -174,6 +175,7 @@ const AppLayout: React.FC = () => {
   const [isDownloadsOpen, setIsDownloadsOpen] = useState(false)
   const mountNodeRef = useRef<HTMLDivElement>(null)
   const styles = useStyles()
+  const { queue: downloadQueue } = useDownload()
 
   const handleDeviceConnected = (): void => {
     setCurrentView(AppView.GAMES)
@@ -193,94 +195,131 @@ const AppLayout: React.FC = () => {
     setIsDarkMode(data.checked)
   }
 
+  // --- Calculate Download Summary --- START
+  const activeDownloads = useMemo(() => {
+    return downloadQueue.filter(
+      (item) => item.status === 'Downloading' || item.status === 'Extracting'
+    ).length
+  }, [downloadQueue])
+
+  const queuedDownloads = useMemo(() => {
+    return downloadQueue.filter((item) => item.status === 'Queued').length
+  }, [downloadQueue])
+
+  const getDownloadButtonContent = (): { icon: React.ReactNode; text: string } => {
+    if (activeDownloads > 0) {
+      return {
+        icon: <Spinner size="tiny" style={{ animationDuration: '1s' }} />,
+        text: `Downloading (${activeDownloads})`
+      }
+    } else if (queuedDownloads > 0) {
+      return {
+        icon: <DownloadIcon />,
+        text: `Queued (${queuedDownloads})`
+      }
+    } else {
+      return {
+        icon: <DownloadIcon />,
+        text: 'Downloads'
+      }
+    }
+  }
+
+  const { icon: downloadButtonIcon, text: downloadButtonText } = getDownloadButtonContent()
+  // --- Calculate Download Summary --- END
+
   return (
     <FluentProvider theme={currentTheme}>
-      <DownloadProvider>
-        <DependencyProvider>
-          <div className={styles.root}>
-            <div className={styles.header}>
-              <div className={styles.headerContent}>
-                <img alt="logo" className={styles.logo} src={electronLogo} />
-                <Title1>Apprentice VR</Title1>
-              </div>
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalL }}
-              >
-                {currentView !== AppView.DEVICE_LIST && (
-                  <Button
-                    onClick={() => {
-                      console.log('[AppLayout] Downloads button clicked')
-                      setIsDownloadsOpen(true)
-                    }}
-                    icon={<DownloadIcon />}
-                  >
-                    Downloads
-                  </Button>
-                )}
-                <Switch
-                  label={isDarkMode ? 'Dark mode' : 'Light mode'}
-                  checked={isDarkMode}
-                  onChange={handleThemeChange}
-                />
-              </div>
+      <DependencyProvider>
+        <div className={styles.root}>
+          <div className={styles.header}>
+            <div className={styles.headerContent}>
+              <img alt="logo" className={styles.logo} src={electronLogo} />
+              <Title1>Apprentice VR</Title1>
             </div>
-            <div className={styles.mainContent} id="mainContent">
-              <MainContent
-                currentView={currentView}
-                onDeviceConnected={handleDeviceConnected}
-                onSkipConnection={handleSkipConnection}
-                onBackToDeviceList={handleBackToDeviceList}
+            <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalL }}>
+              {currentView !== AppView.DEVICE_LIST && (
+                <Button
+                  onClick={() => {
+                    console.log('[AppLayout] Downloads button clicked')
+                    setIsDownloadsOpen(true)
+                  }}
+                  icon={downloadButtonIcon}
+                >
+                  {downloadButtonText}
+                </Button>
+              )}
+              <Switch
+                label={isDarkMode ? 'Dark mode' : 'Light mode'}
+                checked={isDarkMode}
+                onChange={handleThemeChange}
               />
             </div>
+          </div>
+          <div className={styles.mainContent} id="mainContent">
+            <MainContent
+              currentView={currentView}
+              onDeviceConnected={handleDeviceConnected}
+              onSkipConnection={handleSkipConnection}
+              onBackToDeviceList={handleBackToDeviceList}
+            />
+          </div>
 
-            <Drawer
-              type="overlay"
-              separator
-              open={isDownloadsOpen}
-              onOpenChange={(_, { open }) => setIsDownloadsOpen(open)}
-              position="end"
-              style={{ width: '700px' }}
-              mountNode={mountNodeRef.current}
-            >
-              <DrawerHeader>
-                <DrawerHeaderTitle
-                  action={
-                    <Button
-                      appearance="subtle"
-                      aria-label="Close"
-                      icon={<CloseIcon />}
-                      onClick={() => setIsDownloadsOpen(false)}
-                    />
-                  }
-                >
-                  Downloads
-                </DrawerHeaderTitle>
-              </DrawerHeader>
-              <DrawerBody>
-                <div>
-                  <DownloadsView />
-                </div>
-              </DrawerBody>
-            </Drawer>
-          </div>
-          <div
-            id="portal-parent"
-            style={{
-              zIndex: 1000,
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              pointerEvents: 'none'
-            }}
+          <Drawer
+            type="overlay"
+            separator
+            open={isDownloadsOpen}
+            onOpenChange={(_, { open }) => setIsDownloadsOpen(open)}
+            position="end"
+            style={{ width: '700px' }}
+            mountNode={mountNodeRef.current}
           >
-            <div ref={mountNodeRef} id="portal" style={{ pointerEvents: 'auto' }}></div>
-          </div>
-        </DependencyProvider>
-      </DownloadProvider>
+            <DrawerHeader>
+              <DrawerHeaderTitle
+                action={
+                  <Button
+                    appearance="subtle"
+                    aria-label="Close"
+                    icon={<CloseIcon />}
+                    onClick={() => setIsDownloadsOpen(false)}
+                  />
+                }
+              >
+                Downloads
+              </DrawerHeaderTitle>
+            </DrawerHeader>
+            <DrawerBody>
+              <div>
+                <DownloadsView />
+              </div>
+            </DrawerBody>
+          </Drawer>
+        </div>
+        <div
+          id="portal-parent"
+          style={{
+            zIndex: 1000,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            pointerEvents: 'none'
+          }}
+        >
+          <div ref={mountNodeRef} id="portal" style={{ pointerEvents: 'auto' }}></div>
+        </div>
+      </DependencyProvider>
     </FluentProvider>
   )
 }
 
-export default AppLayout
+const AppLayoutWithProviders: React.FC = () => {
+  return (
+    <DownloadProvider>
+      <AppLayout />
+    </DownloadProvider>
+  )
+}
+
+export default AppLayoutWithProviders
