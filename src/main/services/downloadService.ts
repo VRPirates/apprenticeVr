@@ -32,12 +32,14 @@ class DownloadService extends EventEmitter {
   private activeDownloads: Map<string, ReturnType<typeof execa>> = new Map()
   private vrpConfig: { baseUri?: string; password?: string } | null = null
   private debouncedSaveQueue: () => void
+  private debouncedEmitUpdate: () => void
 
   constructor() {
     super()
     this.queuePath = join(app.getPath('userData'), 'download-queue.json')
     this.downloadsDir = join(app.getPath('userData'), 'downloads')
     this.debouncedSaveQueue = debounce(this.saveQueue.bind(this), 1000)
+    this.debouncedEmitUpdate = debounce(this.emitUpdate.bind(this), 300)
   }
 
   async initialize(vrpConfig: { baseUri?: string; password?: string } | null): Promise<void> {
@@ -166,6 +168,9 @@ class DownloadService extends EventEmitter {
     const process = this.activeDownloads.get(releaseName)
     if (process?.pid) {
       console.log(`Cancelling download for ${releaseName} (PID: ${process.pid})...`)
+      // Detach listeners BEFORE killing to prevent processing stale output
+      process.all?.removeAllListeners()
+
       try {
         // Commenting out kill options to avoid persistent linter error
         // process.kill('SIGTERM', {
@@ -192,8 +197,15 @@ class DownloadService extends EventEmitter {
       }
       item.error = item.status === 'Error' ? errorMsg || item.error : undefined
       console.log(`Updated status for ${releaseName} to ${item.status}.`)
+      this.updateItemStatus(
+        item.releaseName,
+        item.status,
+        item.progress,
+        item.error,
+        item.speed,
+        item.eta
+      )
       this.emitUpdate()
-      this.debouncedSaveQueue()
     } else {
       console.warn(`Item ${releaseName} not found in queue during cancellation.`)
     }
@@ -467,7 +479,7 @@ class DownloadService extends EventEmitter {
       item.error = error
       item.speed = speed
       item.eta = eta
-      this.emitUpdate()
+      this.debouncedEmitUpdate()
       this.debouncedSaveQueue()
     } else {
       console.warn(`Tried to update status for non-existent item: ${releaseName}`)
@@ -478,7 +490,6 @@ class DownloadService extends EventEmitter {
     const item = this.queue.find((i) => i.releaseName === releaseName)
     if (item) {
       item.pid = pid
-      this.emitUpdate()
     } else {
       console.warn(`Tried to update PID for non-existent item: ${releaseName}`)
     }
