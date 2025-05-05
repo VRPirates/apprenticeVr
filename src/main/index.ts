@@ -231,6 +231,10 @@ app.whenReady().then(async () => {
   ipcMain.on('download:retry', (_event, releaseName: string) => {
     downloadService.retryDownload(releaseName)
   })
+
+  ipcMain.handle('download:deleteFiles', async (_event, releaseName: string) => {
+    return await downloadService.deleteDownloadedFiles(releaseName)
+  })
   // -------------------------
 
   // Create window FIRST

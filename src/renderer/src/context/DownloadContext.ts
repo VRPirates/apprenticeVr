@@ -9,6 +9,7 @@ export interface DownloadContextType {
   removeFromQueue: (releaseName: string) => void
   cancelDownload: (releaseName: string) => void
   retryDownload: (releaseName: string) => void
+  deleteFiles: (releaseName: string) => Promise<boolean>
 }
 
 export const DownloadContext = createContext<DownloadContextType | undefined>(undefined)

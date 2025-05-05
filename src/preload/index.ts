@@ -81,6 +81,8 @@ const api = {
     remove: (releaseName: string): void => ipcRenderer.send('download:remove', releaseName),
     cancel: (releaseName: string): void => ipcRenderer.send('download:cancel', releaseName),
     retry: (releaseName: string): void => ipcRenderer.send('download:retry', releaseName),
+    deleteFiles: (releaseName: string): Promise<boolean> =>
+      ipcRenderer.invoke('download:deleteFiles', releaseName),
     onQueueUpdated: (callback: (queue: DownloadItem[]) => void): (() => void) => {
       const listener = (_: unknown, queue: DownloadItem[]): void => callback(queue)
       ipcRenderer.on('download:queue-updated', listener)

@@ -239,7 +239,12 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     refreshGames,
     getNote
   } = useGames()
-  const { addToQueue: addDownloadToQueue, queue: downloadQueue, cancelDownload } = useDownload()
+  const {
+    addToQueue: addDownloadToQueue,
+    queue: downloadQueue,
+    cancelDownload,
+    deleteFiles
+  } = useDownload()
 
   const styles = useStyles()
 
@@ -644,13 +649,28 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   }, [dialogGame, selectedDevice, loadPackages]) // Dependencies
 
   // Placeholder action for deleting downloaded files
-  const handleDeleteDownloaded = (game: GameInfo | null): void => {
-    if (!game || !game.releaseName) return
-    console.log('Delete downloaded files action triggered for:', game.releaseName)
-    alert('Deleting downloaded files not implemented yet.')
-    // Future: Call window.api.downloads.deleteFiles(game.releaseName)
-    handleCloseDialog()
-  }
+  const handleDeleteDownloaded = useCallback(
+    async (game: GameInfo | null): Promise<void> => {
+      if (!game || !game.releaseName) return
+      console.log('Delete downloaded files action triggered for:', game.releaseName)
+      try {
+        const success = await deleteFiles(game.releaseName)
+        if (success) {
+          console.log(`Successfully requested deletion of files for ${game.releaseName}.`)
+          // Queue update handled by listener
+        } else {
+          console.error(`Failed to delete files for ${game.releaseName}.`)
+          // Optionally show an error to the user
+          window.alert('Failed to delete downloaded files. Check logs.')
+        }
+      } catch (error) {
+        console.error('Error calling deleteFiles:', error)
+        window.alert('An error occurred while trying to delete downloaded files.')
+      }
+      handleCloseDialog()
+    },
+    [deleteFiles, handleCloseDialog]
+  )
 
   // Action for cancelling download/extraction
   const handleCancelDownload = (game: GameInfo | null): void => {

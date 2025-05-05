@@ -105,14 +105,37 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
     }
   }, [])
 
+  // --- Add deleteFiles function --- START
+  const deleteFiles = useCallback(async (releaseName: string): Promise<boolean> => {
+    console.log(`Context: Deleting downloaded files for ${releaseName}...`)
+    setIsLoading(true) // Optional: Indicate loading state during deletion
+    try {
+      const success = await window.api.downloads.deleteFiles(releaseName)
+      if (!success) {
+        console.warn(`Context: Failed to delete files for ${releaseName} (backend error).`)
+        setError('Failed to delete downloaded files.')
+      }
+      // Queue update will be triggered by the main process via onQueueUpdated
+      return success
+    } catch (err) {
+      console.error('Error deleting downloaded files via IPC:', err)
+      setError('Failed to delete downloaded files.')
+      return false
+    } finally {
+      setIsLoading(false) // Reset loading state
+    }
+  }, [])
+  // --- Add deleteFiles function --- END
+
   const value: DownloadContextType = {
     queue,
     isLoading,
     error,
     addToQueue,
     removeFromQueue,
-    cancelDownload, // Pass new cancel function
-    retryDownload // Pass new retry function
+    cancelDownload,
+    retryDownload,
+    deleteFiles // <<< Pass deleteFiles
   }
 
   return <DownloadContext.Provider value={value}>{children}</DownloadContext.Provider>

@@ -31,6 +31,7 @@ declare global {
         cancel: (releaseName: string) => void
         retry: (releaseName: string) => void
         onQueueUpdated: (callback: (queue: DownloadItem[]) => void) => () => void
+        deleteFiles(releaseName: string): Promise<boolean>
       }
       onDependencyProgress: (
         callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void

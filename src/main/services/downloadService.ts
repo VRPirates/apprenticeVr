@@ -789,6 +789,59 @@ class DownloadService extends EventEmitter {
       // ... existing error handling ...
     }
   }
+
+  // --- Add Method to Delete Downloaded Files --- START
+  public async deleteDownloadedFiles(releaseName: string): Promise<boolean> {
+    const itemIndex = this.queue.findIndex((item) => item.releaseName === releaseName)
+    if (itemIndex === -1) {
+      console.warn(`Cannot delete files for ${releaseName}: Item not found in queue.`)
+      return false
+    }
+
+    const item = this.queue[itemIndex]
+
+    // Allow deletion even if status isn't strictly 'Completed'?
+    // Maybe allow if it exists locally, regardless of status?
+    // For now, let's stick to deleting completed/cancelled/error ones with a path.
+    if (!item.downloadPath) {
+      console.log(`No download path recorded for ${releaseName}, assuming no files to delete.`)
+      // Remove from queue even if path doesn't exist? Yes, aligns with user intent.
+      this.queue.splice(itemIndex, 1)
+      this.emitUpdate()
+      this.debouncedSaveQueue()
+      return true
+    }
+
+    if (!existsSync(item.downloadPath)) {
+      console.log(
+        `Download path ${item.downloadPath} for ${releaseName} not found. Removing item from queue.`
+      )
+      this.queue.splice(itemIndex, 1)
+      this.emitUpdate()
+      this.debouncedSaveQueue()
+      return true
+    }
+
+    console.log(`Attempting to delete directory: ${item.downloadPath} for ${releaseName}...`)
+    try {
+      await fs.rm(item.downloadPath, { recursive: true, force: true })
+      console.log(`Successfully deleted directory ${item.downloadPath}.`)
+
+      // Remove the item from the queue after successful deletion
+      this.queue.splice(itemIndex, 1)
+      this.emitUpdate()
+      this.debouncedSaveQueue()
+      return true
+    } catch (error) {
+      console.error(`Error deleting directory ${item.downloadPath} for ${releaseName}:`, error)
+      // Don't remove from queue if deletion failed? Or should we?
+      // Let's keep it in the queue but maybe mark an error?
+      // For now, just log the error and return false.
+      // Optionally: this.updateItemStatus(releaseName, 'Error', item.progress, 'Failed to delete files')
+      return false
+    }
+  }
+  // --- Add Method to Delete Downloaded Files --- END
 }
 
 export default new DownloadService()
