@@ -88,7 +88,14 @@ export interface GamesAPI {
 }
 
 // Added Download Types Mirroring Main Process
-export type DownloadStatus = 'Queued' | 'Downloading' | 'Completed' | 'Error' | 'Cancelled'
+export type DownloadStatus =
+  | 'Queued'
+  | 'Downloading'
+  // | 'Paused' // Removed Paused
+  | 'Completed'
+  | 'Error'
+  | 'Cancelled'
+  | 'Extracting' // Added Extracting status
 
 export interface DownloadItem {
   gameId: string
@@ -103,5 +110,6 @@ export interface DownloadItem {
   thumbnailPath?: string
   speed?: string
   eta?: string
+  extractProgress?: number // Added extraction progress
 }
 // -----------------------------------------

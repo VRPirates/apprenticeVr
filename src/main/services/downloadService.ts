@@ -30,6 +30,7 @@ class DownloadService extends EventEmitter {
   private isInitialized = false
   private isProcessing = false
   private activeDownloads: Map<string, ReturnType<typeof execa>> = new Map()
+  private activeExtractions: Map<string, ReturnType<typeof execa>> = new Map()
   private vrpConfig: { baseUri?: string; password?: string } | null = null
   private debouncedSaveQueue: () => void
   private debouncedEmitUpdate: () => void
@@ -203,7 +204,8 @@ class DownloadService extends EventEmitter {
         item.progress,
         item.error,
         item.speed,
-        item.eta
+        item.eta,
+        item.extractProgress
       )
       this.emitUpdate()
     } else {
@@ -231,7 +233,15 @@ class DownloadService extends EventEmitter {
       await this.startDownload(nextItem)
     } catch (error) {
       console.error(`Error initiating download for ${nextItem.releaseName}:`, error)
-      this.updateItemStatus(nextItem.releaseName, 'Error', 0, 'Failed to start download')
+      this.updateItemStatus(
+        nextItem.releaseName,
+        'Error',
+        0,
+        'Failed to start download',
+        undefined,
+        undefined,
+        undefined
+      )
       this.isProcessing = false
       this.processQueue()
     }
@@ -242,7 +252,15 @@ class DownloadService extends EventEmitter {
 
     if (!this.vrpConfig?.baseUri || !this.vrpConfig?.password) {
       console.error('Missing VRP baseUri or password. Cannot start download.')
-      this.updateItemStatus(item.releaseName, 'Error', 0, 'Missing VRP configuration.')
+      this.updateItemStatus(
+        item.releaseName,
+        'Error',
+        0,
+        'Missing VRP configuration',
+        undefined,
+        undefined,
+        undefined
+      )
       this.isProcessing = false
       this.processQueue()
       return
@@ -253,7 +271,15 @@ class DownloadService extends EventEmitter {
     item.downloadPath = downloadPath
     await fs.mkdir(downloadPath, { recursive: true })
 
-    this.updateItemStatus(item.releaseName, 'Downloading', 0)
+    this.updateItemStatus(
+      item.releaseName,
+      'Downloading',
+      0,
+      undefined,
+      undefined,
+      undefined,
+      undefined
+    )
 
     const gameNameHash = crypto
       .createHash('md5')
@@ -261,16 +287,6 @@ class DownloadService extends EventEmitter {
       .digest('hex')
 
     const source = `:http:/${gameNameHash}`
-    // let decodedPassword = ''
-    // try {
-    //   decodedPassword = Buffer.from(this.vrpConfig.password, 'base64').toString('utf-8')
-    // } catch (e: unknown) {
-    //   console.error('Failed to decode VRP password.', e)
-    //   this.updateItemStatus(item.releaseName, 'Error', 0, 'Invalid VRP password format.')
-    //   this.isProcessing = false
-    //   this.processQueue()
-    //   return
-    // }
 
     let rcloneProcess: ReturnType<typeof execa> | null = null
 
@@ -342,7 +358,8 @@ class DownloadService extends EventEmitter {
                   currentProgress,
                   undefined,
                   speed,
-                  eta
+                  eta,
+                  item.extractProgress
                 )
               }
             }
@@ -369,9 +386,24 @@ class DownloadService extends EventEmitter {
       await rcloneProcess
 
       console.log(`rclone process finished successfully for ${item.releaseName}.`)
-      this.updateItemStatus(item.releaseName, 'Completed', 100)
+      this.updateItemStatus(
+        item.releaseName,
+        'Completed',
+        100,
+        undefined,
+        undefined,
+        undefined,
+        item.extractProgress
+      )
       this.activeDownloads.delete(item.releaseName)
       this.updateItemPid(item.releaseName, undefined)
+
+      // ---!!! DOWNLOAD COMPLETE - START EXTRACTION !!!---
+      console.log(`Download finished successfully for ${item.releaseName}. Starting extraction...`)
+      // Don't set status to Completed yet
+      // this.updateItemStatus(item.releaseName, 'Completed', 100)
+      await this.startExtraction(item)
+      // ------------------------------------------------
     } catch (error: unknown) {
       const isExecaError = (err: unknown): err is ExecaError =>
         typeof err === 'object' && err !== null && 'shortMessage' in err
@@ -453,7 +485,15 @@ class DownloadService extends EventEmitter {
 
       errorMessage = errorMessage.substring(0, 500)
 
-      this.updateItemStatus(item.releaseName, 'Error', item.progress || 0, errorMessage)
+      this.updateItemStatus(
+        item.releaseName,
+        'Error',
+        item.progress || 0,
+        errorMessage,
+        undefined,
+        undefined,
+        item.extractProgress
+      )
     } finally {
       if (this.activeDownloads.has(item.releaseName)) {
         this.activeDownloads.delete(item.releaseName)
@@ -470,7 +510,8 @@ class DownloadService extends EventEmitter {
     progress: number,
     error?: string,
     speed?: string,
-    eta?: string
+    eta?: string,
+    extractProgress?: number
   ): void {
     const item = this.queue.find((i) => i.releaseName === releaseName)
     if (item) {
@@ -479,6 +520,11 @@ class DownloadService extends EventEmitter {
       item.error = error
       item.speed = speed
       item.eta = eta
+      if (extractProgress !== undefined) {
+        item.extractProgress = Math.max(0, Math.min(100, extractProgress))
+      } else if (status !== 'Extracting') {
+        item.extractProgress = undefined
+      }
       this.debouncedEmitUpdate()
       this.debouncedSaveQueue()
     } else {
@@ -505,10 +551,13 @@ class DownloadService extends EventEmitter {
   public cancelUserRequest(releaseName: string): void {
     const item = this.queue.find((i) => i.releaseName === releaseName)
     if (item && (item.status === 'Downloading' || item.status === 'Queued')) {
-      console.log(`User requested cancel for ${releaseName}...`)
+      console.log(`User requested cancel for ${releaseName} download...`)
       this.cancelDownload(releaseName, 'Cancelled')
+    } else if (item && item.status === 'Extracting') {
+      console.log(`User requested cancel for ${releaseName} extraction...`)
+      this.cancelExtraction(releaseName, 'Cancelled')
     } else {
-      console.warn(`Cannot cancel download for ${releaseName} - current status: ${item?.status}`)
+      console.warn(`Cannot cancel item ${releaseName} - current status: ${item?.status}`)
     }
   }
 
@@ -516,8 +565,15 @@ class DownloadService extends EventEmitter {
     const item = this.queue.find((i) => i.releaseName === releaseName)
     if (item && (item.status === 'Cancelled' || item.status === 'Error')) {
       console.log(`Retrying download for ${releaseName}...`)
+      if (this.activeExtractions.has(releaseName)) {
+        console.warn(
+          `Retrying item ${releaseName} that might have active extraction - cancelling extraction first.`
+        )
+        this.cancelExtraction(releaseName, 'Cancelled')
+      }
       item.status = 'Queued'
       item.progress = 0
+      item.extractProgress = undefined
       item.error = undefined
       item.pid = undefined
       this.emitUpdate()
@@ -525,6 +581,209 @@ class DownloadService extends EventEmitter {
       this.processQueue()
     } else {
       console.warn(`Cannot retry download for ${releaseName} - current status: ${item?.status}`)
+    }
+  }
+
+  private cancelExtraction(
+    releaseName: string,
+    finalStatus: 'Cancelled' | 'Error' = 'Cancelled',
+    errorMsg?: string
+  ): void {
+    const process = this.activeExtractions.get(releaseName)
+    if (process?.pid) {
+      console.log(`Cancelling extraction for ${releaseName} (PID: ${process.pid})...`)
+      process.all?.removeAllListeners()
+      try {
+        process.kill('SIGTERM')
+        console.log(`Sent kill signal to extraction process for ${releaseName}.`)
+      } catch (killError) {
+        console.error(`Error killing extraction process for ${releaseName}:`, killError)
+      }
+      this.activeExtractions.delete(releaseName)
+    } else {
+      console.log(`No active extraction process found for ${releaseName} to cancel.`)
+    }
+
+    const item = this.queue.find((i) => i.releaseName === releaseName)
+    if (item) {
+      if (!(item.status === 'Error' && finalStatus === 'Cancelled')) {
+        item.status = finalStatus
+      }
+      item.extractProgress = finalStatus === 'Error' ? item.extractProgress : undefined
+      item.error = item.status === 'Error' ? errorMsg || item.error : undefined
+      console.log(`Updated status for ${releaseName} to ${item.status} after extraction cancel.`)
+      this.updateItemStatus(
+        item.releaseName,
+        item.status,
+        item.progress,
+        item.error,
+        item.speed,
+        item.eta,
+        item.extractProgress
+      )
+      this.emitUpdate()
+    } else {
+      console.warn(`Item ${releaseName} not found in queue during extraction cancellation.`)
+    }
+  }
+
+  private async startExtraction(item: DownloadItem): Promise<void> {
+    console.log(`Starting extraction for ${item.releaseName}...`)
+    const sevenZipPath = dependencyService.get7zPath()
+    const downloadPath = item.downloadPath
+
+    if (!downloadPath || !existsSync(downloadPath)) {
+      this.updateItemStatus(
+        item.releaseName,
+        'Error',
+        100,
+        `Download path missing for ${item.releaseName}`,
+        undefined,
+        undefined,
+        undefined
+      )
+      return
+    }
+    if (!dependencyService.getStatus().sevenZip.ready || !sevenZipPath) {
+      this.updateItemStatus(item.releaseName, 'Error', 100, '7zip dependency not ready')
+      return
+    }
+
+    const files = await fs.readdir(downloadPath)
+    const archivePart1 = files.find((f) => f.endsWith('.7z.001'))
+
+    if (!archivePart1) {
+      this.updateItemStatus(
+        item.releaseName,
+        'Error',
+        100,
+        `Primary archive file (.7z.001) not found in ${downloadPath}`
+      )
+      return
+    }
+    const archivePath = join(downloadPath, archivePart1)
+
+    this.updateItemStatus(item.releaseName, 'Extracting', 100, undefined, undefined, undefined, 0)
+
+    let extractionProcess: ReturnType<typeof execa> | null = null
+
+    let decodedPassword = ''
+    try {
+      decodedPassword = Buffer.from(this.vrpConfig?.password || '', 'base64').toString('utf-8')
+    } catch (e: unknown) {
+      console.error('Failed to decode VRP password.', e)
+      this.updateItemStatus(item.releaseName, 'Error', 0, 'Invalid VRP password format.')
+      this.isProcessing = false
+      this.processQueue()
+      return
+    }
+
+    try {
+      console.log(`Executing: ${sevenZipPath} x "${archivePath}" -o"${downloadPath}" -y`)
+      extractionProcess = execa(
+        sevenZipPath,
+        ['x', archivePath, `-o${downloadPath}`, '-y', `-p${decodedPassword}`],
+        {
+          all: true,
+          windowsHide: true,
+          buffer: false
+        }
+      )
+
+      if (!extractionProcess || !extractionProcess.pid || !extractionProcess.all) {
+        throw new Error('Failed to start 7zip process.')
+      }
+
+      this.activeExtractions.set(item.releaseName, extractionProcess)
+
+      const progressRegex = /^\s*(\d+)%/
+      let outputBuffer = ''
+
+      extractionProcess.all.on('data', (data: Buffer) => {
+        outputBuffer += data.toString()
+        const lines = outputBuffer.split(/\r\n|\n|\r/).filter((line) => line.length > 0)
+
+        if (lines.length > 0) {
+          outputBuffer = ''
+          for (const line of lines) {
+            const progressMatch = line.match(progressRegex)
+            if (progressMatch && progressMatch[1]) {
+              const currentProgress = parseInt(progressMatch[1], 10)
+              if (currentProgress > (item.extractProgress || 0) || currentProgress === 0) {
+                console.log(
+                  `[DownloadService] Parsed extraction progress: ${currentProgress}% for ${item.releaseName}`
+                )
+                this.updateItemStatus(
+                  item.releaseName,
+                  'Extracting',
+                  100,
+                  undefined,
+                  undefined,
+                  undefined,
+                  currentProgress
+                )
+              }
+            }
+            if (line.includes('ERROR:') || line.includes('Error:')) {
+              console.error(`[7z Error Line] ${item.releaseName}: ${line}`)
+            }
+          }
+        }
+      })
+
+      await extractionProcess
+
+      console.log(`Extraction finished successfully for ${item.releaseName}.`)
+      this.updateItemStatus(
+        item.releaseName,
+        'Completed',
+        100,
+        undefined,
+        undefined,
+        undefined,
+        100
+      )
+    } catch (error: unknown) {
+      const isExecaError = (err: unknown): err is ExecaError =>
+        typeof err === 'object' && err !== null && 'shortMessage' in err
+
+      if (isExecaError(error) && error.exitCode === 143) {
+        const currentStatus =
+          this.queue.find((i) => i.releaseName === item.releaseName)?.status || 'Unknown'
+        console.log(
+          `[Extraction Catch] Ignoring expected SIGTERM for ${item.releaseName}. Status: ${currentStatus}`
+        )
+        return
+      } else if (isExecaError(error) && error.isCanceled) {
+        const currentStatus =
+          this.queue.find((i) => i.releaseName === item.releaseName)?.status || 'Unknown'
+        console.log(
+          `[Extraction Catch] Ignoring expected cancellation for ${item.releaseName}. Status: ${currentStatus}`
+        )
+        return
+      }
+
+      console.error(`Extraction process failed for ${item.releaseName}:`, error)
+      let errorMessage = 'Extraction failed.'
+      if (isExecaError(error)) {
+        errorMessage = error.shortMessage || errorMessage
+        if (error.all) errorMessage += `\nOutput: ${error.all.slice(-500)}`
+      } else if (error instanceof Error) {
+        errorMessage = error.message
+      }
+      this.updateItemStatus(
+        item.releaseName,
+        'Error',
+        100,
+        errorMessage,
+        undefined,
+        undefined,
+        item.extractProgress
+      )
+    } finally {
+      if (this.activeExtractions.has(item.releaseName)) {
+        this.activeExtractions.delete(item.releaseName)
+      }
     }
   }
 }

@@ -127,7 +127,6 @@ const DownloadsView: React.FC = () => {
                   <>
                     <ProgressBar value={item.progress / 100} className={styles.progressBar} />
                     <Text className={styles.statusText}>{item.progress}%</Text>
-                    {/* TODO: Add speed/ETA? */}
                     {item.speed && (
                       <Text size={200} className={styles.statusText}>
                         Speed: {item.speed}
@@ -139,6 +138,18 @@ const DownloadsView: React.FC = () => {
                           ETA: {item.eta}
                         </Text>
                       )}
+                  </>
+                )}
+                {/* Added Extraction Progress Display */}
+                {item.status === 'Extracting' && (
+                  <>
+                    <ProgressBar
+                      value={(item.extractProgress || 0) / 100}
+                      className={styles.progressBar}
+                    />
+                    <Text className={styles.statusText}>
+                      Extracting... {item.extractProgress || 0}%
+                    </Text>
                   </>
                 )}
                 {item.status === 'Queued' && <Text className={styles.statusText}>Queued</Text>}
@@ -161,16 +172,21 @@ const DownloadsView: React.FC = () => {
               </div>
               {/* Actions */}
               <div className={styles.actions}>
-                {/* Add Pause/Resume later? */}
-                {(item.status === 'Queued' || item.status === 'Downloading') && (
+                {/* Cancel Button */}
+                {(item.status === 'Queued' ||
+                  item.status === 'Downloading' ||
+                  item.status === 'Extracting') && (
                   <Button
                     icon={<CloseIcon />}
-                    aria-label="Cancel download"
+                    aria-label="Cancel"
                     size="small"
                     appearance="subtle"
                     onClick={() => cancelDownload(item.releaseName)}
+                    title="Cancel"
                   />
                 )}
+
+                {/* Retry Button */}
                 {(item.status === 'Cancelled' || item.status === 'Error') && (
                   <Button
                     icon={<RetryIcon />}
@@ -178,21 +194,24 @@ const DownloadsView: React.FC = () => {
                     size="small"
                     appearance="subtle"
                     onClick={() => retryDownload(item.releaseName)}
+                    title="Retry"
                   />
                 )}
-                {(item.status === 'Queued' ||
-                  item.status === 'Error' ||
+
+                {/* Remove Button (appears when not actively downloading/extracting) */}
+                {(item.status === 'Completed' ||
                   item.status === 'Cancelled' ||
-                  item.status === 'Completed') && (
+                  item.status === 'Error' ||
+                  item.status === 'Queued') && (
                   <Button
                     icon={<DeleteRegular />}
-                    aria-label="Remove from queue"
+                    aria-label="Remove from list"
                     size="small"
                     appearance="subtle"
                     onClick={() => removeFromQueue(item.releaseName)}
+                    title="Remove from list"
                   />
                 )}
-                {/* Button to trigger install for completed items? (Future) */}
               </div>
             </div>
           ))}

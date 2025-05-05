@@ -1,4 +1,10 @@
-export type DownloadStatus = 'Queued' | 'Downloading' | 'Completed' | 'Error' | 'Cancelled'
+export type DownloadStatus =
+  | 'Queued'
+  | 'Downloading'
+  | 'Completed'
+  | 'Error'
+  | 'Cancelled'
+  | 'Extracting'
 
 export interface DownloadItem {
   gameId: string // GameInfo.id (unique identifier for the game)
@@ -13,4 +19,5 @@ export interface DownloadItem {
   thumbnailPath?: string // Store for easier display in download view
   speed?: string // Added speed string (e.g., "10.5 MiB/s")
   eta?: string // Added ETA string (e.g., "5m30s")
+  extractProgress?: number // Added extraction progress (0-100)
 }
