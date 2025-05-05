@@ -74,25 +74,53 @@ class DownloadService extends EventEmitter {
     try {
       if (existsSync(this.queuePath)) {
         const data = await fs.readFile(this.queuePath, 'utf-8')
-        this.queue = JSON.parse(data)
-        if (!Array.isArray(this.queue)) {
-          console.warn('Loaded download queue is not an array, resetting.')
-          this.queue = []
+        const loadedQueue: DownloadItem[] = JSON.parse(data)
+
+        // Filter out items where the download path no longer exists
+        const validQueue = loadedQueue.filter((item) => {
+          if (item.downloadPath && !existsSync(item.downloadPath)) {
+            console.warn(
+              `Download directory "${item.downloadPath}" for "${item.releaseName}" not found. Removing item from queue.`
+            )
+            return false // Exclude this item
+          }
+          return true // Keep this item
+        })
+
+        this.queue = validQueue
+
+        // If items were removed, save the cleaned queue
+        if (this.queue.length !== loadedQueue.length) {
+          console.log('Saving cleaned download queue after removing items with missing paths.')
+          await this.saveQueue() // Save immediately after cleaning
         }
-        console.log(`Loaded ${this.queue.length} items from download queue.`)
+
+        console.log(`Loaded ${this.queue.length} download items from queue file.`)
       } else {
         console.log('No existing download queue found.')
         this.queue = []
       }
     } catch (error) {
-      console.error('Error loading download queue:', error)
+      // If the file doesn't exist or is invalid, start with an empty queue
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ) {
+        console.log('Download queue file not found, starting fresh.')
+      } else {
+        console.error('Error loading download queue:', error)
+      }
       this.queue = []
     }
   }
 
   private async saveQueue(): Promise<void> {
     try {
-      await fs.writeFile(this.queuePath, JSON.stringify(this.queue, null, 2), 'utf-8')
+      const data = JSON.stringify(this.queue, null, 2)
+      await fs.writeFile(this.queuePath, data, 'utf-8')
+      // console.log('Download queue saved.'); // Maybe too noisy?
     } catch (error) {
       console.error('Error saving download queue:', error)
     }
