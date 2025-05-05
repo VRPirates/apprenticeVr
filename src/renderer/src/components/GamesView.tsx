@@ -1111,7 +1111,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                         style={{
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: tokens.spacingVerticalS // Consistent spacing
+                          gap: tokens.spacingVerticalS
                         }}
                       >
                         {(() => {
@@ -1125,7 +1125,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                           if (isDownloadingOrExtracting) {
                             return (
                               <Button
-                                appearance="danger" // Or secondary
+                                appearance="danger"
                                 icon={<DismissRegular />}
                                 onClick={() => handleCancelDownload(dialogGame)}
                               >
@@ -1142,13 +1142,15 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                                     appearance="primary"
                                     icon={<ArrowUpRegular />}
                                     onClick={() => handleUpdate(dialogGame)}
+                                    disabled={!isConnected || isBusy}
                                   >
                                     Update
                                   </Button>
                                   <Button
                                     appearance="danger"
                                     icon={<DeleteRegular />}
-                                    onClick={handleDeleteRequest} // Uninstall
+                                    onClick={handleDeleteRequest}
+                                    disabled={!isConnected || isBusy}
                                   >
                                     Delete
                                   </Button>
@@ -1161,13 +1163,15 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                                     appearance="secondary"
                                     icon={<ArrowSyncRegular />}
                                     onClick={() => handleReinstall(dialogGame)}
+                                    disabled={!isConnected || isBusy}
                                   >
                                     Reinstall
                                   </Button>
                                   <Button
                                     appearance="danger"
                                     icon={<DeleteRegular />}
-                                    onClick={handleDeleteRequest} // Uninstall
+                                    onClick={handleDeleteRequest}
+                                    disabled={!isConnected || isBusy}
                                   >
                                     Delete
                                   </Button>
@@ -1177,7 +1181,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                           }
 
                           if (isDownloaded) {
-                            // Completed but not installed
                             return (
                               <>
                                 <Button
@@ -1192,7 +1195,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                                 <Button
                                   appearance="danger"
                                   icon={<DeleteRegular />}
-                                  onClick={() => handleDeleteDownloaded(dialogGame)} // Delete downloaded files
+                                  onClick={() => handleDeleteDownloaded(dialogGame)}
                                 >
                                   Delete Downloaded Files
                                 </Button>
@@ -1200,7 +1203,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                             )
                           }
 
-                          // Default: Not installed, not downloaded, not downloading
                           return (
                             <Button
                               appearance="primary"
