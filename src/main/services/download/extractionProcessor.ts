@@ -312,6 +312,34 @@ export class ExtractionProcessor {
       }
       // --- Delete archive files --- END
 
+      // --- Clean up potential empty base directory --- START
+      const potentialEmptyDirPath = join(downloadPath, item.releaseName)
+      try {
+        if (existsSync(potentialEmptyDirPath)) {
+          const stats = await fs.stat(potentialEmptyDirPath)
+          if (stats.isDirectory()) {
+            const dirContents = await fs.readdir(potentialEmptyDirPath)
+            if (dirContents.length === 0) {
+              console.log(
+                `[ExtractProc] Removing empty directory found after extraction: ${potentialEmptyDirPath}`
+              )
+              await fs.rmdir(potentialEmptyDirPath)
+            } else {
+              console.log(
+                `[ExtractProc] Directory ${potentialEmptyDirPath} found but is not empty, skipping removal.`
+              )
+            }
+          }
+        }
+      } catch (cleanupError: unknown) {
+        console.warn(
+          `[ExtractProc] Error during empty directory cleanup for ${potentialEmptyDirPath}:`,
+          cleanupError
+        )
+        // Non-critical error, just log it
+      }
+      // --- Clean up potential empty base directory --- END
+
       // Update final status to Completed
       this.updateItemStatus(
         item.releaseName,
