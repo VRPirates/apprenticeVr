@@ -1,26 +1,24 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { promises as fsPromises, existsSync, createWriteStream } from 'fs'
+import { promises as fsPromises, existsSync, createWriteStream, chmodSync } from 'fs'
 import axios, { AxiosProgressEvent } from 'axios'
 import { execa } from 'execa'
-import extract from 'extract-zip'
 
 // Type definitions
 type ProgressCallback = (progress: { name: string; percentage: number }) => void
 
+interface DependencyInfo {
+  ready: boolean
+  path: string | null
+  error: string | null
+}
+
+interface RcloneDependencyInfo extends DependencyInfo {
+  downloading: boolean
+}
 interface DependencyStatus {
-  sevenZip: {
-    ready: boolean
-    path: string | null
-    error: string | null
-    downloading: boolean
-  }
-  rclone: {
-    ready: boolean
-    path: string | null
-    error: string | null
-    downloading: boolean
-  }
+  sevenZip: DependencyInfo
+  rclone: RcloneDependencyInfo
 }
 
 // Simple interface for GitHub Release Asset
@@ -30,16 +28,22 @@ interface GitHubAsset {
 }
 
 class DependencyService {
-  private targetDir: string
+  private binDir: string // Directory within userData for downloaded binaries (like rclone)
+  private resourcesBinDir: string // Directory within app resources for bundled binaries (like 7zip)
   private status: DependencyStatus
   private isInitializing: boolean
   private isInitialized: boolean
 
   constructor() {
-    // Binaries will be stored in a 'bin' directory within userData
-    this.targetDir = join(app.getPath('userData'), 'bin')
+    this.binDir = join(app.getPath('userData'), 'bin')
+    // Path to bundled binaries - needs to handle packaged vs. dev environments
+    this.resourcesBinDir = app.isPackaged
+      ? join(process.resourcesPath, 'bin') // In packaged app, 'resources/bin'
+      : join(app.getAppPath(), 'resources', 'bin') // In dev, 'projectRoot/resources/bin'
+
     this.status = {
-      sevenZip: { ready: false, path: null, error: null, downloading: false },
+      // 7zip status simplified - only checks existence
+      sevenZip: { ready: false, path: null, error: null },
       rclone: { ready: false, path: null, error: null, downloading: false }
     }
     this.isInitializing = false
@@ -57,277 +61,98 @@ class DependencyService {
     }
     this.isInitializing = true
     console.log('Initializing DependencyService...')
-    await fsPromises.mkdir(this.targetDir, { recursive: true })
-    await this.checkOrDownload7zip(progressCallback)
+    // Ensure userData bin directory exists for downloads like rclone
+    await fsPromises.mkdir(this.binDir, { recursive: true })
+
+    // Check for bundled 7zip
+    this.checkBundled7zip()
+
+    // Check or download rclone (this remains the same)
     await this.checkOrDownloadRclone(progressCallback)
+
     console.log('DependencyService initialization finished.')
     this.isInitializing = false
     this.isInitialized = true
+
+    // Check if all dependencies are ready after initialization
+    if (!this.status.sevenZip.ready || !this.status.rclone.ready) {
+      // Throw an error or handle the situation where dependencies aren't ready
+      const missing: ('7zip' | 'rclone')[] = []
+      if (!this.status.sevenZip.ready) missing.push('7zip')
+      if (!this.status.rclone.ready) missing.push('rclone')
+      // Construct error message based on what failed
+      let errorMessage = `Dependency setup failed. Missing or failed: ${missing.join(', ')}. `
+      if (this.status.sevenZip.error) errorMessage += `7zip Error: ${this.status.sevenZip.error} `
+      if (this.status.rclone.error) errorMessage += `Rclone Error: ${this.status.rclone.error}`
+
+      console.error(errorMessage)
+      throw new Error(errorMessage) // Propagate error to caller
+    }
   }
 
   // --- 7zip ---
 
-  public get7zPath(): string {
+  // Updated to point to bundled location
+  public get7zPath(): string | null {
     const platform = process.platform
-    const exeSuffix = platform === 'win32' ? '.exe' : ''
-    // Store the executable directly in the targetDir
-    return join(this.targetDir, `7z${exeSuffix}`)
+    let platformDir: string
+    let binaryName: string
+
+    switch (platform) {
+      case 'win32':
+        platformDir = 'win32'
+        binaryName = '7za.exe'
+        break
+      case 'linux':
+        platformDir = 'linux'
+        binaryName = '7zzs'
+        break
+      case 'darwin':
+        platformDir = 'darwin'
+        binaryName = '7zz'
+        break
+      default:
+        console.error(`Unsupported platform for bundled 7zip: ${platform}`)
+        return null // Or throw an error
+    }
+
+    const fullPath = join(this.resourcesBinDir, platformDir, binaryName)
+    console.log(`Calculated 7zip path for ${platform}: ${fullPath}`)
+    return fullPath
   }
 
-  private async checkOrDownload7zip(progressCallback?: ProgressCallback): Promise<void> {
+  // New method to check for bundled 7zip
+  private checkBundled7zip(): void {
     const expectedPath = this.get7zPath()
-    this.status.sevenZip.path = expectedPath
+    this.status.sevenZip.path = expectedPath // Store the calculated path
 
-    if (existsSync(expectedPath)) {
-      console.log(`7zip found at ${expectedPath}`)
-      this.status.sevenZip.ready = true
-      this.status.sevenZip.downloading = false
-      this.status.sevenZip.error = null
+    if (!expectedPath) {
+      this.status.sevenZip.ready = false
+      this.status.sevenZip.error = `Unsupported platform: ${process.platform}`
       return
     }
 
-    console.log(`7zip not found at ${expectedPath}, attempting download.`)
-    this.status.sevenZip.ready = false
-    this.status.sevenZip.downloading = true
-    this.status.sevenZip.error = null
-    progressCallback?.({ name: '7z', percentage: 0 })
+    if (existsSync(expectedPath)) {
+      console.log(`Bundled 7zip found at ${expectedPath}`)
+      this.status.sevenZip.ready = true
+      this.status.sevenZip.error = null
 
-    let tempArchivePath: string | null = null
-    let tempExtractDir: string | null = null
-    let isArchive = false
-    const platform = process.platform
-
-    try {
-      const { url: downloadUrl, isArchive: archiveFlag } = await this.get7zDownloadUrl()
-      isArchive = archiveFlag
-
-      if (!downloadUrl) {
-        throw new Error('Could not find suitable 7zip download URL.')
-      }
-
-      // Determine target path for download - ALWAYS use a temp path for the download itself
-      const downloadFileName = `7zip-download-${Date.now()}${isArchive ? '.archive' : '.exe'}`
-      const downloadTargetPath = join(app.getPath('temp'), downloadFileName)
-      tempArchivePath = downloadTargetPath // Keep track for cleanup
-
-      console.log(`Downloading 7zip from ${downloadUrl} to ${downloadTargetPath}`)
-
-      const response = await axios.get(downloadUrl, {
-        responseType: 'stream',
-        onDownloadProgress: (progressEvent: AxiosProgressEvent) => {
-          if (progressEvent.total) {
-            const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-            progressCallback?.({ name: '7z', percentage })
-          }
-        }
-      })
-
-      const writer = createWriteStream(downloadTargetPath)
-      response.data.pipe(writer)
-
-      await new Promise<void>((resolve, reject) => {
-        writer.on('finish', resolve)
-        writer.on('error', reject)
-        response.data.on('error', reject)
-      })
-
-      console.log(`7zip download complete: ${downloadTargetPath}`)
-      progressCallback?.({ name: '7z', percentage: 100 })
-
-      // --- Extraction Step / Installation Step ---
-      if (isArchive) {
-        tempExtractDir = join(app.getPath('temp'), `7zip-extract-${Date.now()}`)
-        console.log(`Extracting archive: ${downloadTargetPath} to ${tempExtractDir}`)
-        progressCallback?.({ name: '7z-extract', percentage: 0 })
-
-        await fsPromises.mkdir(tempExtractDir, { recursive: true })
-
+      // Ensure executable permissions on non-windows
+      if (process.platform !== 'win32') {
         try {
-          // Extract the whole archive to the temp extract dir
-          await execa('tar', ['xf', downloadTargetPath, '-C', tempExtractDir], { stdio: 'inherit' })
-          console.log(`Archive extracted to ${tempExtractDir}`)
-        } catch (extractError) {
-          console.error('tar extraction failed:', extractError)
-          throw new Error(
-            `Failed to extract archive: ${extractError instanceof Error ? extractError.message : String(extractError)}`
-          )
+          // Use sync version for simplicity during init check
+          chmodSync(expectedPath, 0o755)
+          console.log(`Ensured execute permissions for ${expectedPath}`)
+        } catch (chmodError) {
+          console.warn(`Failed to ensure execute permissions for ${expectedPath}:`, chmodError)
+          this.status.sevenZip.ready = false // Mark as not ready if permissions fail
+          this.status.sevenZip.error = `Permission error: ${chmodError instanceof Error ? chmodError.message : String(chmodError)}`
         }
-
-        // Find the binary within the extracted files
-        const binaryNameInArchive =
-          platform === 'linux' ? '7zzs' : platform === 'darwin' ? '7zz' : '7z'
-        let foundBinaryPath: string | null = null
-
-        // Simple search: Check common locations (root and first level dir)
-        const rootPath = join(tempExtractDir, binaryNameInArchive)
-        if (existsSync(rootPath)) {
-          foundBinaryPath = rootPath
-        } else {
-          // Check first level directories
-          const entries = await fsPromises.readdir(tempExtractDir, { withFileTypes: true })
-          for (const entry of entries) {
-            if (entry.isDirectory()) {
-              const potentialPath = join(tempExtractDir, entry.name, binaryNameInArchive)
-              if (existsSync(potentialPath)) {
-                foundBinaryPath = potentialPath
-                break
-              }
-            }
-          }
-        }
-
-        if (!foundBinaryPath) {
-          console.error(
-            `Could not find ${binaryNameInArchive} within extracted files in ${tempExtractDir}`
-          )
-          throw new Error(`Could not locate ${binaryNameInArchive} after extraction.`)
-        }
-
-        console.log(`Found binary at ${foundBinaryPath}. Copying to ${expectedPath}...`)
-        await fsPromises.copyFile(foundBinaryPath, expectedPath)
-        console.log(`Successfully copied binary to ${expectedPath}`)
-
-        // Clean up temporary extraction directory and archive
-        console.log(`Cleaning up temporary files: ${tempExtractDir} and ${downloadTargetPath}`)
-        await fsPromises.rm(tempExtractDir, { recursive: true, force: true })
-        await fsPromises.unlink(downloadTargetPath)
-        console.log(`Cleaned up temp archive: ${downloadTargetPath}`)
-        tempArchivePath = null // Archive handled
-
-        this.status.sevenZip.ready = true
-        this.status.sevenZip.error = null
-        progressCallback?.({ name: '7z-extract', percentage: 100 })
-      } else if (platform === 'win32') {
-        // Windows: Run the downloaded .exe installer silently FROM the temp path
-        console.log(
-          `Running 7zip installer silently: ${downloadTargetPath} /S /D=${this.targetDir}`
-        )
-        progressCallback?.({ name: '7z-install', percentage: 0 })
-        try {
-          await fsPromises.mkdir(this.targetDir, { recursive: true })
-          // Run the installer FROM temp path, no need to store result if unused
-          await execa(downloadTargetPath, ['/S', `/D=${this.targetDir}`])
-          console.log(`7zip installer process finished.`) // Simplified log
-
-          // Verify the actual binary exists now
-          if (!existsSync(expectedPath)) {
-            throw new Error(`Installer ran, but ${expectedPath} was not found.`)
-          }
-          console.log(`Successfully installed 7z.exe to ${expectedPath}`)
-
-          this.status.sevenZip.ready = true
-          this.status.sevenZip.error = null
-          progressCallback?.({ name: '7z-install', percentage: 100 })
-        } catch (installError) {
-          console.error('7zip silent installation failed:', installError)
-          throw new Error(
-            `Failed to install 7zip: ${installError instanceof Error ? installError.message : String(installError)}`
-          )
-        } finally {
-          // Clean up the downloaded installer exe from the temp path
-          console.log(`Cleaning up downloaded installer: ${downloadTargetPath}`)
-          try {
-            if (existsSync(downloadTargetPath)) {
-              // Check if it still exists before unlinking
-              await fsPromises.unlink(downloadTargetPath)
-            }
-          } catch (cleanupError) {
-            console.warn(`Failed to clean up installer exe: ${cleanupError}`)
-          }
-          tempArchivePath = null // Mark as handled
-        }
-      } else {
-        // Should not happen based on get7zDownloadUrl logic
-        throw new Error(
-          `Unsupported platform configuration: platform=${platform}, isArchive=${isArchive}`
-        )
       }
-    } catch (error) {
-      console.error(
-        'Error during 7zip download/extraction:',
-        error instanceof Error ? error.message : String(error)
-      )
+    } else {
+      console.error(`Bundled 7zip NOT found at expected path: ${expectedPath}`)
       this.status.sevenZip.ready = false
-      this.status.sevenZip.downloading = false
-      this.status.sevenZip.error = error instanceof Error ? error.message : 'Unknown download error'
-      try {
-        if (tempArchivePath && existsSync(tempArchivePath)) {
-          await fsPromises.unlink(tempArchivePath)
-          console.log(`Cleaned up temp archive: ${tempArchivePath}`)
-        }
-        if (isArchive && tempExtractDir && existsSync(tempExtractDir)) {
-          await fsPromises.rm(tempExtractDir, { recursive: true, force: true })
-          console.log(`Cleaned up temp extraction directory: ${tempExtractDir}`)
-        }
-      } catch (cleanupError) {
-        console.error('Failed to cleanup temp files on error:', cleanupError)
-      }
-    } finally {
-      this.status.sevenZip.downloading = false
-    }
-  }
-
-  private async get7zDownloadUrl(): Promise<{ url: string | null; isArchive: boolean }> {
-    const repo = 'ip7z/7zip'
-    const apiUrl = `https://api.github.com/repos/${repo}/releases/latest`
-    console.log(`Fetching latest release info from ${apiUrl}`)
-
-    try {
-      const response = await axios.get(apiUrl, { timeout: 15000 })
-      const release = response.data
-      const assets: GitHubAsset[] = release?.assets
-
-      if (!assets || !Array.isArray(assets)) {
-        console.error('No assets found in the latest release data.')
-        return { url: null, isArchive: false }
-      }
-
-      console.log(`Found ${assets.length} assets for release ${release.tag_name}`)
-
-      const platform = process.platform
-      const arch = process.arch
-      let targetAssetName: string | null = null
-      let isArchive = false // Default to not needing extraction
-
-      if (platform === 'win32') {
-        if (arch === 'x64')
-          targetAssetName = assets.find((a) => /^7z\d+-x64\.exe$/.test(a.name))?.name ?? null
-        else if (arch === 'ia32')
-          targetAssetName = assets.find((a) => /^7z\d+\.exe$/.test(a.name))?.name ?? null
-        // ARM64 Windows? assets.find(a => /^7z\d+-arm64\.exe$/.test(a.name))?.name
-        isArchive = false // Windows uses direct executable
-      } else if (platform === 'linux') {
-        if (arch === 'x64')
-          targetAssetName = assets.find((a) => a.name.endsWith('-linux-x64.tar.xz'))?.name ?? null
-        else if (arch === 'arm64')
-          targetAssetName = assets.find((a) => a.name.endsWith('-linux-arm64.tar.xz'))?.name ?? null
-        else if (arch === 'ia32')
-          targetAssetName = assets.find((a) => a.name.endsWith('-linux-x86.tar.xz'))?.name ?? null
-        isArchive = true // Linux needs extraction
-      } else if (platform === 'darwin') {
-        targetAssetName = assets.find((a) => a.name.endsWith('-mac.tar.xz'))?.name ?? null
-        isArchive = true // macOS needs extraction
-      }
-
-      if (!targetAssetName) {
-        console.error(`Could not find a suitable 7zip asset for platform=${platform}, arch=${arch}`)
-        return { url: null, isArchive: false }
-      }
-
-      const targetAsset = assets.find((a) => a.name === targetAssetName)
-      if (!targetAsset?.browser_download_url) {
-        console.error(`Found asset name ${targetAssetName}, but no download URL.`)
-        return { url: null, isArchive: false }
-      }
-
-      console.log(`Selected 7zip asset: ${targetAssetName}, Needs extraction: ${isArchive}`)
-      return { url: targetAsset.browser_download_url, isArchive }
-    } catch (error) {
-      console.error(
-        `Error fetching 7zip release info from GitHub:`,
-        error instanceof Error ? error.message : String(error)
-      )
-      return { url: null, isArchive: false }
+      this.status.sevenZip.error = `Bundled 7zip not found at ${expectedPath}. Check app packaging.`
     }
   }
 
@@ -336,7 +161,8 @@ class DependencyService {
   public getRclonePath(): string {
     const platform = process.platform
     const exeSuffix = platform === 'win32' ? '.exe' : ''
-    return join(this.targetDir, `rclone${exeSuffix}`)
+    // rclone is downloaded to userData/bin
+    return join(this.binDir, `rclone${exeSuffix}`)
   }
 
   private async checkOrDownloadRclone(progressCallback?: ProgressCallback): Promise<void> {
@@ -395,7 +221,15 @@ class DependencyService {
       console.log(`Extracting archive: ${tempArchivePath} to ${tempExtractDir}`)
       progressCallback?.({ name: 'rclone-extract', percentage: 0 })
 
-      await extract(tempArchivePath, { dir: tempExtractDir })
+      // Use the bundled 7zip for extraction if it's ready
+      const sevenZipPath = this.status.sevenZip.ready ? this.status.sevenZip.path : null
+      if (!sevenZipPath) {
+        throw new Error('Bundled 7zip is not available or ready, cannot extract rclone archive.')
+      }
+
+      console.log(`Using bundled 7zip at ${sevenZipPath} for extraction.`)
+      await execa(sevenZipPath, ['x', tempArchivePath, `-o${tempExtractDir}`, '-y'])
+      // await extract(tempArchivePath, { dir: tempExtractDir }) // Old extract-zip method
       console.log(`Archive extracted to ${tempExtractDir}`)
 
       // Find the binary within the extracted files (usually in a subdirectory)
@@ -411,6 +245,11 @@ class DependencyService {
             foundBinaryPath = potentialPath
             break
           }
+        }
+        // Check root of extracted dir as well (less common for rclone zip)
+        const rootPath = join(tempExtractDir, binaryName)
+        if (!foundBinaryPath && existsSync(rootPath)) {
+          foundBinaryPath = rootPath
         }
       }
 
@@ -440,6 +279,9 @@ class DependencyService {
           console.log(`Set executable permissions for ${expectedPath}`)
         } catch (chmodError) {
           console.warn(`Failed to set executable permissions for ${expectedPath}:`, chmodError)
+          // Consider marking rclone as not ready if chmod fails
+          this.status.rclone.ready = false
+          this.status.rclone.error = `Permission error: ${chmodError instanceof Error ? chmodError.message : String(chmodError)}`
         }
       }
     } catch (error) {
@@ -503,6 +345,7 @@ class DependencyService {
       // Add arm? rclone might use 'arm'
       else return null // Unsupported arch
 
+      // Rclone uses .zip for all these combos
       const targetFileNamePattern = `-${platformSuffix}-${archSuffix}.zip`
       console.log(`Searching for rclone asset ending with: ${targetFileNamePattern}`)
 

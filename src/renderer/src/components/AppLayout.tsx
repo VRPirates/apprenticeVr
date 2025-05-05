@@ -94,14 +94,23 @@ const MainContent: React.FC<MainContentProps> = ({
         </div>
       )
     }
-    // Show progress if available
+    // Show progress if available - only rclone needs downloading/extracting now
     let progressText = 'Checking requirements...'
-    if (dependencyProgress) {
+    if (dependencyStatus?.rclone.downloading && dependencyProgress) {
+      // Show specific rclone progress only if it's downloading
       progressText = `Setting up ${dependencyProgress.name}... ${dependencyProgress.percentage}%`
-      if (dependencyProgress.name.endsWith('-extract')) {
+      if (dependencyProgress.name === 'rclone-extract') {
         progressText = `Extracting ${dependencyProgress.name.replace('-extract', '')}...`
       }
+    } else if (
+      dependencyStatus &&
+      (!dependencyStatus.sevenZip.ready || !dependencyStatus.rclone.ready)
+    ) {
+      // Generic checking message if not downloading but still not ready
+      progressText = 'Checking required tools...'
     }
+    // If all deps are ready, this block is skipped anyway by the `if (!dependenciesReady)` check above
+
     return (
       <div className={styles.loadingOrErrorContainer}>
         <Spinner size="huge" />
