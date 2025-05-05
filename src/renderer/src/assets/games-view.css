@@ -20,24 +20,6 @@
   align-items: center;
 }
 
-.back-button {
-  background-color: transparent;
-  color: #1a73e8;
-  border: none;
-  padding: 8px 12px;
-  margin-right: 12px;
-  cursor: pointer;
-  font-size: 0.9em;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  transition: background-color 0.2s;
-  border-radius: 4px;
-}
-
-.back-button:hover {
-  background-color: rgba(26, 115, 232, 0.08);
-}
 
 .games-header h2 {
   margin: 0;
@@ -61,30 +43,8 @@
   font-size: 0.9em;
 }
 
-.disconnect-button {
-  background-color: #f8f9fa;
-  color: #3c4043;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
-  padding: 6px 12px;
-  cursor: pointer;
-  font-size: 0.9em;
-  transition: background-color 0.2s;
-}
 
-.disconnect-button:hover {
-  background-color: #f1f3f4;
-  border-color: #d2d5d9;
-}
 
-.games-container {
-  border-radius: 4px;
-  padding: 16px;
-  flex-grow: 1; /* Allow container to grow */
-  overflow: hidden; /* Hide overflow to allow inner scrolling */
-  display: flex;
-  flex-direction: column;
-}
 
 .games-toolbar {
   display: flex;
@@ -103,32 +63,13 @@
 }
 
 .last-synced {
-  color: #5f6368;
+  color: var(--colorNeutralForeground2);
   font-size: 0.9em;
 }
 
-.refresh-button {
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.refresh-button:hover {
-  background-color: #1765cc;
-}
-
-.refresh-button:disabled {
-  background-color: #8ab4f8;
-  cursor: not-allowed;
-}
 
 .game-count {
-  color: #5f6368;
+  color: var(--colorNeutralForeground2);
   font-size: 0.9em;
 }
 
@@ -137,7 +78,7 @@
   justify-content: center;
   align-items: center;
   height: 200px;
-  color: #5f6368;
+  color: var(--colorNeutralForeground2);
 }
 
 .no-games-message {
@@ -145,7 +86,7 @@
   justify-content: center;
   align-items: center;
   height: 200px;
-  color: #5f6368;
+  color: var(--colorNeutralForeground2);
   text-align: center;
 }
 
@@ -154,7 +95,7 @@
   justify-content: center;
   align-items: center;
   height: 200px;
-  color: #d93025;
+  color: var(--colorPaletteRedForegroundInverted);
   text-align: center;
 }
 
@@ -166,22 +107,6 @@
   flex-grow: 1; /* Allow list to grow */
 }
 
-.game-item {
-  padding: 16px;
-  border-bottom: 1px solid #e0e0e0;
-  transition: background-color 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.game-item:hover {
-  background-color: #f8f9fa;
-}
-
-.game-item:last-child {
-  border-bottom: none;
-}
 
 .game-thumbnail {
   width: 80px;
@@ -205,12 +130,6 @@
   flex-grow: 1;
 }
 
-.game-name {
-  font-weight: 500;
-  color: #202124;
-  font-size: 16px;
-  margin-bottom: 4px;
-}
 
 .game-details-row {
   display: flex;
@@ -219,94 +138,6 @@
   flex-wrap: wrap;
 }
 
-.game-version {
-  color: #5f6368;
-  font-size: 12px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.game-size {
-  color: #5f6368;
-  font-size: 12px;
-  background-color: #f1f3f4;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.game-updated {
-  color: #5f6368;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.game-rating {
-  color: #fbbc04;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.rating-count {
-  color: #5f6368;
-  margin-left: 4px;
-}
-
-.game-downloads {
-  color: #5f6368;
-  font-size: 12px;
-}
-
-.game-package {
-  font-size: 12px;
-  color: #5f6368;
-  font-family: monospace;
-  background-color: #f1f3f4;
-  padding: 2px 6px;
-  border-radius: 4px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: 4px;
-}
-
-.game-package .label {
-  color: #1a73e8;
-  font-weight: 500;
-}
-
-.games-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 300px;
-  color: #5f6368;
-  text-align: center;
-  padding: 0 32px;
-}
-
-.games-placeholder p {
-  margin: 8px 0;
-}
-
-.connect-device-button {
-  margin-top: 16px;
-  background-color: #1a73e8;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 8px 16px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.connect-device-button:hover {
-  background-color: #1765cc;
-}
 
 .download-progress {
   margin: 20px 0;
@@ -332,7 +163,7 @@
 
 .progress-text {
   font-size: 0.8em;
-  color: #5f6368;
+  color: var(--colorNeutralForeground2);
   text-align: center;
 }
 
@@ -344,6 +175,7 @@
   overflow: hidden; /* Hide overflow to allow inner scrolling */
   display: flex;
   flex-direction: column;
+  border: 1px solid var(--colorNeutralForeground2);
 }
 
 .games-toolbar-right {
@@ -352,25 +184,12 @@
   gap: 16px;
 }
 
-.search-input {
-  padding: 6px 10px;
-  border: 1px solid #dadce0;
-  border-radius: 4px;
-  font-size: 0.9em;
-  width: 250px;
-}
-
-.search-input:focus {
-  outline: none;
-  border-color: #1a73e8;
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
-}
 
 .table-wrapper {
   overflow-y: auto; /* Make table body scrollable */
   flex-grow: 1;
   margin-top: 16px;
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--colorNeutralForeground2);
   border-radius: 4px;
   position: relative; /* Added: Needed for absolute positioning of children like popover */
 }
@@ -404,13 +223,13 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   /* Add a subtle bottom border for row separation */
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--colorNeutralForeground2);
 }
 
 .games-table th {
   /* background-color: #f8f9fa; */
   font-weight: 500;
-  color: #3c4043;
+  color: var(--colorNeutralForeground1);
   position: sticky;
   top: 0;
   z-index: 1;
@@ -418,7 +237,7 @@
    /* Remove left border */
   /* border-left: 1px solid #e0e0e0; */
    /* Add bottom border to header row */
-  border-bottom: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--colorNeutralForeground2);
 }
 
 
@@ -437,7 +256,7 @@
 
 .game-name-main {
   font-weight: 500;
-  color: #202124;
+  color: var(--colorNeutralForeground1);
   /* Ensure truncation if name alone is too long */
   white-space: nowrap;
   overflow: hidden;
@@ -446,7 +265,7 @@
 
 .game-package-sub {
   font-size: 11px; /* Smaller font size */
-  color: #5f6368; /* Grey color */
+  color: var(--colorNeutralForeground3); /* Grey color */
   font-family: monospace;
   margin-top: 2px; /* Small space between name and package */
    /* Ensure truncation */
@@ -516,20 +335,28 @@
 
 /* Add Row Background Styles */
 .row-installed {
-  background-color: rgba(208, 248, 215, 0.3); /* Lighter green, slightly transparent */
+  background-color: var(--colorPaletteGreenBackground1); /* Lighter green, slightly transparent */
+}
+/* Style for rows with available updates (Added) */
+.row-update-available {
+  background-color: var(--colorPaletteGreenBackground2); /* A slightly more noticeable light green */
 }
 
 .row-installed:hover {
-  background-color: rgba(167, 216, 174, 0.5); /* Darker green on hover */
+  background-color: var(--colorNeutralBackground4); /* Standard hover for non-installed */
+}
+.row-update-available:hover {
+  background-color: var(--colorNeutralBackground4); /* Standard hover for non-installed */
 }
 
-.row-not-installed {
-  /* Default background, no extra style needed unless desired */
-}
 
 .row-not-installed:hover {
-  background-color: #f1f3f4; /* Standard hover for non-installed */
+  background-color: var(--colorNeutralBackground4); /* Standard hover for non-installed */
 }
+
+
+
+
 
 /* Resizer Styles */
 .resizer {
@@ -554,7 +381,7 @@
 
 /* Apply left border to TH except the first one to visually separate */
 .games-table th:not(:first-child) {
-  border-right: 1px solid #e0e0e0;
+  border-right: 1px solid var(--colorNeutralForeground2);
 }
 
 /* Cell Styling for Version Column (Added) */
@@ -577,7 +404,7 @@
 
 .installed-version-info {
   font-size: 11px; /* Match game-package-sub */
-  color: #5f6368; /* Match game-package-sub */
+  color: var(--colorNeutralForeground3); /* Match game-package-sub */
   font-family: monospace; /* Match game-package-sub */
   margin-top: 2px; /* Match game-package-sub */
   white-space: nowrap;
@@ -585,14 +412,7 @@
   text-overflow: ellipsis;
 }
 
-/* Style for rows with available updates (Added) */
-.row-update-available {
-  background-color: #daf0da; /* A slightly more noticeable light green */
-}
 
-.row-update-available:hover {
-   background-color: #c9e7c9; /* Darker green on hover for update rows */
-}
 
 /* Game Action Popover Styles (Added) */
 .game-action-popover {
