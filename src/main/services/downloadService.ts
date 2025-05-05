@@ -3,43 +3,27 @@ import { join, basename } from 'path'
 import { promises as fs, existsSync } from 'fs'
 import { execa, ExecaError } from 'execa'
 import { GameInfo } from './gameService'
-import { DownloadItem, DownloadStatus } from './downloadTypes'
+import { DownloadItem, DownloadStatus } from './download/types'
 import dependencyService from './dependencyService'
 import { EventEmitter } from 'events'
 import crypto from 'crypto'
-// Debounce function with improved typing
-function debounce<T extends (...args: P) => void, P extends unknown[]>(
-  func: T,
-  wait: number
-): (...args: P) => void {
-  let timeout: NodeJS.Timeout | null = null
-  return (...args: P): void => {
-    if (timeout) {
-      clearTimeout(timeout)
-    }
-    timeout = setTimeout(() => {
-      func(...args)
-    }, wait)
-  }
-}
+import { debounce } from './download/utils'
+import { QueueManager } from './download/queueManager'
 
 class DownloadService extends EventEmitter {
-  private queue: DownloadItem[] = []
-  private queuePath: string
   private downloadsDir: string
   private isInitialized = false
   private isProcessing = false
   private activeDownloads: Map<string, ReturnType<typeof execa>> = new Map()
   private activeExtractions: Map<string, ReturnType<typeof execa>> = new Map()
   private vrpConfig: { baseUri?: string; password?: string } | null = null
-  private debouncedSaveQueue: () => void
   private debouncedEmitUpdate: () => void
+  private queueManager: QueueManager
 
   constructor() {
     super()
-    this.queuePath = join(app.getPath('userData'), 'download-queue.json')
+    this.queueManager = new QueueManager()
     this.downloadsDir = join(app.getPath('userData'), 'downloads')
-    this.debouncedSaveQueue = debounce(this.saveQueue.bind(this), 1000)
     this.debouncedEmitUpdate = debounce(this.emitUpdate.bind(this), 300)
   }
 
@@ -48,20 +32,16 @@ class DownloadService extends EventEmitter {
     console.log('Initializing DownloadService...')
     this.vrpConfig = vrpConfig
     await fs.mkdir(this.downloadsDir, { recursive: true })
-    await this.loadQueue()
+    await this.queueManager.loadQueue()
 
-    let changed = false
-    this.queue.forEach((item) => {
-      if (item.status === 'Downloading') {
-        console.log(`Resetting status for ${item.releaseName} from Downloading to Queued.`)
-        item.status = 'Queued'
-        item.pid = undefined
-        item.progress = 0
-        changed = true
-      }
+    const changed = this.queueManager.updateAllItems((item) => item.status === 'Downloading', {
+      status: 'Queued',
+      pid: undefined,
+      progress: 0
     })
+
     if (changed) {
-      this.debouncedSaveQueue()
+      console.log('Reset status for items from Downloading to Queued after restart.')
     }
 
     this.isInitialized = true
@@ -70,64 +50,8 @@ class DownloadService extends EventEmitter {
     this.processQueue()
   }
 
-  private async loadQueue(): Promise<void> {
-    try {
-      if (existsSync(this.queuePath)) {
-        const data = await fs.readFile(this.queuePath, 'utf-8')
-        const loadedQueue: DownloadItem[] = JSON.parse(data)
-
-        // Filter out items where the download path no longer exists
-        const validQueue = loadedQueue.filter((item) => {
-          if (item.downloadPath && !existsSync(item.downloadPath)) {
-            console.warn(
-              `Download directory "${item.downloadPath}" for "${item.releaseName}" not found. Removing item from queue.`
-            )
-            return false // Exclude this item
-          }
-          return true // Keep this item
-        })
-
-        this.queue = validQueue
-
-        // If items were removed, save the cleaned queue
-        if (this.queue.length !== loadedQueue.length) {
-          console.log('Saving cleaned download queue after removing items with missing paths.')
-          await this.saveQueue() // Save immediately after cleaning
-        }
-
-        console.log(`Loaded ${this.queue.length} download items from queue file.`)
-      } else {
-        console.log('No existing download queue found.')
-        this.queue = []
-      }
-    } catch (error) {
-      // If the file doesn't exist or is invalid, start with an empty queue
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === 'ENOENT'
-      ) {
-        console.log('Download queue file not found, starting fresh.')
-      } else {
-        console.error('Error loading download queue:', error)
-      }
-      this.queue = []
-    }
-  }
-
-  private async saveQueue(): Promise<void> {
-    try {
-      const data = JSON.stringify(this.queue, null, 2)
-      await fs.writeFile(this.queuePath, data, 'utf-8')
-      // console.log('Download queue saved.'); // Maybe too noisy?
-    } catch (error) {
-      console.error('Error saving download queue:', error)
-    }
-  }
-
   public getQueue(): DownloadItem[] {
-    return [...this.queue]
+    return this.queueManager.getQueue()
   }
 
   public addToQueue(game: GameInfo): boolean {
@@ -140,7 +64,7 @@ class DownloadService extends EventEmitter {
       return false
     }
 
-    const existing = this.queue.find((item) => item.releaseName === game.releaseName)
+    const existing = this.queueManager.findItem(game.releaseName)
 
     if (existing) {
       if (existing.status === 'Completed') {
@@ -153,7 +77,7 @@ class DownloadService extends EventEmitter {
         return false
       }
       console.log(`Re-adding game ${game.releaseName} after previous ${existing.status}.`)
-      this.queue = this.queue.filter((item) => item.releaseName !== game.releaseName)
+      this.queueManager.removeItem(game.releaseName)
     }
 
     const newItem: DownloadItem = {
@@ -165,27 +89,32 @@ class DownloadService extends EventEmitter {
       addedDate: Date.now(),
       thumbnailPath: game.thumbnailPath
     }
-    this.queue.push(newItem)
+    this.queueManager.addItem(newItem)
     console.log(`Added ${game.releaseName} to download queue.`)
     this.emitUpdate()
-    this.debouncedSaveQueue()
     this.processQueue()
     return true
   }
 
   public removeFromQueue(releaseName: string): void {
-    const itemIndex = this.queue.findIndex((item) => item.releaseName === releaseName)
-    if (itemIndex === -1) return
-
-    const item = this.queue[itemIndex]
+    const item = this.queueManager.findItem(releaseName)
+    if (!item) return
 
     if (item.status === 'Downloading') {
       this.cancelDownload(releaseName, 'Cancelled')
+    } else if (item.status === 'Extracting') {
+      this.cancelExtraction(releaseName)
+      const removed = this.queueManager.removeItem(releaseName)
+      if (removed) {
+        console.log(`Removed ${releaseName} from queue after cancelling extraction.`)
+        this.emitUpdate()
+      }
     } else {
-      this.queue.splice(itemIndex, 1)
-      console.log(`Removed ${releaseName} from queue.`)
-      this.emitUpdate()
-      this.debouncedSaveQueue()
+      const removed = this.queueManager.removeItem(releaseName)
+      if (removed) {
+        console.log(`Removed ${releaseName} from queue.`)
+        this.emitUpdate()
+      }
     }
   }
 
@@ -197,15 +126,10 @@ class DownloadService extends EventEmitter {
     const process = this.activeDownloads.get(releaseName)
     if (process?.pid) {
       console.log(`Cancelling download for ${releaseName} (PID: ${process.pid})...`)
-      // Detach listeners BEFORE killing to prevent processing stale output
       process.all?.removeAllListeners()
 
       try {
-        // Commenting out kill options to avoid persistent linter error
-        // process.kill('SIGTERM', {
-        //   forceKillAfterTimeout: 2000
-        // })
-        process.kill('SIGTERM') // Standard SIGTERM
+        process.kill('SIGTERM')
         console.log(`Sent kill signal to process for ${releaseName}.`)
       } catch (killError) {
         console.error(`Error killing process for ${releaseName}:`, killError)
@@ -215,27 +139,30 @@ class DownloadService extends EventEmitter {
       console.log(`No active download process found for ${releaseName} to cancel.`)
     }
 
-    const item = this.queue.find((i) => i.releaseName === releaseName)
+    const item = this.queueManager.findItem(releaseName)
     if (item) {
+      const updates: Partial<DownloadItem> = {
+        pid: undefined
+      }
       if (!(item.status === 'Error' && finalStatus === 'Cancelled')) {
-        item.status = finalStatus
+        updates.status = finalStatus
       }
-      item.pid = undefined
       if (finalStatus === 'Cancelled') {
-        item.progress = 0
+        updates.progress = 0
       }
-      item.error = item.status === 'Error' ? errorMsg || item.error : undefined
-      console.log(`Updated status for ${releaseName} to ${item.status}.`)
-      this.updateItemStatus(
-        item.releaseName,
-        item.status,
-        item.progress,
-        item.error,
-        item.speed,
-        item.eta,
-        item.extractProgress
-      )
-      this.emitUpdate()
+      if (finalStatus === 'Error') {
+        updates.error = errorMsg || item.error
+      } else {
+        updates.error = undefined
+      }
+
+      const updated = this.queueManager.updateItem(releaseName, updates)
+      if (updated) {
+        console.log(`Updated status for ${releaseName} to ${finalStatus}.`)
+        this.debouncedEmitUpdate()
+      } else {
+        console.warn(`Failed to update item ${releaseName} during cancellation.`)
+      }
     } else {
       console.warn(`Item ${releaseName} not found in queue during cancellation.`)
     }
@@ -251,8 +178,10 @@ class DownloadService extends EventEmitter {
       return
     }
 
-    const nextItem = this.queue.find((item) => item.status === 'Queued')
+    const nextItem = this.queueManager.findNextQueuedItem()
     if (!nextItem) {
+      console.log('Download queue is empty or no items are queued.')
+      this.isProcessing = false
       return
     }
 
@@ -261,15 +190,7 @@ class DownloadService extends EventEmitter {
       await this.startDownload(nextItem)
     } catch (error) {
       console.error(`Error initiating download for ${nextItem.releaseName}:`, error)
-      this.updateItemStatus(
-        nextItem.releaseName,
-        'Error',
-        0,
-        'Failed to start download',
-        undefined,
-        undefined,
-        undefined
-      )
+      this.updateItemStatus(nextItem.releaseName, 'Error', 0, 'Failed to start download')
       this.isProcessing = false
       this.processQueue()
     }
@@ -280,15 +201,7 @@ class DownloadService extends EventEmitter {
 
     if (!this.vrpConfig?.baseUri || !this.vrpConfig?.password) {
       console.error('Missing VRP baseUri or password. Cannot start download.')
-      this.updateItemStatus(
-        item.releaseName,
-        'Error',
-        0,
-        'Missing VRP configuration',
-        undefined,
-        undefined,
-        undefined
-      )
+      this.updateItemStatus(item.releaseName, 'Error', 0, 'Missing VRP configuration')
       this.isProcessing = false
       this.processQueue()
       return
@@ -296,18 +209,11 @@ class DownloadService extends EventEmitter {
 
     const rclonePath = dependencyService.getRclonePath()
     const downloadPath = join(this.downloadsDir, item.releaseName)
-    item.downloadPath = downloadPath
+    this.queueManager.updateItem(item.releaseName, { downloadPath: downloadPath })
+
     await fs.mkdir(downloadPath, { recursive: true })
 
-    this.updateItemStatus(
-      item.releaseName,
-      'Downloading',
-      0,
-      undefined,
-      undefined,
-      undefined,
-      undefined
-    )
+    this.updateItemStatus(item.releaseName, 'Downloading', 0)
 
     const gameNameHash = crypto
       .createHash('md5')
@@ -344,39 +250,43 @@ class DownloadService extends EventEmitter {
       }
 
       this.activeDownloads.set(item.releaseName, rcloneProcess)
-      this.updateItemPid(item.releaseName, rcloneProcess.pid)
+      this.queueManager.updateItem(item.releaseName, { pid: rcloneProcess.pid })
 
       console.log(`rclone process started for ${item.releaseName} with PID: ${rcloneProcess.pid}`)
 
       const transferLineRegex = /, (\d+)%, /
-      const speedRegex = /, (\d+\.\d+ \S+?B\/s),/ // Capture speed like 10.123 MiB/s
-      const etaRegex = /, ETA (\S+)/ // Capture ETA like 5m30s or -
+      const speedRegex = /, (\d+\.\d+ \S+?B\/s),/
+      const etaRegex = /, ETA (\S+)/
 
       let outputBuffer = ''
       rcloneProcess.all.on('data', (data: Buffer) => {
+        const currentItemState = this.queueManager.findItem(item.releaseName)
+        if (!currentItemState) {
+          console.warn(`Item ${item.releaseName} disappeared during download data processing.`)
+          const proc = this.activeDownloads.get(item.releaseName)
+          proc?.kill('SIGTERM')
+          this.activeDownloads.delete(item.releaseName)
+          return
+        }
+
         outputBuffer += data.toString()
-        // Split by newline OR carriage return, removing empty strings
         const lines = outputBuffer.split(/\r\n|\n|\r/).filter((line) => line.length > 0)
 
         if (lines.length > 0) {
-          // Check if the last element is a complete line
           const lastLineComplete = /ETA \S+$/.test(lines[lines.length - 1])
-
-          // Determine which lines to process now vs. keep for later
           const linesToProcess = lastLineComplete ? lines : lines.slice(0, -1)
-          outputBuffer = lastLineComplete ? '' : lines[lines.length - 1] // Keep last incomplete line
+          outputBuffer = lastLineComplete ? '' : lines[lines.length - 1]
 
           for (const line of linesToProcess) {
-            // Process each complete line
             console.log(`[DownloadService Raw Line] ${item.releaseName}: ${line}`)
             const progressMatch = line.match(transferLineRegex)
             if (progressMatch && progressMatch[1]) {
               const currentProgress = parseInt(progressMatch[1], 10)
-              if (currentProgress > (item.progress || 0) || currentProgress === 0) {
+              if (currentProgress > (currentItemState.progress ?? 0) || currentProgress === 0) {
                 const speedMatch = line.match(speedRegex)
                 const etaMatch = line.match(etaRegex)
-                const speed = speedMatch?.[1] || item.speed
-                const eta = etaMatch?.[1] || item.eta
+                const speed = speedMatch?.[1] || currentItemState.speed
+                const eta = etaMatch?.[1] || currentItemState.eta
                 console.log(
                   `[DownloadService] Parsed progress: ${currentProgress}%, Speed: ${speed}, ETA: ${eta} for ${item.releaseName}`
                 )
@@ -386,8 +296,7 @@ class DownloadService extends EventEmitter {
                   currentProgress,
                   undefined,
                   speed,
-                  eta,
-                  item.extractProgress
+                  eta
                 )
               }
             }
@@ -424,7 +333,6 @@ class DownloadService extends EventEmitter {
         item.extractProgress
       )
       this.activeDownloads.delete(item.releaseName)
-      this.updateItemPid(item.releaseName, undefined)
 
       // ---!!! DOWNLOAD COMPLETE - START EXTRACTION !!!---
       console.log(`Download finished successfully for ${item.releaseName}. Starting extraction...`)
@@ -441,8 +349,7 @@ class DownloadService extends EventEmitter {
       // assume it's from our intentional kill signal for Pause/Cancel.
       if (isExecaError(error) && error.exitCode === 143) {
         // Log based on the status ALREADY set by cancelDownload
-        const currentStatus =
-          this.queue.find((i) => i.releaseName === item.releaseName)?.status || 'Unknown'
+        const currentStatus = this.queueManager.findItem(item.releaseName)?.status || 'Unknown'
         console.log(
           `[DownloadService Catch] Ignoring expected SIGTERM (exit code 143) for ${item.releaseName}. Status when caught: ${currentStatus}`
         )
@@ -463,7 +370,6 @@ class DownloadService extends EventEmitter {
         isExecaError(error) ? error.shortMessage : error
       )
       this.activeDownloads.delete(item.releaseName)
-      this.updateItemPid(item.releaseName, undefined)
 
       let errorMessage = 'Download failed.'
       if (isExecaError(error)) {
@@ -525,7 +431,6 @@ class DownloadService extends EventEmitter {
     } finally {
       if (this.activeDownloads.has(item.releaseName)) {
         this.activeDownloads.delete(item.releaseName)
-        this.updateItemPid(item.releaseName, undefined)
       }
       this.isProcessing = false
       this.processQueue()
@@ -541,43 +446,32 @@ class DownloadService extends EventEmitter {
     eta?: string,
     extractProgress?: number
   ): void {
-    const item = this.queue.find((i) => i.releaseName === releaseName)
-    if (item) {
-      item.status = status
-      item.progress = Math.max(0, Math.min(100, progress))
-      item.error = error
-      item.speed = speed
-      item.eta = eta
-      if (extractProgress !== undefined) {
-        item.extractProgress = Math.max(0, Math.min(100, extractProgress))
-      } else if (status !== 'Extracting') {
-        item.extractProgress = undefined
-      }
-      this.debouncedEmitUpdate()
-      this.debouncedSaveQueue()
-    } else {
-      console.warn(`Tried to update status for non-existent item: ${releaseName}`)
+    const updates: Partial<DownloadItem> = { status, progress, error, speed, eta }
+    if (extractProgress !== undefined) {
+      updates.extractProgress = extractProgress
+    } else if (status !== 'Extracting' && status !== 'Completed') {
+      updates.extractProgress = undefined
     }
-  }
 
-  private updateItemPid(releaseName: string, pid: number | undefined): void {
-    const item = this.queue.find((i) => i.releaseName === releaseName)
-    if (item) {
-      item.pid = pid
+    const updated = this.queueManager.updateItem(releaseName, updates)
+    if (updated) {
+      this.debouncedEmitUpdate()
     } else {
-      console.warn(`Tried to update PID for non-existent item: ${releaseName}`)
+      console.warn(
+        `Tried to update status for non-existent item via central method: ${releaseName}`
+      )
     }
   }
 
   private emitUpdate(): void {
     const mainWindow = BrowserWindow.getAllWindows()[0]
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('download:queue-updated', this.getQueue())
+      mainWindow.webContents.send('download:queue-updated', this.queueManager.getQueue())
     }
   }
 
   public cancelUserRequest(releaseName: string): void {
-    const item = this.queue.find((i) => i.releaseName === releaseName)
+    const item = this.queueManager.findItem(releaseName)
     if (item && (item.status === 'Downloading' || item.status === 'Queued')) {
       console.log(`User requested cancel for ${releaseName} download...`)
       this.cancelDownload(releaseName, 'Cancelled')
@@ -590,7 +484,7 @@ class DownloadService extends EventEmitter {
   }
 
   public retryDownload(releaseName: string): void {
-    const item = this.queue.find((i) => i.releaseName === releaseName)
+    const item = this.queueManager.findItem(releaseName)
     if (item && (item.status === 'Cancelled' || item.status === 'Error')) {
       console.log(`Retrying download for ${releaseName}...`)
       if (this.activeExtractions.has(releaseName)) {
@@ -605,7 +499,6 @@ class DownloadService extends EventEmitter {
       item.error = undefined
       item.pid = undefined
       this.emitUpdate()
-      this.debouncedSaveQueue()
       this.processQueue()
     } else {
       console.warn(`Cannot retry download for ${releaseName} - current status: ${item?.status}`)
@@ -790,58 +683,50 @@ class DownloadService extends EventEmitter {
     }
   }
 
-  // --- Add Method to Delete Downloaded Files --- START
   public async deleteDownloadedFiles(releaseName: string): Promise<boolean> {
-    const itemIndex = this.queue.findIndex((item) => item.releaseName === releaseName)
-    if (itemIndex === -1) {
-      console.warn(`Cannot delete files for ${releaseName}: Item not found in queue.`)
+    const item = this.queueManager.findItem(releaseName)
+    if (!item) {
+      console.warn(`Cannot delete files for ${releaseName}: Not found.`)
       return false
     }
 
-    const item = this.queue[itemIndex]
+    const downloadPath = item.downloadPath
 
-    // Allow deletion even if status isn't strictly 'Completed'?
-    // Maybe allow if it exists locally, regardless of status?
-    // For now, let's stick to deleting completed/cancelled/error ones with a path.
-    if (!item.downloadPath) {
-      console.log(`No download path recorded for ${releaseName}, assuming no files to delete.`)
-      // Remove from queue even if path doesn't exist? Yes, aligns with user intent.
-      this.queue.splice(itemIndex, 1)
-      this.emitUpdate()
-      this.debouncedSaveQueue()
+    if (!downloadPath) {
+      console.log(`No download path for ${releaseName}, removing item.`)
+      const removed = this.queueManager.removeItem(releaseName)
+      if (removed) this.emitUpdate()
       return true
     }
 
-    if (!existsSync(item.downloadPath)) {
-      console.log(
-        `Download path ${item.downloadPath} for ${releaseName} not found. Removing item from queue.`
-      )
-      this.queue.splice(itemIndex, 1)
-      this.emitUpdate()
-      this.debouncedSaveQueue()
+    if (!existsSync(downloadPath)) {
+      console.log(`Path not found for ${releaseName}: ${downloadPath}. Removing item.`)
+      const removed = this.queueManager.removeItem(releaseName)
+      if (removed) this.emitUpdate()
       return true
     }
 
-    console.log(`Attempting to delete directory: ${item.downloadPath} for ${releaseName}...`)
+    console.log(`Deleting directory: ${downloadPath} for ${releaseName}...`)
     try {
-      await fs.rm(item.downloadPath, { recursive: true, force: true })
-      console.log(`Successfully deleted directory ${item.downloadPath}.`)
-
-      // Remove the item from the queue after successful deletion
-      this.queue.splice(itemIndex, 1)
-      this.emitUpdate()
-      this.debouncedSaveQueue()
+      await fs.rm(downloadPath, { recursive: true, force: true })
+      console.log(`Deleted directory ${downloadPath}.`)
+      const removed = this.queueManager.removeItem(releaseName)
+      if (removed) this.emitUpdate()
       return true
-    } catch (error) {
-      console.error(`Error deleting directory ${item.downloadPath} for ${releaseName}:`, error)
-      // Don't remove from queue if deletion failed? Or should we?
-      // Let's keep it in the queue but maybe mark an error?
-      // For now, just log the error and return false.
-      // Optionally: this.updateItemStatus(releaseName, 'Error', item.progress, 'Failed to delete files')
+    } catch (error: unknown) {
+      console.error(`Error deleting ${downloadPath} for ${releaseName}:`, error)
+      // Update error status via QueueManager
+      let errorMsg = 'Failed to delete files.'
+      if (error instanceof Error) {
+        errorMsg = `Failed to delete files: ${error.message}`.substring(0, 200)
+      } else {
+        errorMsg = `Failed to delete files: ${String(error)}`.substring(0, 200)
+      }
+      const updated = this.queueManager.updateItem(releaseName, { error: errorMsg })
+      if (updated) this.emitUpdate()
       return false
     }
   }
-  // --- Add Method to Delete Downloaded Files --- END
 }
 
 export default new DownloadService()
