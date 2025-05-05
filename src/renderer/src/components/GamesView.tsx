@@ -620,7 +620,14 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           <>
             <div className="table-wrapper" ref={tableContainerRef}>
               <table className="games-table" style={{ width: table.getTotalSize() }}>
-                <thead>
+                <thead
+                  style={{
+                    display: 'grid',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 1
+                  }}
+                >
                   {table.getHeaderGroups().map((headerGroup) => (
                     <tr key={headerGroup.id}>
                       {headerGroup.headers.map((header) => (
@@ -710,8 +717,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
               onOpenChange={(_e, data) => !data.open && handleCloseDialog()}
               modalType="modal"
             >
-              <DialogSurface mountNode={tableContainerRef.current}>
-                <DialogBody style={{ zIndex: 1000 }}>
+              <DialogSurface mountNode={document.querySelector('#portal')}>
+                <DialogBody>
                   <DialogTitle>{dialogGame?.name}</DialogTitle>
                   <DialogContent>
                     {/* Game Details */}

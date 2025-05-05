@@ -230,13 +230,6 @@
   /* background-color: #f8f9fa; */
   font-weight: 500;
   color: var(--colorNeutralForeground1);
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  position: relative;
-   /* Remove left border */
-  /* border-left: 1px solid #e0e0e0; */
-   /* Add bottom border to header row */
   border-bottom: 1px solid var(--colorNeutralForeground2);
 }
 
@@ -335,18 +328,18 @@
 
 /* Add Row Background Styles */
 .row-installed {
-  background-color: var(--colorPaletteGreenBackground1); /* Lighter green, slightly transparent */
+  background-color: var(--colorPaletteLightGreenBackground1); /* Lighter green, slightly transparent */
 }
 /* Style for rows with available updates (Added) */
 .row-update-available {
-  background-color: var(--colorPaletteGreenBackground2); /* A slightly more noticeable light green */
+  background-color: var(--colorPaletteLightGreenBackground2); /* A slightly more noticeable light green */
 }
 
 .row-installed:hover {
-  background-color: var(--colorNeutralBackground4); /* Standard hover for non-installed */
+  background-color: var(--colorPaletteGreenBackground2); /* Standard hover for non-installed */
 }
 .row-update-available:hover {
-  background-color: var(--colorNeutralBackground4); /* Standard hover for non-installed */
+  background-color: var(--colorPaletteGreenBackground2); /* Standard hover for non-installed */
 }
 
 
@@ -377,6 +370,11 @@
 .resizer.isResizing {
   opacity: 1; /* Show on hover or when resizing */
   background: #1a73e8; /* Highlight color */
+}
+
+.games-table th {
+  background-color: var(--colorNeutralBackground4);
+  z-index: 0;
 }
 
 /* Apply left border to TH except the first one to visually separate */
@@ -411,66 +409,4 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
-
-
-/* Game Action Popover Styles (Added) */
-.game-action-popover {
-  position: absolute; /* Positioned relative to the nearest positioned ancestor (likely table-wrapper) */
-  background-color: white;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 100; /* Ensure it appears above table content */
-  min-width: 150px;
-}
-
-.popover-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border-bottom: 1px solid #eee;
-  font-weight: 500;
-  font-size: 0.9em;
-}
-
-.popover-header span {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  margin-right: 8px;
-}
-
-.close-popover-btn {
-  background: none;
-  border: none;
-  font-size: 1.2em;
-  line-height: 1;
-  padding: 0 4px;
-  cursor: pointer;
-  color: #666;
-}
-
-.close-popover-btn:hover {
-  color: #000;
-}
-
-.popover-actions {
-  list-style: none;
-  margin: 0;
-  padding: 6px 0;
-}
-
-.popover-actions li {
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 0.9em;
-}
-
-.popover-actions li:hover {
-  background-color: #f0f0f0;
-}
-
-/* End Popover Styles */
 

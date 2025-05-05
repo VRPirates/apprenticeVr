@@ -10,8 +10,9 @@ import {
   tokens,
   Spinner,
   Text,
-  // teamsDarkTheme,
-  teamsLightTheme as theTheme
+  teamsDarkTheme,
+  teamsLightTheme,
+  Switch
 } from '@fluentui/react-components'
 import electronLogo from '../assets/electron.svg'
 import { useDependency } from '../hooks/useDependency'
@@ -34,10 +35,16 @@ const useStyles = makeStyles({
     padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
     borderBottom: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
     backgroundColor: tokens.colorNeutralBackground3,
-    gap: tokens.spacingHorizontalM
+    gap: tokens.spacingHorizontalM,
+    justifyContent: 'space-between'
   },
   logo: {
     height: '32px'
+  },
+  headerContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalM
   },
   mainContent: {
     flexGrow: 1,
@@ -135,6 +142,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
 const AppLayout: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DEVICE_LIST)
+  const [isDarkMode, setIsDarkMode] = useState(false)
   const styles = useStyles()
 
   const handleDeviceConnected = (): void => {
@@ -149,17 +157,28 @@ const AppLayout: React.FC = () => {
     setCurrentView(AppView.DEVICE_LIST)
   }
 
-  const currentTheme = theTheme
+  const currentTheme = isDarkMode ? teamsDarkTheme : teamsLightTheme
+
+  const handleThemeChange = (_ev, data): void => {
+    setIsDarkMode(data.checked)
+  }
 
   return (
     <FluentProvider theme={currentTheme}>
       <DependencyProvider>
         <div className={styles.root}>
           <div className={styles.header}>
-            <img alt="logo" className={styles.logo} src={electronLogo} />
-            <Title1>Apprentice VR</Title1>
+            <div className={styles.headerContent}>
+              <img alt="logo" className={styles.logo} src={electronLogo} />
+              <Title1>Apprentice VR</Title1>
+            </div>
+            <Switch
+              label={isDarkMode ? 'Dark mode' : 'Light mode'}
+              checked={isDarkMode}
+              onChange={handleThemeChange}
+            />
           </div>
-          <div className={styles.mainContent}>
+          <div id="mainContent">
             <MainContent
               currentView={currentView}
               onDeviceConnected={handleDeviceConnected}
@@ -168,6 +187,13 @@ const AppLayout: React.FC = () => {
             />
           </div>
         </div>
+        <div
+          id="portal"
+          style={{
+            zIndex: 1000,
+            position: 'fixed'
+          }}
+        ></div>
       </DependencyProvider>
     </FluentProvider>
   )
