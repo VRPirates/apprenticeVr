@@ -6,42 +6,57 @@ import { GameInfo } from './gameService'
 import { DownloadItem, DownloadStatus } from './download/types'
 import dependencyService from './dependencyService'
 import { EventEmitter } from 'events'
-import crypto from 'crypto'
 import { debounce } from './download/utils'
 import { QueueManager } from './download/queueManager'
+import { DownloadProcessor } from './download/downloadProcessor'
+
+interface VrpConfig {
+  baseUri?: string
+  password?: string
+}
 
 class DownloadService extends EventEmitter {
   private downloadsDir: string
   private isInitialized = false
   private isProcessing = false
-  private activeDownloads: Map<string, ReturnType<typeof execa>> = new Map()
   private activeExtractions: Map<string, ReturnType<typeof execa>> = new Map()
-  private vrpConfig: { baseUri?: string; password?: string } | null = null
   private debouncedEmitUpdate: () => void
   private queueManager: QueueManager
+  private downloadProcessor: DownloadProcessor
 
   constructor() {
     super()
     this.queueManager = new QueueManager()
     this.downloadsDir = join(app.getPath('userData'), 'downloads')
     this.debouncedEmitUpdate = debounce(this.emitUpdate.bind(this), 300)
+    this.downloadProcessor = new DownloadProcessor(
+      this.queueManager,
+      dependencyService,
+      this.downloadsDir,
+      this.debouncedEmitUpdate
+    )
   }
 
-  async initialize(vrpConfig: { baseUri?: string; password?: string } | null): Promise<void> {
+  async initialize(vrpConfig: VrpConfig | null): Promise<void> {
     if (this.isInitialized) return
     console.log('Initializing DownloadService...')
-    this.vrpConfig = vrpConfig
+    this.downloadProcessor.setVrpConfig(vrpConfig)
+
     await fs.mkdir(this.downloadsDir, { recursive: true })
     await this.queueManager.loadQueue()
 
-    const changed = this.queueManager.updateAllItems((item) => item.status === 'Downloading', {
-      status: 'Queued',
-      pid: undefined,
-      progress: 0
-    })
+    const changed = this.queueManager.updateAllItems(
+      (item) => item.status === 'Downloading' || item.status === 'Extracting',
+      {
+        status: 'Queued',
+        pid: undefined,
+        progress: 0,
+        extractProgress: undefined
+      }
+    )
 
     if (changed) {
-      console.log('Reset status for items from Downloading to Queued after restart.')
+      console.log('Reset status for items from Downloading/Extracting to Queued after restart.')
     }
 
     this.isInitialized = true
@@ -101,14 +116,14 @@ class DownloadService extends EventEmitter {
     if (!item) return
 
     if (item.status === 'Downloading') {
-      this.cancelDownload(releaseName, 'Cancelled')
+      this.downloadProcessor.cancelDownload(releaseName, 'Cancelled')
     } else if (item.status === 'Extracting') {
       this.cancelExtraction(releaseName)
-      const removed = this.queueManager.removeItem(releaseName)
-      if (removed) {
-        console.log(`Removed ${releaseName} from queue after cancelling extraction.`)
-        this.emitUpdate()
-      }
+      const updated = this.queueManager.updateItem(releaseName, {
+        status: 'Cancelled',
+        extractProgress: 0
+      })
+      if (updated) this.debouncedEmitUpdate()
     } else {
       const removed = this.queueManager.removeItem(releaseName)
       if (removed) {
@@ -116,59 +131,6 @@ class DownloadService extends EventEmitter {
         this.emitUpdate()
       }
     }
-  }
-
-  private cancelDownload(
-    releaseName: string,
-    finalStatus: 'Cancelled' | 'Error' = 'Cancelled',
-    errorMsg?: string
-  ): void {
-    const process = this.activeDownloads.get(releaseName)
-    if (process?.pid) {
-      console.log(`Cancelling download for ${releaseName} (PID: ${process.pid})...`)
-      process.all?.removeAllListeners()
-
-      try {
-        process.kill('SIGTERM')
-        console.log(`Sent kill signal to process for ${releaseName}.`)
-      } catch (killError) {
-        console.error(`Error killing process for ${releaseName}:`, killError)
-      }
-      this.activeDownloads.delete(releaseName)
-    } else {
-      console.log(`No active download process found for ${releaseName} to cancel.`)
-    }
-
-    const item = this.queueManager.findItem(releaseName)
-    if (item) {
-      const updates: Partial<DownloadItem> = {
-        pid: undefined
-      }
-      if (!(item.status === 'Error' && finalStatus === 'Cancelled')) {
-        updates.status = finalStatus
-      }
-      if (finalStatus === 'Cancelled') {
-        updates.progress = 0
-      }
-      if (finalStatus === 'Error') {
-        updates.error = errorMsg || item.error
-      } else {
-        updates.error = undefined
-      }
-
-      const updated = this.queueManager.updateItem(releaseName, updates)
-      if (updated) {
-        console.log(`Updated status for ${releaseName} to ${finalStatus}.`)
-        this.debouncedEmitUpdate()
-      } else {
-        console.warn(`Failed to update item ${releaseName} during cancellation.`)
-      }
-    } else {
-      console.warn(`Item ${releaseName} not found in queue during cancellation.`)
-    }
-
-    this.isProcessing = false
-    this.processQueue()
   }
 
   private async processQueue(): Promise<void> {
@@ -180,258 +142,36 @@ class DownloadService extends EventEmitter {
 
     const nextItem = this.queueManager.findNextQueuedItem()
     if (!nextItem) {
-      console.log('Download queue is empty or no items are queued.')
       this.isProcessing = false
       return
     }
 
     this.isProcessing = true
+    console.log(`Processing next item: ${nextItem.releaseName}`)
     try {
-      await this.startDownload(nextItem)
-    } catch (error) {
-      console.error(`Error initiating download for ${nextItem.releaseName}:`, error)
-      this.updateItemStatus(nextItem.releaseName, 'Error', 0, 'Failed to start download')
-      this.isProcessing = false
-      this.processQueue()
-    }
-  }
+      const downloadResult = await this.downloadProcessor.startDownload(nextItem)
 
-  private async startDownload(item: DownloadItem): Promise<void> {
-    console.log(`Starting download for ${item.releaseName}...`)
-
-    if (!this.vrpConfig?.baseUri || !this.vrpConfig?.password) {
-      console.error('Missing VRP baseUri or password. Cannot start download.')
-      this.updateItemStatus(item.releaseName, 'Error', 0, 'Missing VRP configuration')
-      this.isProcessing = false
-      this.processQueue()
-      return
-    }
-
-    const rclonePath = dependencyService.getRclonePath()
-    const downloadPath = join(this.downloadsDir, item.releaseName)
-    this.queueManager.updateItem(item.releaseName, { downloadPath: downloadPath })
-
-    await fs.mkdir(downloadPath, { recursive: true })
-
-    this.updateItemStatus(item.releaseName, 'Downloading', 0)
-
-    const gameNameHash = crypto
-      .createHash('md5')
-      .update(item.releaseName + '\n')
-      .digest('hex')
-
-    const source = `:http:/${gameNameHash}`
-
-    let rcloneProcess: ReturnType<typeof execa> | null = null
-
-    try {
-      rcloneProcess = execa(
-        rclonePath,
-        [
-          'copy',
-          source,
-          downloadPath,
-          '--http-url',
-          this.vrpConfig.baseUri,
-          '--no-check-certificate',
-          '--progress',
-          '--stats=1s',
-          '--stats-one-line'
-        ],
-        {
-          all: true,
-          buffer: false,
-          windowsHide: true
-        }
-      )
-
-      if (!rcloneProcess || !rcloneProcess.pid || !rcloneProcess.all) {
-        throw new Error('Failed to start rclone process.')
-      }
-
-      this.activeDownloads.set(item.releaseName, rcloneProcess)
-      this.queueManager.updateItem(item.releaseName, { pid: rcloneProcess.pid })
-
-      console.log(`rclone process started for ${item.releaseName} with PID: ${rcloneProcess.pid}`)
-
-      const transferLineRegex = /, (\d+)%, /
-      const speedRegex = /, (\d+\.\d+ \S+?B\/s),/
-      const etaRegex = /, ETA (\S+)/
-
-      let outputBuffer = ''
-      rcloneProcess.all.on('data', (data: Buffer) => {
-        const currentItemState = this.queueManager.findItem(item.releaseName)
-        if (!currentItemState) {
-          console.warn(`Item ${item.releaseName} disappeared during download data processing.`)
-          const proc = this.activeDownloads.get(item.releaseName)
-          proc?.kill('SIGTERM')
-          this.activeDownloads.delete(item.releaseName)
-          return
-        }
-
-        outputBuffer += data.toString()
-        const lines = outputBuffer.split(/\r\n|\n|\r/).filter((line) => line.length > 0)
-
-        if (lines.length > 0) {
-          const lastLineComplete = /ETA \S+$/.test(lines[lines.length - 1])
-          const linesToProcess = lastLineComplete ? lines : lines.slice(0, -1)
-          outputBuffer = lastLineComplete ? '' : lines[lines.length - 1]
-
-          for (const line of linesToProcess) {
-            console.log(`[DownloadService Raw Line] ${item.releaseName}: ${line}`)
-            const progressMatch = line.match(transferLineRegex)
-            if (progressMatch && progressMatch[1]) {
-              const currentProgress = parseInt(progressMatch[1], 10)
-              if (currentProgress > (currentItemState.progress ?? 0) || currentProgress === 0) {
-                const speedMatch = line.match(speedRegex)
-                const etaMatch = line.match(etaRegex)
-                const speed = speedMatch?.[1] || currentItemState.speed
-                const eta = etaMatch?.[1] || currentItemState.eta
-                console.log(
-                  `[DownloadService] Parsed progress: ${currentProgress}%, Speed: ${speed}, ETA: ${eta} for ${item.releaseName}`
-                )
-                this.updateItemStatus(
-                  item.releaseName,
-                  'Downloading',
-                  currentProgress,
-                  undefined,
-                  speed,
-                  eta
-                )
-              }
-            }
-            if (line.includes('Auth Error') || line.includes('authentication failed')) {
-              console.error(
-                `Rclone (${item.releaseName}): Authentication failed. Check VRP password?`
-              )
-              this.cancelDownload(
-                item.releaseName,
-                'Error',
-                'Authentication failed (check VRP password)'
-              )
-              return // Stop processing output for this failed download
-            }
-            if (line.includes("doesn't support hash type")) {
-              console.warn(
-                `Rclone (${item.releaseName}): Hash type not supported, verification might be skipped.`
-              )
-            }
-          } // End of loop processing complete lines
-        } // End of if (lines.length > 0)
-      })
-
-      await rcloneProcess
-
-      console.log(`rclone process finished successfully for ${item.releaseName}.`)
-      this.updateItemStatus(
-        item.releaseName,
-        'Completed',
-        100,
-        undefined,
-        undefined,
-        undefined,
-        item.extractProgress
-      )
-      this.activeDownloads.delete(item.releaseName)
-
-      // ---!!! DOWNLOAD COMPLETE - START EXTRACTION !!!---
-      console.log(`Download finished successfully for ${item.releaseName}. Starting extraction...`)
-      // Don't set status to Completed yet
-      // this.updateItemStatus(item.releaseName, 'Completed', 100)
-      await this.startExtraction(item)
-      // ------------------------------------------------
-    } catch (error: unknown) {
-      const isExecaError = (err: unknown): err is ExecaError =>
-        typeof err === 'object' && err !== null && 'shortMessage' in err
-
-      // --- !!! CHECK FOR INTENTIONAL TERMINATION FIRST !!! ---
-      // If the error is an ExecaError with exit code 143 (SIGTERM),
-      // assume it's from our intentional kill signal for Pause/Cancel.
-      if (isExecaError(error) && error.exitCode === 143) {
-        // Log based on the status ALREADY set by cancelDownload
-        const currentStatus = this.queueManager.findItem(item.releaseName)?.status || 'Unknown'
+      if (downloadResult.success && downloadResult.startExtraction && downloadResult.finalState) {
+        console.log(`Download finished for ${nextItem.releaseName}. Starting extraction...`)
+        await this.startExtraction(downloadResult.finalState)
+      } else {
         console.log(
-          `[DownloadService Catch] Ignoring expected SIGTERM (exit code 143) for ${item.releaseName}. Status when caught: ${currentStatus}`
+          `Download did not complete successfully for ${nextItem.releaseName}. Status: ${downloadResult.finalState?.status}`
         )
-        // Status is (or will shortly be) Cancelled. Ensure processing continues.
         this.isProcessing = false
         this.processQueue()
-        return // Exit the catch block
       }
-      // ------------------------------------------------------
-
-      // Log details for *unexpected* errors
-      console.log(
-        `[DownloadService Catch] Unexpected error for ${item.releaseName}. Status before catch: ${item.status}. isExecaError: ${isExecaError(error)}. ExitCode: ${isExecaError(error) ? error.exitCode : 'N/A'}`
-      )
-
+    } catch (error) {
       console.error(
-        `rclone process failed for ${item.releaseName}:`,
-        isExecaError(error) ? error.shortMessage : error
+        `[Service ProcessQueue] Unexpected error processing ${nextItem.releaseName}:`,
+        error
       )
-      this.activeDownloads.delete(item.releaseName)
-
-      let errorMessage = 'Download failed.'
-      if (isExecaError(error)) {
-        if (error.isCanceled) {
-          if (item.status === 'Cancelled') {
-            console.log(`Download process for ${item.releaseName} terminated due to pause request.`)
-          } else {
-            console.log(`Download process for ${item.releaseName} was cancelled.`)
-          }
-          return
-        } else if (error.stderr) {
-          let stderrString: string | undefined
-          if (typeof error.stderr === 'string') {
-            stderrString = error.stderr
-          } else if (Buffer.isBuffer(error.stderr)) {
-            stderrString = error.stderr.toString()
-          }
-          errorMessage =
-            stderrString
-              ?.split('\n')
-              .filter((line) => line.includes('ERROR'))
-              .slice(-3)
-              .join('\n') || ''
-          if (!errorMessage) errorMessage = stderrString?.split('\n').slice(-5).join('\n') || ''
-        } else if (error.stdout) {
-          let stdoutString: string | undefined
-          if (typeof error.stdout === 'string') {
-            stdoutString = error.stdout
-          } else if (Buffer.isBuffer(error.stdout)) {
-            stdoutString = error.stdout.toString()
-          }
-          errorMessage =
-            stdoutString
-              ?.split('\n')
-              .filter((line) => line.includes('ERROR'))
-              .slice(-3)
-              .join('\n') || ''
-          if (!errorMessage) errorMessage = stdoutString?.split('\n').slice(-5).join('\n') || ''
-        } else if (error.shortMessage) {
-          errorMessage = error.shortMessage
-        }
-      } else if (error instanceof Error) {
-        errorMessage = error.message
-      } else {
-        errorMessage = String(error)
-      }
-
-      errorMessage = errorMessage.substring(0, 500)
-
       this.updateItemStatus(
-        item.releaseName,
+        nextItem.releaseName,
         'Error',
-        item.progress || 0,
-        errorMessage,
-        undefined,
-        undefined,
-        item.extractProgress
+        nextItem.progress ?? 0,
+        'Unexpected processing error'
       )
-    } finally {
-      if (this.activeDownloads.has(item.releaseName)) {
-        this.activeDownloads.delete(item.releaseName)
-      }
       this.isProcessing = false
       this.processQueue()
     }
@@ -457,9 +197,7 @@ class DownloadService extends EventEmitter {
     if (updated) {
       this.debouncedEmitUpdate()
     } else {
-      console.warn(
-        `Tried to update status for non-existent item via central method: ${releaseName}`
-      )
+      console.warn(`[Service updateItemStatus] Failed update for non-existent item: ${releaseName}`)
     }
   }
 
@@ -472,79 +210,108 @@ class DownloadService extends EventEmitter {
 
   public cancelUserRequest(releaseName: string): void {
     const item = this.queueManager.findItem(releaseName)
-    if (item && (item.status === 'Downloading' || item.status === 'Queued')) {
-      console.log(`User requested cancel for ${releaseName} download...`)
-      this.cancelDownload(releaseName, 'Cancelled')
-    } else if (item && item.status === 'Extracting') {
-      console.log(`User requested cancel for ${releaseName} extraction...`)
+    if (!item) {
+      console.warn(`Cannot cancel ${releaseName} - not found.`)
+      return
+    }
+
+    console.log(`User requesting cancel for ${releaseName}, status: ${item.status}`)
+    if (item.status === 'Downloading' || item.status === 'Queued') {
+      this.downloadProcessor.cancelDownload(releaseName, 'Cancelled')
+    } else if (item.status === 'Extracting') {
+      console.log(`User cancelling extraction: ${releaseName}`)
       this.cancelExtraction(releaseName)
+      const updated = this.queueManager.updateItem(releaseName, {
+        status: 'Cancelled',
+        extractProgress: 0,
+        error: undefined,
+        pid: undefined
+      })
+      if (updated) this.debouncedEmitUpdate()
     } else {
-      console.warn(`Cannot cancel item ${releaseName} - current status: ${item?.status}`)
+      console.warn(
+        `Cannot cancel ${releaseName} - item is not in a cancellable state (${item.status})`
+      )
     }
   }
 
   public retryDownload(releaseName: string): void {
     const item = this.queueManager.findItem(releaseName)
     if (item && (item.status === 'Cancelled' || item.status === 'Error')) {
-      console.log(`Retrying download for ${releaseName}...`)
-      if (this.activeExtractions.has(releaseName)) {
+      console.log(`Retrying download: ${releaseName}`)
+
+      if (this.downloadProcessor.isDownloadActive(releaseName)) {
         console.warn(
-          `Retrying item ${releaseName} that might have active extraction - cancelling extraction first.`
+          `Retrying item ${releaseName} that still has an active download process? Cancelling first.`
         )
+        this.downloadProcessor.cancelDownload(releaseName, 'Error', 'Cancelled before retry')
+      }
+      if (this.activeExtractions.has(releaseName)) {
+        console.warn(`Retrying item ${releaseName} with active extraction - cancelling first.`)
         this.cancelExtraction(releaseName)
       }
-      item.status = 'Queued'
-      item.progress = 0
-      item.extractProgress = undefined
-      item.error = undefined
-      item.pid = undefined
-      this.emitUpdate()
-      this.processQueue()
+
+      const updated = this.queueManager.updateItem(releaseName, {
+        status: 'Queued',
+        progress: 0,
+        extractProgress: undefined,
+        error: undefined,
+        pid: undefined,
+        speed: undefined,
+        eta: undefined
+      })
+      if (updated) {
+        this.emitUpdate()
+        this.processQueue()
+      } else {
+        console.warn(`Failed to update ${releaseName} for retry.`)
+      }
     } else {
-      console.warn(`Cannot retry download for ${releaseName} - current status: ${item?.status}`)
+      console.warn(`Cannot retry ${releaseName} - status: ${item?.status}`)
     }
   }
 
   private cancelExtraction(releaseName: string): void {
     const extractionProcess = this.activeExtractions.get(releaseName)
     if (extractionProcess) {
-      console.log(`Cancelling extraction for ${releaseName}...`)
-      if (extractionProcess.kill('SIGTERM')) {
-        // Try graceful termination first
-        console.log(`Sent SIGTERM to extraction process for ${releaseName}.`)
-        // Set a timeout to force kill if it doesn't terminate
-        const killTimeout = setTimeout(() => {
-          if (this.activeExtractions.has(releaseName)) {
-            // Check if it's still running
-            console.warn(
-              `Extraction process for ${releaseName} did not terminate gracefully, sending SIGKILL.`
-            )
-            extractionProcess.kill('SIGKILL') // Force kill
-            this.activeExtractions.delete(releaseName) // Ensure cleanup
-          }
-        }, 5000) // 5 second timeout
-
-        // Clear the timeout if the process exits cleanly before the timeout
-        extractionProcess.finally(() => {
-          clearTimeout(killTimeout)
-          // No need to delete here, finally() runs after timeout callback if needed
-        })
-      } else {
-        console.warn(
-          `Failed to send SIGTERM to extraction process for ${releaseName}. It might already be stopped.`
-        )
-        this.activeExtractions.delete(releaseName) // Clean up if sending failed
+      console.log(`[Service] Cancelling extraction: ${releaseName}`)
+      try {
+        if (extractionProcess.kill('SIGTERM')) {
+          console.log(`[Service] Sent SIGTERM to extraction: ${releaseName}.`)
+          const killTimeout = setTimeout(() => {
+            if (this.activeExtractions.has(releaseName)) {
+              console.warn(`[Service] Extraction ${releaseName} timed out, sending SIGKILL.`)
+              extractionProcess.kill('SIGKILL')
+              this.activeExtractions.delete(releaseName)
+              this.queueManager.updateItem(releaseName, { pid: undefined })
+            }
+          }, 5000)
+          extractionProcess.finally(() => {
+            clearTimeout(killTimeout)
+            this.activeExtractions.delete(releaseName)
+            this.queueManager.updateItem(releaseName, { pid: undefined })
+          })
+        } else {
+          console.warn(`[Service] Failed to send SIGTERM to extraction ${releaseName}.`)
+          this.activeExtractions.delete(releaseName)
+          this.queueManager.updateItem(releaseName, { pid: undefined })
+        }
+      } catch (killError) {
+        console.error(`[Service] Error killing extraction ${releaseName}:`, killError)
+        this.activeExtractions.delete(releaseName)
+        this.queueManager.updateItem(releaseName, { pid: undefined })
       }
-
-      // Status is updated by the calling function (cancelUserRequest or retryDownload)
     } else {
-      console.log(`No active extraction process found to cancel for ${releaseName}.`)
-      this.updateItemStatus(releaseName, 'Error', 100, 'No active extraction process found')
+      console.log(`[Service] No active extraction found to cancel for ${releaseName}.`)
+      const item = this.queueManager.findItem(releaseName)
+      if (item && item.status === 'Extracting') {
+        this.updateItemStatus(releaseName, 'Error', item.progress ?? 100, 'Extraction process lost')
+      }
     }
   }
 
   private async startExtraction(item: DownloadItem): Promise<void> {
-    console.log(`Starting extraction for ${item.releaseName}...`)
+    console.log(`[Service] Starting extraction: ${item.releaseName}`)
     const downloadPath = item.downloadPath
 
     if (!downloadPath || !existsSync(downloadPath)) {
@@ -552,28 +319,37 @@ class DownloadService extends EventEmitter {
         item.releaseName,
         'Error',
         100,
-        `Download path missing for ${item.releaseName}`,
-        undefined,
-        undefined,
-        undefined
+        `Invalid download path: ${downloadPath}`
       )
+      this.isProcessing = false
+      this.processQueue()
       return
     }
     if (!dependencyService.getStatus().sevenZip.ready) {
-      this.updateItemStatus(item.releaseName, 'Error', 100, '7zip dependency not ready')
+      this.updateItemStatus(item.releaseName, 'Error', 100, '7zip not ready')
+      this.isProcessing = false
+      this.processQueue()
       return
     }
 
-    const files = await fs.readdir(downloadPath)
-    const archivePart1 = files.find((f) => f.endsWith('.7z.001'))
+    let files: string[]
+    try {
+      files = await fs.readdir(downloadPath)
+    } catch (readDirError: unknown) {
+      let errorMsg = 'Cannot read download dir'
+      if (readDirError instanceof Error)
+        errorMsg = `Cannot read download dir: ${readDirError.message}`
+      this.updateItemStatus(item.releaseName, 'Error', 100, errorMsg.substring(0, 500))
+      this.isProcessing = false
+      this.processQueue()
+      return
+    }
 
+    const archivePart1 = files.find((f) => f.endsWith('.7z.001'))
     if (!archivePart1) {
-      this.updateItemStatus(
-        item.releaseName,
-        'Error',
-        100,
-        `Primary archive file (.7z.001) not found in ${downloadPath}`
-      )
+      this.updateItemStatus(item.releaseName, 'Error', 100, `.7z.001 not found in ${downloadPath}`)
+      this.isProcessing = false
+      this.processQueue()
       return
     }
     const archivePath = join(downloadPath, archivePart1)
@@ -581,105 +357,252 @@ class DownloadService extends EventEmitter {
     this.updateItemStatus(item.releaseName, 'Extracting', 100, undefined, undefined, undefined, 0)
 
     let decodedPassword = ''
+    const currentVrpConfig = this.downloadProcessor.getVrpConfig()
     try {
-      decodedPassword = Buffer.from(this.vrpConfig?.password || '', 'base64').toString('utf-8')
+      decodedPassword = Buffer.from(currentVrpConfig?.password || '', 'base64').toString('utf-8')
     } catch (e: unknown) {
-      console.error('Failed to decode VRP password.', e)
-      this.updateItemStatus(item.releaseName, 'Error', 0, 'Invalid VRP password format.')
+      console.error('[Service] Failed to decode VRP password for extraction.', e)
+      this.updateItemStatus(item.releaseName, 'Error', 100, 'Invalid VRP password')
       this.isProcessing = false
       this.processQueue()
       return
     }
 
-    try {
-      // Run 7zip extraction
-      const sevenZipPath = dependencyService.get7zPath()
-      if (!sevenZipPath) {
-        this.updateItemStatus(
-          item.releaseName,
-          'Error',
-          item.progress,
-          '7zip dependency not found for extraction',
-          undefined,
-          undefined,
-          item.extractProgress
-        )
-        return
-      }
+    const sevenZipPath = dependencyService.get7zPath()
+    if (!sevenZipPath) {
+      this.updateItemStatus(
+        item.releaseName,
+        'Error',
+        100,
+        '7zip path not found',
+        undefined,
+        undefined,
+        0
+      )
+      this.isProcessing = false
+      this.processQueue()
+      return
+    }
 
-      // Use 'e' instead of 'x' to extract directly into downloadPath
-      // Set cwd to ensure extraction happens in the correct folder
-      const sevenZipProcess = execa(
+    let sevenZipProcess: ReturnType<typeof execa> | null = null
+    try {
+      sevenZipProcess = execa(
         sevenZipPath,
-        [
-          'e', // Extract files to current directory (specified by cwd)
-          archivePath,
-          '-aoa', // Overwrite existing files without prompt
-          '-bsp1', // Output progress to stdout
-          '-y', // Assume Yes on all queries
-          `-p${decodedPassword}`
-        ],
+        ['e', archivePath, '-aoa', '-bsp1', '-y', `-p${decodedPassword}`],
         {
-          cwd: downloadPath, // Set the working directory for extraction
-          stdio: ['ignore', 'pipe', 'pipe']
+          cwd: downloadPath,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          all: true,
+          buffer: false,
+          windowsHide: true
         }
       )
 
-      // ... existing code ...
+      if (!sevenZipProcess || !sevenZipProcess.pid || !sevenZipProcess.all)
+        throw new Error('Failed to start 7zip')
 
-      // Wait for the process to finish
+      this.activeExtractions.set(item.releaseName, sevenZipProcess)
+      this.queueManager.updateItem(item.releaseName, { pid: sevenZipProcess.pid })
+
+      console.log(`[Service] 7zip started for ${item.releaseName}, PID: ${sevenZipProcess.pid}`)
+
+      const progressRegex = /^\s*(\d+)%/
+      let outputBuffer = ''
+
+      sevenZipProcess.all.on('data', (data: Buffer) => {
+        const currentItemState = this.queueManager.findItem(item.releaseName)
+        if (!currentItemState || currentItemState.status !== 'Extracting') {
+          console.warn(
+            `[Service] Extraction data received for ${item.releaseName}, but state is ${currentItemState?.status}. Stopping data processing.`
+          )
+          const proc = this.activeExtractions.get(item.releaseName)
+          proc?.kill('SIGTERM')
+          this.activeExtractions.delete(item.releaseName)
+          this.queueManager.updateItem(item.releaseName, { pid: undefined })
+          return
+        }
+
+        outputBuffer += data.toString()
+        let newlineIndex
+        while ((newlineIndex = outputBuffer.indexOf('\n')) >= 0) {
+          const line = outputBuffer.substring(0, newlineIndex).trim()
+          outputBuffer = outputBuffer.substring(newlineIndex + 1)
+
+          if (line.length > 0) {
+            const progressMatch = line.match(progressRegex)
+            if (progressMatch && progressMatch[1]) {
+              const currentProgress = parseInt(progressMatch[1], 10)
+              if (currentProgress >= (currentItemState.extractProgress ?? 0)) {
+                this.queueManager.updateItem(item.releaseName, { extractProgress: currentProgress })
+                this.debouncedEmitUpdate()
+              }
+            }
+            if (line.includes('ERROR: Wrong password')) {
+              console.error(`[Service] 7zip (${item.releaseName}): Wrong password.`)
+              this.cancelExtraction(item.releaseName)
+              this.updateItemStatus(
+                item.releaseName,
+                'Error',
+                100,
+                'Wrong password',
+                undefined,
+                undefined,
+                currentItemState.extractProgress ?? 0
+              )
+            }
+            if (line.includes('ERROR: Data Error') || line.includes('CRC Failed')) {
+              console.error(`[Service] 7zip (${item.releaseName}): Data/CRC error.`)
+              this.cancelExtraction(item.releaseName)
+              this.updateItemStatus(
+                item.releaseName,
+                'Error',
+                100,
+                'Data/CRC error',
+                undefined,
+                undefined,
+                currentItemState.extractProgress ?? 0
+              )
+            }
+          }
+        }
+      })
+
       await sevenZipProcess
 
-      console.log(`Extraction complete for ${item.releaseName} in ${downloadPath}`)
+      const finalItemState = this.queueManager.findItem(item.releaseName)
+      if (!finalItemState || finalItemState.status !== 'Extracting') {
+        console.log(
+          `[Service] Extraction finished for ${item.releaseName}, but status is now ${finalItemState?.status}. Skipping completion.`
+        )
+        if (this.activeExtractions.has(item.releaseName)) {
+          this.activeExtractions.delete(item.releaseName)
+          this.queueManager.updateItem(item.releaseName, { pid: undefined })
+        }
+        this.isProcessing = false
+        this.processQueue()
+        return
+      }
+
+      console.log(`[Service] Extraction complete: ${item.releaseName} in ${downloadPath}`)
       this.activeExtractions.delete(item.releaseName)
+      this.queueManager.updateItem(item.releaseName, { pid: undefined })
       this.updateItemStatus(
         item.releaseName,
-        'Completed', // Final status after successful extraction
+        'Completed',
         100,
-        undefined, // Clear error
-        undefined, // Clear speed
-        undefined, // Clear eta
-        100 // Set extraction progress to 100
+        undefined,
+        undefined,
+        undefined,
+        100
       )
 
-      // --- Delete archive files after successful extraction --- START
-      console.log(`Attempting to delete archive parts for ${item.releaseName} in ${downloadPath}`)
+      console.log(`[Service] Deleting archive parts for ${item.releaseName}`)
       try {
         const filesInDir = await fs.readdir(downloadPath)
         const baseArchiveName = basename(archivePath).split('.7z.')[0]
         const archiveParts = filesInDir.filter(
           (file) => file.startsWith(baseArchiveName) && file.includes('.7z.')
         )
-
         if (archiveParts.length > 0) {
-          console.log(`Found archive parts to delete: ${archiveParts.join(', ')}`)
+          console.log(`[Service] Deleting: ${archiveParts.join(', ')}`)
           for (const part of archiveParts) {
             const partPath = join(downloadPath, part)
             try {
               await fs.unlink(partPath)
-              console.log(`Deleted archive part: ${partPath}`)
-            } catch (unlinkError) {
-              console.warn(`Failed to delete archive part ${partPath}:`, unlinkError)
-              // Log warning but continue
+              console.log(`[Service] Deleted: ${partPath}`)
+            } catch (unlinkError: unknown) {
+              console.warn(`[Service] Failed to delete ${partPath}:`, unlinkError)
             }
           }
         } else {
-          console.log(`No archive parts found matching ${baseArchiveName}.7z.* for deletion.`)
+          console.log(`[Service] No *.7z.* parts found for ${baseArchiveName}.`)
         }
-      } catch (deleteError) {
+      } catch (deleteError: unknown) {
         console.error(
-          `Error listing or deleting archive parts for ${item.releaseName}:`,
+          `[Service] Error during archive deletion for ${item.releaseName}:`,
           deleteError
         )
-        // Log error but don't change the item status (extraction was successful)
       }
-      // --- Delete archive files after successful extraction --- END
-
-      this.isProcessing = false // Allow next download/extraction
-      this.processQueue() // Check if there's another item to process
     } catch (error: unknown) {
-      console.error(`Error during extraction for ${item.releaseName}:`, error)
-      // ... existing error handling ...
+      const isExecaError = (err: unknown): err is ExecaError =>
+        typeof err === 'object' && err !== null && 'shortMessage' in err
+      const currentItemState = this.queueManager.findItem(item.releaseName)
+      const statusBeforeCatch = currentItemState?.status ?? 'Unknown'
+
+      if (
+        isExecaError(error) &&
+        (error.signal === 'SIGTERM' ||
+          error.signal === 'SIGKILL' ||
+          error.exitCode === 143 ||
+          error.exitCode === 137)
+      ) {
+        console.log(
+          `[Service Extraction Catch] Ignoring termination signal (${error.signal || 'Code ' + error.exitCode}) for ${item.releaseName}. Status: ${statusBeforeCatch}`
+        )
+        if (this.activeExtractions.has(item.releaseName)) {
+          this.activeExtractions.delete(item.releaseName)
+          this.queueManager.updateItem(item.releaseName, { pid: undefined })
+        }
+        this.isProcessing = false
+        this.processQueue()
+        return
+      }
+
+      console.error(`[Service] Extraction error for ${item.releaseName}:`, error)
+      if (this.activeExtractions.has(item.releaseName)) {
+        this.activeExtractions.delete(item.releaseName)
+        this.queueManager.updateItem(item.releaseName, { pid: undefined })
+      }
+
+      let errorMessage = 'Extraction failed.'
+      if (isExecaError(error)) {
+        const output = String(error.all || error.stderr || error.stdout || '')
+        if (output.includes('ERROR: Wrong password')) errorMessage = 'Wrong password'
+        else if (output.includes('ERROR: Data Error') || output.includes('CRC Failed'))
+          errorMessage = 'Data/CRC error'
+        else errorMessage = error.shortMessage || error.message
+        const lastLines = output.split('\n').slice(-3).join('\n')
+        if (
+          lastLines &&
+          !errorMessage.includes('Wrong password') &&
+          !errorMessage.includes('Data/CRC')
+        )
+          errorMessage += `\n...\n${lastLines}`
+      } else if (error instanceof Error) errorMessage = error.message
+      else errorMessage = String(error)
+      errorMessage = errorMessage.substring(0, 500)
+
+      if (statusBeforeCatch !== 'Cancelled' && statusBeforeCatch !== 'Error') {
+        this.updateItemStatus(
+          item.releaseName,
+          'Error',
+          100,
+          errorMessage,
+          undefined,
+          undefined,
+          currentItemState?.extractProgress ?? 0
+        )
+      } else {
+        console.log(
+          `[Service] Extraction error for ${item.releaseName}, but status already ${statusBeforeCatch}. Error: ${errorMessage}`
+        )
+        if (statusBeforeCatch === 'Error') {
+          this.queueManager.updateItem(item.releaseName, { error: errorMessage })
+          this.debouncedEmitUpdate()
+        }
+      }
+      this.isProcessing = false
+      this.processQueue()
+    } finally {
+      if (this.activeExtractions.has(item.releaseName)) {
+        console.warn(
+          `[Service] Active extraction ${item.releaseName} still exists in finally. Removing.`
+        )
+        this.activeExtractions.delete(item.releaseName)
+        this.queueManager.updateItem(item.releaseName, { pid: undefined })
+      }
+      this.isProcessing = false
+      this.processQueue()
     }
   }
 
@@ -715,7 +638,6 @@ class DownloadService extends EventEmitter {
       return true
     } catch (error: unknown) {
       console.error(`Error deleting ${downloadPath} for ${releaseName}:`, error)
-      // Update error status via QueueManager
       let errorMsg = 'Failed to delete files.'
       if (error instanceof Error) {
         errorMsg = `Failed to delete files: ${error.message}`.substring(0, 200)
