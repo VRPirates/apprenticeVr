@@ -17,6 +17,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
   const [loadingPackages, setLoadingPackages] = useState<boolean>(false)
   const dependencyContext = useDependency()
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
+  const selectedDeviceDetails = devices.find((device) => device.id === selectedDevice) ?? null
 
   useEffect(() => {
     const initializeAndLoad = async (): Promise<void> => {
@@ -166,7 +167,8 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     connectToDevice,
     refreshDevices,
     disconnectDevice,
-    loadPackages
+    loadPackages,
+    selectedDeviceDetails
   }
 
   if (!isInitialLoadComplete) {

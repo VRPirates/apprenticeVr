@@ -19,7 +19,9 @@ import {
   DeviceMeetingRoomRegular, // Icon for devices
   PlugDisconnectedRegular,
   PlugConnectedRegular,
-  ArrowClockwiseRegular as RefreshIcon // Use a different icon for Refresh
+  ArrowClockwiseRegular as RefreshIcon, // Use a different icon for Refresh
+  BatteryChargeRegular, // Icon for Battery
+  StorageRegular // Icon for Storage
 } from '@fluentui/react-icons'
 
 interface DeviceListProps {
@@ -65,6 +67,14 @@ const useStyles = makeStyles({
     fontWeight: tokens.fontWeightSemibold
   },
   deviceType: {
+    color: tokens.colorNeutralForeground2,
+    fontSize: tokens.fontSizeBase200
+  },
+  deviceDetailsLine: {
+    // For battery and storage
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXS,
     color: tokens.colorNeutralForeground2,
     fontSize: tokens.fontSizeBase200
   },
@@ -147,11 +157,28 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
                     <DeviceMeetingRoomRegular fontSize={24} />
                     <div className={styles.deviceText}>
                       <Text weight="semibold" className={styles.deviceId}>
-                        {device.id}
+                        {/* Display friendly name if available, otherwise fallback to model or ID */}
+                        {device.friendlyModelName || device.model || device.id}
                       </Text>
                       <Text size={200} className={styles.deviceType}>
-                        {device.type}
+                        {/* Show ID as secondary info if friendly name was shown */}
+                        {device.friendlyModelName ? device.id : device.type}
                       </Text>
+                      {device.batteryLevel !== null && (
+                        <div className={styles.deviceDetailsLine}>
+                          <BatteryChargeRegular fontSize={16} />
+                          <Text size={200}>{device.batteryLevel}%</Text>
+                        </div>
+                      )}
+                      {device.storageFree !== null && device.storageTotal !== null && (
+                        <div className={styles.deviceDetailsLine}>
+                          <StorageRegular fontSize={16} />
+                          {/* Ensure text renders correctly */}
+                          <Text
+                            size={200}
+                          >{`${device.storageFree} free / ${device.storageTotal} total`}</Text>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <Button

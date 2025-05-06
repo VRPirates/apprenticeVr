@@ -1,6 +1,12 @@
 export interface DeviceInfo {
   id: string
   type: string
+  model: string | null
+  isQuestDevice: boolean
+  batteryLevel: number | null
+  storageTotal: string | null
+  storageFree: string | null
+  friendlyModelName: string | null
   [key: string]: unknown
 }
 
@@ -53,6 +59,7 @@ export interface DownloadProgress {
 export interface AdbContextType {
   devices: DeviceInfo[]
   selectedDevice: string | null
+  selectedDeviceDetails: DeviceInfo | null
   isConnected: boolean
   isLoading: boolean
   error: string | null

@@ -187,6 +187,7 @@ const useStyles = makeStyles({
 const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const {
     selectedDevice,
+    selectedDeviceDetails,
     isConnected,
     disconnectDevice,
     isLoading: adbLoading,
@@ -698,7 +699,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             <>
               <Text className={styles.connectedDeviceText}>
                 <CheckmarkCircleRegular fontSize={16} color={tokens.colorPaletteGreenForeground1} />
-                Connected: <strong>{selectedDevice}</strong>
+                Connected: <strong>{selectedDeviceDetails?.friendlyModelName}</strong>
               </Text>
               <Button
                 icon={<DismissRegular />}
