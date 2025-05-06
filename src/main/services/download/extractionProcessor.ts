@@ -333,24 +333,50 @@ export class ExtractionProcessor {
         }
 
         outputBuffer += data.toString()
-        let newlineIndex
-        while ((newlineIndex = outputBuffer.indexOf('\n')) >= 0) {
-          const line = outputBuffer.substring(0, newlineIndex).trim()
-          outputBuffer = outputBuffer.substring(newlineIndex + 1)
+
+        // --- New Progress Parsing Logic ---
+        // Determine the most current "display line" for progress.
+        // This is typically the content after the last newline, and then after the last carriage return in that segment.
+        let lineForProgress = outputBuffer
+        const lastNewlineIndex = lineForProgress.lastIndexOf('\n')
+        if (lastNewlineIndex !== -1) {
+          // Consider only the content after the last newline for current progress display
+          lineForProgress = lineForProgress.substring(lastNewlineIndex + 1)
+        }
+        // Now, from this potentially partial line, find content after the last carriage return
+        const lastCarriageReturnIndex = lineForProgress.lastIndexOf('\r')
+        if (lastCarriageReturnIndex !== -1) {
+          lineForProgress = lineForProgress.substring(lastCarriageReturnIndex + 1)
+        }
+        // lineForProgress now holds the most up-to-date segment that would be visible on a terminal line.
+        // Trim it to remove leading/trailing whitespace that might affect the regex.
+        const trimmedLineForProgress = lineForProgress.trim()
+
+        if (trimmedLineForProgress.length > 0) {
+          const progressMatch = trimmedLineForProgress.match(progressRegex) // progressRegex = /^\s*(\d+)%/
+          if (progressMatch && progressMatch[1]) {
+            const currentProgress = parseInt(progressMatch[1], 10)
+            if (currentProgress >= (currentItemState.extractProgress ?? 0)) {
+              const updated = this.queueManager.updateItem(item.releaseName, {
+                extractProgress: currentProgress
+              })
+              if (updated) this.debouncedEmitUpdate()
+            }
+          }
+        }
+        // --- End New Progress Parsing Logic ---
+
+        // --- Modified Full Line Processing for Errors ---
+        let newlineIndexWhileLoop // Renamed to avoid conflict with lastNewlineIndex
+        while ((newlineIndexWhileLoop = outputBuffer.indexOf('\n')) >= 0) {
+          const line = outputBuffer.substring(0, newlineIndexWhileLoop).trim()
+          outputBuffer = outputBuffer.substring(newlineIndexWhileLoop + 1)
+
+          // Previous diagnostic logs related to line processing for progress are removed here.
 
           if (line.length > 0) {
-            const progressMatch = line.match(progressRegex)
-            if (progressMatch && progressMatch[1]) {
-              const currentProgress = parseInt(progressMatch[1], 10)
-              if (currentProgress >= (currentItemState.extractProgress ?? 0)) {
-                // Update only extractProgress via QueueManager, then emit
-                const updated = this.queueManager.updateItem(item.releaseName, {
-                  extractProgress: currentProgress
-                })
-                if (updated) this.debouncedEmitUpdate()
-              }
-            }
-            // Check for errors
+            // Progress parsing is now handled above by the "New Progress Parsing Logic".
+            // Error checking remains.
             if (line.includes('ERROR: Wrong password')) {
               console.error(`[ExtractProc] 7zip (${item.releaseName}): Wrong password.`)
               this.cancelExtraction(item.releaseName) // Stop the process
@@ -363,7 +389,7 @@ export class ExtractionProcessor {
                 undefined,
                 currentItemState.extractProgress ?? 0
               )
-              // Let the main catch block handle the process exit
+              // Let the main catch block handle the process exit eventually
             }
             if (line.includes('ERROR: Data Error') || line.includes('CRC Failed')) {
               console.error(`[ExtractProc] 7zip (${item.releaseName}): Data/CRC error.`)
@@ -377,7 +403,7 @@ export class ExtractionProcessor {
                 undefined,
                 currentItemState.extractProgress ?? 0
               )
-              // Let the main catch block handle the process exit
+              // Let the main catch block handle the process exit eventually
             }
           }
         }
