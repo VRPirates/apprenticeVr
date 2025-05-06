@@ -123,9 +123,14 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
             >
               {isLoading ? 'Loading...' : 'Refresh'}
             </Button>
-            {onSkip && (
+            {onSkip && !isConnected && (
               <Button onClick={onSkip} appearance="secondary">
                 Skip Connection
+              </Button>
+            )}
+            {onSkip && isConnected && (
+              <Button onClick={onSkip} appearance="secondary">
+                Continue
               </Button>
             )}
           </div>
