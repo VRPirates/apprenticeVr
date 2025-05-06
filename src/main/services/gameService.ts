@@ -523,7 +523,7 @@ class GameService {
           size,
           lastUpdated,
           releaseName,
-          downloads: parseInt(downloads) || 0,
+          downloads: parseFloat(downloads) || 0,
           thumbnailPath: thumbnailExists ? thumbnailPath : '',
           isInstalled: false
         }

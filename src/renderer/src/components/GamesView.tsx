@@ -354,7 +354,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'name',
         header: 'Name / Package',
-        size: 520,
+        size: 430,
         cell: ({ row }) => {
           const game = row.original
           const downloadInfo = game.releaseName
@@ -448,12 +448,23 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         enableResizing: true
       },
       {
+        accessorKey: 'downloads',
+        header: 'Popularity',
+        size: 120,
+        cell: (info) => {
+          const count = info.getValue<number>()
+          return typeof count === 'number' ? count.toLocaleString() : '-'
+        },
+        enableResizing: true
+      },
+      {
         accessorKey: 'size',
         header: 'Size',
         size: 90,
         cell: (info) => info.getValue() || '-',
         enableResizing: true
       },
+
       {
         accessorKey: 'lastUpdated',
         header: 'Last Updated',

@@ -20,7 +20,7 @@ import {
   DrawerHeaderTitle,
   DrawerBody
 } from '@fluentui/react-components'
-import electronLogo from '../assets/electron.svg'
+import electronLogo from '../assets/icon.svg'
 import { useDependency } from '../hooks/useDependency'
 import { DependencyProvider } from '../context/DependencyProvider'
 import { DownloadProvider } from '../context/DownloadProvider'
@@ -51,7 +51,7 @@ const useStyles = makeStyles({
     justifyContent: 'space-between'
   },
   logo: {
-    height: '32px'
+    height: '48px'
   },
   headerContent: {
     display: 'flex',
