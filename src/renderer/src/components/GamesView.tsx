@@ -33,7 +33,8 @@ import {
   ArrowClockwiseRegular,
   DismissRegular,
   PlugDisconnectedRegular,
-  CheckmarkCircleRegular
+  CheckmarkCircleRegular,
+  DesktopRegular
 } from '@fluentui/react-icons'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import GameDetailsDialog from './GameDetailsDialog'
@@ -287,7 +288,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         id: 'downloadStatus',
         header: '',
-        size: 40,
+        size: 60,
         enableResizing: false,
         enableSorting: false,
         cell: ({ row }) => {
@@ -295,17 +296,35 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           const downloadInfo = game.releaseName
             ? downloadStatusMap.get(game.releaseName)
             : undefined
-          const isDownloadedNotInstalled = downloadInfo?.status === 'Completed' && !game.isInstalled
+          const isDownloaded = downloadInfo?.status === 'Completed'
+          const isInstalled = game.isInstalled
+          const isUpdateAvailable = game.hasUpdate
 
           return (
             <div className={styles.statusIconCell}>
-              {isDownloadedNotInstalled && (
-                <CheckmarkCircleRegular
-                  fontSize={16}
-                  color={tokens.colorPaletteGreenForeground1}
-                  aria-label="Downloaded"
-                />
-              )}
+              <div style={{ display: 'flex', gap: tokens.spacingHorizontalXXS }}>
+                {isDownloaded && (
+                  <DesktopRegular
+                    fontSize={16}
+                    color={tokens.colorNeutralForeground3}
+                    aria-label="Installed"
+                  />
+                )}
+                {isInstalled && (
+                  <CheckmarkCircleRegular
+                    fontSize={16}
+                    color={tokens.colorPaletteGreenForeground1}
+                    aria-label="Downloaded"
+                  />
+                )}
+                {isUpdateAvailable && (
+                  <ArrowClockwiseRegular
+                    fontSize={16}
+                    color={tokens.colorPaletteGreenForeground1}
+                    aria-label="Update Available"
+                  />
+                )}
+              </div>
             </div>
           )
         }
