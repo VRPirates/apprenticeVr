@@ -18,6 +18,9 @@ export class ExtractionProcessor {
   private vrpConfig: VrpConfig | null = null
   private debouncedEmitUpdate: () => void
 
+  private static isExecaError = (err: unknown): err is ExecaError =>
+    typeof err === 'object' && err !== null && 'shortMessage' in err
+
   constructor(
     queueManager: QueueManager,
     depService: typeof dependencyService,
@@ -94,6 +97,123 @@ export class ExtractionProcessor {
     }
     // Status update (e.g., to Cancelled) should be handled by the caller (e.g., DownloadService.cancelUserRequest)
     // after calling this cancellation method.
+  }
+
+  private async extractNestedArchives(baseExtractPath: string, releaseName: string): Promise<void> {
+    console.log(
+      `[ExtractProc] Checking for nested archives in ${baseExtractPath} for ${releaseName}`
+    )
+
+    const sevenZipPath = this.dependencyService.get7zPath()
+    if (!sevenZipPath) {
+      console.error(
+        `[ExtractProc] 7zip path not found for nested extraction of ${releaseName}. Skipping nested.`
+      )
+      return
+    }
+
+    try {
+      const itemsInDir = await fs.readdir(baseExtractPath, { withFileTypes: true })
+      const nestedArchives = itemsInDir
+        .filter(
+          (dirent) =>
+            dirent.isFile() && dirent.name.endsWith('.7z') && !/\.7z\.\d+$/.test(dirent.name)
+        )
+        .map((dirent) => dirent.name)
+
+      if (nestedArchives.length === 0) {
+        console.log(
+          `[ExtractProc] No nested .7z archives found in ${baseExtractPath} for ${releaseName}.`
+        )
+        return
+      }
+
+      console.log(
+        `[ExtractProc] Found ${nestedArchives.length} nested .7z archive(s) for ${releaseName}: ${nestedArchives.join(', ')}`
+      )
+
+      for (const archiveName of nestedArchives) {
+        const nestedArchivePath = join(baseExtractPath, archiveName)
+        console.log(`[ExtractProc] Starting extraction for nested archive: ${nestedArchivePath}.`)
+
+        let nestedProcess: ReturnType<typeof execa> | null = null
+        try {
+          nestedProcess = execa(sevenZipPath, ['e', nestedArchivePath, '-aoa', '-bsp1', '-y'], {
+            cwd: baseExtractPath,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            all: true,
+            buffer: false,
+            windowsHide: true
+          })
+
+          if (!nestedProcess || !nestedProcess.pid || !nestedProcess.all) {
+            throw new Error(`Failed to start 7zip process for nested archive ${archiveName}.`)
+          }
+
+          console.log(
+            `[ExtractProc] 7zip (nested) started for ${archiveName}, PID: ${nestedProcess.pid}. Output dir: ${baseExtractPath}`
+          )
+
+          let nestedOutputCombined = ''
+          if (nestedProcess.all) {
+            nestedProcess.all.on('data', (data: Buffer) => {
+              const outputChunk = data.toString()
+              nestedOutputCombined += outputChunk
+            })
+          }
+
+          const result = await nestedProcess
+          console.log(
+            `[ExtractProc] Nested extraction complete for ${archiveName}. Exit code: ${result.exitCode}`
+          )
+
+          if (nestedOutputCombined.includes('ERROR: Wrong password')) {
+            console.error(`[ExtractProc Nested ${archiveName}] Wrong password detected in output.`)
+            continue
+          }
+          if (
+            nestedOutputCombined.includes('ERROR: Data Error') ||
+            nestedOutputCombined.includes('CRC Failed')
+          ) {
+            console.error(`[ExtractProc Nested ${archiveName}] Data/CRC error detected in output.`)
+            continue
+          }
+
+          try {
+            await fs.unlink(nestedArchivePath)
+            console.log(`[ExtractProc] Deleted nested archive: ${nestedArchivePath}`)
+          } catch (unlinkError) {
+            console.warn(
+              `[ExtractProc] Failed to delete nested archive ${nestedArchivePath}:`,
+              unlinkError
+            )
+          }
+        } catch (nestedError: unknown) {
+          console.error(
+            `[ExtractProc] Error during extraction of nested archive ${archiveName}:`,
+            nestedError
+          )
+          if (ExtractionProcessor.isExecaError(nestedError)) {
+            const execaErr = nestedError as ExecaError
+            const output = String(execaErr.all || execaErr.stderr || execaErr.stdout || '')
+            if (output.includes('ERROR: Wrong password')) {
+              console.error(`[ExtractProc Nested ${archiveName}] Wrong password (from ExecaError).`)
+            } else if (output.includes('ERROR: Data Error') || output.includes('CRC Failed')) {
+              console.error(`[ExtractProc Nested ${archiveName}] Data/CRC error (from ExecaError).`)
+            } else {
+              console.error(
+                `[ExtractProc Nested ${archiveName} Error Output]: ${output.substring(0, 1000)}`
+              )
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error(
+        `[ExtractProc] Error scanning for nested archives for ${releaseName} in ${baseExtractPath}:`,
+        err
+      )
+    }
   }
 
   // Returns true on success, false on failure
@@ -312,6 +432,10 @@ export class ExtractionProcessor {
       }
       // --- Delete archive files --- END
 
+      // --- Extract nested .7z archives --- START
+      await this.extractNestedArchives(downloadPath, item.releaseName)
+      // --- Extract nested .7z archives --- END
+
       // --- Clean up potential empty base directory --- START
       const potentialEmptyDirPath = join(downloadPath, item.releaseName)
       try {
@@ -352,18 +476,16 @@ export class ExtractionProcessor {
       )
       return true // Indicate success
     } catch (error: unknown) {
-      const isExecaError = (err: unknown): err is ExecaError =>
-        typeof err === 'object' && err !== null && 'shortMessage' in err
       const currentItemState = this.queueManager.findItem(item.releaseName)
       const statusBeforeCatch = currentItemState?.status ?? 'Unknown'
 
       // Handle intentional termination
       if (
-        isExecaError(error) &&
+        ExtractionProcessor.isExecaError(error) &&
         (error.signal === 'SIGTERM' ||
           error.signal === 'SIGKILL' ||
-          error.exitCode === 143 ||
-          error.exitCode === 137)
+          error.exitCode === 143 || // Standard exit code for SIGTERM
+          error.exitCode === 137) // Standard exit code for SIGKILL
       ) {
         console.log(
           `[ExtractProc Catch] Ignoring termination signal (${error.signal || 'Code ' + error.exitCode}) for ${item.releaseName}. Status: ${statusBeforeCatch}`
@@ -384,7 +506,7 @@ export class ExtractionProcessor {
       }
 
       let errorMessage = 'Extraction failed.'
-      if (isExecaError(error)) {
+      if (ExtractionProcessor.isExecaError(error)) {
         const output = String(error.all || error.stderr || error.stdout || '')
         if (output.includes('ERROR: Wrong password')) {
           errorMessage = 'Wrong password'
