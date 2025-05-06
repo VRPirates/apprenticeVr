@@ -116,9 +116,9 @@ class AdbService extends EventEmitter {
       try {
         const storageOutput = await device.shell('df -h /data')
         const storageResult = (await Adb.util.readAll(storageOutput)).toString().trim()
-        const lines = storageResult.split('\\n')
+        const lines = storageResult.split('\n')
         if (lines.length > 1) {
-          const dataLine = lines[1].split(/\s+/) // Split by one or more spaces
+          const dataLine = lines[1].split(/\s+/)
           if (dataLine.length >= 4) {
             storageTotal = dataLine[1] // Size
             storageFree = dataLine[3] // Avail

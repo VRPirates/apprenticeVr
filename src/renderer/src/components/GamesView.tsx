@@ -34,7 +34,9 @@ import {
   DismissRegular,
   PlugDisconnectedRegular,
   CheckmarkCircleRegular,
-  DesktopRegular
+  DesktopRegular,
+  BatteryChargeRegular,
+  StorageRegular
 } from '@fluentui/react-icons'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import GameDetailsDialog from './GameDetailsDialog'
@@ -699,7 +701,40 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             <>
               <Text className={styles.connectedDeviceText}>
                 <CheckmarkCircleRegular fontSize={16} color={tokens.colorPaletteGreenForeground1} />
-                Connected: <strong>{selectedDeviceDetails?.friendlyModelName}</strong>
+                Connected:{' '}
+                <strong>{selectedDeviceDetails?.friendlyModelName || selectedDevice}</strong>
+                {selectedDeviceDetails && selectedDeviceDetails.batteryLevel !== null && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      marginLeft: tokens.spacingHorizontalM
+                    }}
+                  >
+                    <BatteryChargeRegular
+                      fontSize={16}
+                      style={{ marginRight: tokens.spacingHorizontalXXS }}
+                    />
+                    {selectedDeviceDetails.batteryLevel}%
+                  </span>
+                )}
+                {selectedDeviceDetails &&
+                  selectedDeviceDetails.storageFree !== null &&
+                  selectedDeviceDetails.storageTotal !== null && (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        marginLeft: tokens.spacingHorizontalM
+                      }}
+                    >
+                      <StorageRegular
+                        fontSize={16}
+                        style={{ marginRight: tokens.spacingHorizontalXXS }}
+                      />
+                      {`${selectedDeviceDetails.storageFree} / ${selectedDeviceDetails.storageTotal}`}
+                    </span>
+                  )}
               </Text>
               <Button
                 icon={<DismissRegular />}
