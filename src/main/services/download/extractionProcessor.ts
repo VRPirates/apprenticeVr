@@ -138,7 +138,7 @@ export class ExtractionProcessor {
 
         let nestedProcess: ReturnType<typeof execa> | null = null
         try {
-          nestedProcess = execa(sevenZipPath, ['e', nestedArchivePath, '-aoa', '-bsp1', '-y'], {
+          nestedProcess = execa(sevenZipPath, ['x', nestedArchivePath, '-aoa', '-bsp1', '-y'], {
             cwd: baseExtractPath,
             stdio: ['ignore', 'pipe', 'pipe'],
             all: true,
@@ -294,7 +294,7 @@ export class ExtractionProcessor {
     try {
       sevenZipProcess = execa(
         sevenZipPath,
-        ['e', archivePath, '-aoa', '-bsp1', '-y', `-p${decodedPassword}`],
+        ['x', archivePath, '-aoa', '-bsp1', '-y', `-p${decodedPassword}`],
         {
           cwd: downloadPath,
           stdio: ['ignore', 'pipe', 'pipe'],
@@ -432,37 +432,71 @@ export class ExtractionProcessor {
       }
       // --- Delete archive files --- END
 
-      // --- Extract nested .7z archives --- START
-      await this.extractNestedArchives(downloadPath, item.releaseName)
-      // --- Extract nested .7z archives --- END
-
-      // --- Clean up potential empty base directory --- START
-      const potentialEmptyDirPath = join(downloadPath, item.releaseName)
+      // --- Flatten single root folder if it matches releaseName --- START
+      const rootFolderPath = join(downloadPath, item.releaseName)
       try {
-        if (existsSync(potentialEmptyDirPath)) {
-          const stats = await fs.stat(potentialEmptyDirPath)
+        if (existsSync(rootFolderPath)) {
+          const stats = await fs.stat(rootFolderPath)
           if (stats.isDirectory()) {
-            const dirContents = await fs.readdir(potentialEmptyDirPath)
-            if (dirContents.length === 0) {
-              console.log(
-                `[ExtractProc] Removing empty directory found after extraction: ${potentialEmptyDirPath}`
-              )
-              await fs.rmdir(potentialEmptyDirPath)
+            console.log(
+              `[ExtractProc] Found directory matching release name: ${rootFolderPath}. Attempting to flatten.`
+            )
+            const rootFolderContents = await fs.readdir(rootFolderPath)
+            if (rootFolderContents.length > 0) {
+              for (const contentName of rootFolderContents) {
+                const oldPath = join(rootFolderPath, contentName)
+                const newPath = join(downloadPath, contentName)
+                try {
+                  // Check if newPath already exists and handle potential conflicts (simple overwrite or log)
+                  // For now, we'll attempt to rename, which might fail if newPath exists.
+                  if (existsSync(newPath)) {
+                    console.warn(
+                      `[ExtractProc] Target path ${newPath} already exists. Skipping move for ${oldPath}. This might lead to an incomplete flatten operation if the root folder cannot be emptied.`
+                    )
+                  } else {
+                    await fs.rename(oldPath, newPath)
+                    console.log(`[ExtractProc] Moved: ${oldPath} -> ${newPath}`)
+                  }
+                } catch (moveError: unknown) {
+                  let message = 'Unknown error'
+                  if (moveError instanceof Error) {
+                    message = moveError.message
+                  }
+                  console.warn(`[ExtractProc] Could not move ${oldPath} to ${newPath}: ${message}.`)
+                }
+              }
+              // After attempting to move all contents, try to remove the directory
+              // It will only be removed if it's now empty.
+              const remainingContents = await fs.readdir(rootFolderPath)
+              if (remainingContents.length === 0) {
+                await fs.rmdir(rootFolderPath)
+                console.log(`[ExtractProc] Removed original root folder: ${rootFolderPath}`)
+              } else {
+                console.warn(
+                  `[ExtractProc] Original root folder ${rootFolderPath} is not empty after moving contents, not removing. Contents: ${remainingContents.join(', ')}`
+                )
+              }
             } else {
+              // The directory matching releaseName is empty, so just remove it.
               console.log(
-                `[ExtractProc] Directory ${potentialEmptyDirPath} found but is not empty, skipping removal.`
+                `[ExtractProc] Directory ${rootFolderPath} matching release name is empty. Removing it.`
               )
+              await fs.rmdir(rootFolderPath)
             }
           }
         }
-      } catch (cleanupError: unknown) {
+      } catch (flattenError: unknown) {
         console.warn(
-          `[ExtractProc] Error during empty directory cleanup for ${potentialEmptyDirPath}:`,
-          cleanupError
+          `[ExtractProc] Error during root folder flattening for ${item.releaseName}:`,
+          flattenError
         )
         // Non-critical error, just log it
       }
-      // --- Clean up potential empty base directory --- END
+      // --- Flatten single root folder if it matches releaseName --- END
+
+      // --- Extract nested .7z archives --- START
+      await this.extractNestedArchives(downloadPath, item.releaseName)
+      // --- Extract nested .7z archives --- END
 
       // Update final status to Completed
       this.updateItemStatus(
