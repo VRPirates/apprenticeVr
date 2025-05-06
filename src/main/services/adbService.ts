@@ -388,6 +388,19 @@ class AdbService extends EventEmitter {
         if (remotePath.endsWith('/')) {
           finalRemotePath = path.join(remotePath, path.basename(localPath))
         }
+        // If localPath is a file and remotePath does not end with '/',
+        // remotePath is assumed to be the full target file path.
+      } else if (localStat.isDirectory()) {
+        // If localPath is a directory:
+        if (remotePath.endsWith('/')) {
+          // If remotePath ends with a slash (e.g., "/sdcard/"), it's treated as a parent directory.
+          // We append the local directory's name to form the full target path.
+          // e.g., localPath="dir", remotePath="/sdcard/" => finalRemotePath="/sdcard/dir"
+          finalRemotePath = path.join(remotePath, path.basename(localPath))
+        }
+        // If remotePath does not end with a slash (e.g., "/sdcard/targetdir"),
+        // it's assumed to be the explicit full path for the target directory.
+        // In this case, finalRemotePath remains as is.
       }
 
       console.log(
