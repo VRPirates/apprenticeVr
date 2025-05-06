@@ -354,7 +354,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'name',
         header: 'Name / Package',
-        size: 600,
+        size: 520,
         cell: ({ row }) => {
           const game = row.original
           const downloadInfo = game.releaseName
@@ -694,7 +694,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           <Button icon={<ArrowLeftRegular />} onClick={onBackToDevices} appearance="transparent">
             Back to Devices
           </Button>
-          <Title2>VR Games Library</Title2>
+          <Title2>Library</Title2>
         </div>
         <div className={styles.deviceInfoBar}>
           {isConnected ? (
@@ -807,7 +807,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           </div>
         )}
 
-        {loadingGames && !downloadProgress && !extractProgress ? (
+        {loadingGames ? (
           <div className="loading-indicator">Loading games library...</div>
         ) : gamesError ? (
           <div className="error-message">{gamesError}</div>
