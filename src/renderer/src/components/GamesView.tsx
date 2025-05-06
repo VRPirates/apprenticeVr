@@ -854,6 +854,18 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             <Button icon={<ArrowClockwiseRegular />} onClick={refreshGames} disabled={isBusy}>
               {isBusy ? 'Working...' : 'Refresh Games'}
             </Button>
+            <Button
+              icon={<ArrowClockwiseRegular />}
+              onClick={() => loadPackages()}
+              disabled={isBusy || !isConnected}
+              title={
+                !isConnected
+                  ? 'Connect a device to refresh its packages'
+                  : 'Refresh installed packages on the device'
+              }
+            >
+              {isBusy ? 'Working...' : 'Refresh Quest'}
+            </Button>
             <span className="last-synced">Last synced: {formatDate(lastSyncTime)}</span>
             {isConnected && (
               <div className="filter-buttons">

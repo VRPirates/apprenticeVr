@@ -110,6 +110,8 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
       setError(null)
       const installedPackages = await window.api.adb.getInstalledPackages(selectedDevice)
       setPackages(installedPackages)
+      const deviceList = await window.api.adb.listDevices()
+      setDevices(deviceList)
     } catch (err) {
       setError('Failed to load packages')
       console.error('Error loading packages:', err)
