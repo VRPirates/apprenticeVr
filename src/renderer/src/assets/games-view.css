@@ -325,24 +325,29 @@
 }
 
 /* Add Row Background Styles */
-.row-installed {
-  background-color: var(--colorPaletteLightGreenBackground1); /* Lighter green, slightly transparent */
+.row-installed .game-name-main {
+  color: var(--colorBrandForeground1); /* Lighter green, slightly transparent */
 }
 /* Style for rows with available updates (Added) */
-.row-update-available {
-  background-color: var(--colorPaletteLightGreenBackground2); /* A slightly more noticeable light green */
-}
-
-.row-installed:hover {
-  background-color: var(--colorPaletteGreenBackground2); /* Standard hover for non-installed */
-}
-.row-update-available:hover {
-  background-color: var(--colorPaletteGreenBackground2); /* Standard hover for non-installed */
+.row-update-available .game-name-main {
+  color: var(--colorPaletteLightGreenForeground1); /* A slightly more noticeable light green */
+  font-weight: 600;
 }
 
 
-.row-not-installed:hover {
-  background-color: var(--colorNeutralBackground2); /* Standard hover for non-installed */
+ /* Standard hover for non-installed */
+/* .row-installed:hover {
+  background-color: var(--colorPaletteGreenBackground2);
+} */
+ /* Standard hover for non-installed */
+/* .row-update-available:hover {
+  background-color: var(--colorPaletteGreenBackground2);
+} */
+
+
+.row-not-installed:hover, .row-installed:hover, .row-update-available:hover {
+  background-color: var(--colorNeutralBackground2); 
+  cursor: pointer;
 }
 
 
