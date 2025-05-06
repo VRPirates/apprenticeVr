@@ -18,10 +18,10 @@ import {
 import {
   DeviceMeetingRoomRegular, // Icon for devices
   PlugDisconnectedRegular,
-  PlugConnectedRegular,
   ArrowClockwiseRegular as RefreshIcon, // Use a different icon for Refresh
   BatteryChargeRegular, // Icon for Battery
-  StorageRegular // Icon for Storage
+  StorageRegular, // Icon for Storage
+  DismissCircleRegular // Icon for Disconnect
 } from '@fluentui/react-icons'
 
 interface DeviceListProps {
@@ -96,7 +96,8 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
     isLoading,
     error,
     connectToDevice,
-    refreshDevices
+    refreshDevices,
+    disconnectDevice
   } = useAdb()
   const styles = useStyles()
 
@@ -181,20 +182,26 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
                       )}
                     </div>
                   </div>
-                  <Button
-                    icon={
-                      isCurrentDeviceConnected ? (
-                        <PlugConnectedRegular />
-                      ) : (
-                        <PlugDisconnectedRegular />
-                      )
-                    }
-                    appearance={isCurrentDeviceConnected ? 'primary' : 'outline'}
-                    onClick={() => handleConnect(device.id)}
-                    disabled={isCurrentDeviceConnected || isLoading} // Disable connect if loading
-                  >
-                    {isCurrentDeviceConnected ? 'Connected' : 'Connect'}
-                  </Button>
+                  {/* Conditional Button: Connect / Connected / Disconnect */}
+                  {isCurrentDeviceConnected ? (
+                    <Button
+                      icon={<DismissCircleRegular />}
+                      onClick={disconnectDevice} // Call disconnect function
+                      appearance="outline"
+                      aria-label="Disconnect device"
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      icon={<PlugDisconnectedRegular />}
+                      appearance="outline"
+                      onClick={() => handleConnect(device.id)}
+                      disabled={isLoading} // Only disable connect if loading, not if already connected
+                    >
+                      Connect
+                    </Button>
+                  )}
                 </div>
               )
             })}
