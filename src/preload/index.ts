@@ -81,7 +81,7 @@ const api = {
   },
   // Download Queue APIs
   downloads: {
-    getQueue: (): Promise<DownloadItem[]> => ipcRenderer.invoke('download:getQueue'),
+    getQueue: (): Promise<DownloadItem[]> => ipcRenderer.invoke('download:get-queue'),
     add: (game: GameInfo): Promise<boolean> => ipcRenderer.invoke('download:add', game),
     remove: (releaseName: string): void => ipcRenderer.send('download:remove', releaseName),
     cancel: (releaseName: string): void => ipcRenderer.send('download:cancel', releaseName),

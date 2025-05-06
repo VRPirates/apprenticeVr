@@ -470,9 +470,14 @@ class DependencyService {
       console.log(`Extracting adb from archive: ${tempArchivePath} directly to ${this.binDir}`)
       progressCallback?.(this.status, { name: 'adb-extract', percentage: 0 }) // Indicate start of extraction
 
-      const adbBinaryName = platform === 'win32' ? 'adb.exe' : 'adb'
-      const adbBinaryPathInZip = `platform-tools/${adbBinaryName}` // Path within the zip
-      let adbFoundInZip = false
+      const isWindows = platform === 'win32'
+      const adbBinaryName = isWindows ? 'adb.exe' : 'adb'
+      const requiredFilesBaseNames = isWindows
+        ? [adbBinaryName, 'AdbWinApi.dll', 'AdbWinUsbApi.dll', 'libwinpthread-1.dll']
+        : [adbBinaryName]
+
+      // Use a Set to track which required files have been successfully extracted
+      const extractedFiles = new Set<string>()
 
       await new Promise<void>((resolve, reject) => {
         yauzl.open(tempArchivePath!, { lazyEntries: true }, (err, zipfile) => {
@@ -481,41 +486,50 @@ class DependencyService {
           zipfile.readEntry() // Start reading entries
 
           zipfile.on('entry', (entry: yauzl.Entry) => {
-            // Check if the entry is the adb binary we need
-            if (entry.fileName.endsWith('/') || entry.fileName !== adbBinaryPathInZip) {
-              // It's a directory or not the file we want, read next entry
+            const baseFileName = entry.fileName.split('/').pop() ?? ''
+            const isRequiredFile =
+              !entry.fileName.endsWith('/') && // Not a directory
+              entry.fileName.startsWith('platform-tools/') && // Inside the platform-tools folder
+              requiredFilesBaseNames.includes(baseFileName) // Is one of the files we need
+
+            if (!isRequiredFile) {
+              // Skip this entry, read the next one
               zipfile.readEntry()
               return
             }
 
-            // Found the adb binary
-            adbFoundInZip = true
-            console.log(`Found ${adbBinaryName} in zip. Extracting to ${expectedPath}...`)
+            // This is a file we need to extract
+            const targetPath = join(this.binDir, baseFileName) // Extract directly to binDir
+            console.log(
+              `Found required file ${baseFileName} in zip. Extracting to ${targetPath}...`
+            )
 
             zipfile.openReadStream(entry, (streamErr, readStream) => {
               if (streamErr || !readStream) {
                 zipfile.close()
-                return reject(streamErr || new Error('Failed to open read stream for adb binary'))
+                return reject(
+                  streamErr || new Error(`Failed to open read stream for ${baseFileName}`)
+                )
               }
 
-              const writeStream = createWriteStream(expectedPath)
+              const writeStream = createWriteStream(targetPath)
               readStream.pipe(writeStream)
 
               readStream.on('error', (readErr) => {
-                console.error('Error reading zip stream:', readErr)
+                console.error(`Error reading zip stream for ${baseFileName}:`, readErr)
                 writeStream.close() // Ensure write stream is closed on read error
                 zipfile.close()
                 reject(readErr)
               })
 
               writeStream.on('finish', () => {
-                console.log(`Successfully extracted ${adbBinaryName} to ${expectedPath}`)
-                // Extraction of the target file is done, we can technically stop
-                // but let yauzl finish cleanly. Continue reading entries until 'end'.
-                zipfile.readEntry() // Read next (though we don't need more)
+                console.log(`Successfully extracted ${baseFileName} to ${targetPath}`)
+                extractedFiles.add(baseFileName) // Mark this file as extracted
+                // Continue reading entries
+                zipfile.readEntry()
               })
               writeStream.on('error', (writeErr) => {
-                console.error('Error writing extracted file:', writeErr)
+                console.error(`Error writing extracted file ${baseFileName}:`, writeErr)
                 readStream.destroy() // Stop reading if write fails
                 zipfile.close()
                 reject(writeErr)
@@ -525,12 +539,16 @@ class DependencyService {
 
           zipfile.on('end', () => {
             console.log('Finished processing zip file entries.')
-            if (!adbFoundInZip) {
-              reject(
-                new Error(`Could not find ${adbBinaryPathInZip} inside the downloaded archive.`)
-              )
-            } else {
+            // Check if all required files were extracted
+            if (extractedFiles.size === requiredFilesBaseNames.length) {
               resolve()
+            } else {
+              const missingFiles = requiredFilesBaseNames.filter((f) => !extractedFiles.has(f))
+              reject(
+                new Error(
+                  `Extraction incomplete. Missing files: ${missingFiles.join(', ')} from the archive.`
+                )
+              )
             }
           })
 
@@ -549,9 +567,10 @@ class DependencyService {
       this.status.adb.error = null
       progressCallback?.(this.status, { name: 'adb-extract', percentage: 100 })
 
-      // Set executable permissions
+      // Set executable permissions ONLY for the main adb binary
       if (process.platform !== 'win32') {
         try {
+          // expectedPath still points to the main adb binary path
           await fsPromises.chmod(expectedPath, 0o755)
           console.log(`Set executable permissions for ${expectedPath}`)
         } catch (chmodError) {
