@@ -4,6 +4,7 @@ import { BrowserWindow } from 'electron'
 import { EventEmitter } from 'events'
 import dependencyService from './dependencyService'
 import fs from 'fs'
+import path from 'path'
 
 interface PackageInfo {
   packageName: string
@@ -372,35 +373,55 @@ class AdbService extends EventEmitter {
     if (!this.client) {
       throw new Error('adb service not initialized!')
     }
-    console.log(`Pushing ${localPath} to ${serial}:${remotePath}...`)
+
+    let finalRemotePath = remotePath
     try {
+      const localStat = await fs.promises.stat(localPath)
+
+      if (localStat.isFile()) {
+        // If remotePath explicitly ends with a slash, it denotes a directory.
+        // ADB CLI usually handles pushing a file into such a directory by appending the filename.
+        // However, the observed error "couldn't create file: Is a directory" suggests
+        // that this might fail in some scenarios.
+        // To be robust, if localPath is a file and remotePath ends with '/',
+        // we explicitly form the full target file path.
+        if (remotePath.endsWith('/')) {
+          finalRemotePath = path.join(remotePath, path.basename(localPath))
+        }
+      }
+
+      console.log(
+        `Pushing ${localPath} to ${serial}:${finalRemotePath}... (original remote: ${remotePath})`
+      )
+
       const deviceClient = this.client.getDevice(serial)
-      const transfer = await deviceClient.push(localPath, remotePath)
+      const transfer = await deviceClient.push(localPath, finalRemotePath)
       return new Promise((resolve, reject) => {
         transfer.on('end', () => {
-          console.log(`Successfully pushed ${localPath} to ${remotePath}.`)
+          console.log(`Successfully pushed ${localPath} to ${finalRemotePath}.`)
           resolve(true)
         })
         transfer.on('error', (err) => {
-          console.error(`Error pushing ${localPath} to ${remotePath}:`, err)
-          reject(err) // Let the promise reject on error
+          console.error(`Error pushing ${localPath} to ${finalRemotePath}:`, err)
+          reject(err)
         })
       })
-    } catch (error) {
-      console.error(`Error initiating push of ${localPath} to ${serial}:${remotePath}:`, error)
-      return false // Indicate failure if the push couldn't even start
+    } catch (error: unknown) {
+      // Check for a specific structure of filesystem errors (like ENOENT from fs.promises.stat)
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+        console.error(
+          `[AdbService] Local file/folder not found for push: ${localPath}. Code: ${(error as { code: string }).code}`
+        )
+      } else {
+        // For other errors, log the error object itself for more details
+        console.error(
+          `[AdbService] Error during push operation for ${localPath} to ${serial}:${finalRemotePath} (original remote: ${remotePath}):`,
+          error
+        )
+      }
+      return false
     }
   }
-
-  // Note: adbkit's pull returns a stream. This helper reads the stream and saves to a local file.
-  // This implementation doesn't exist directly in adbkit, so we need fs.
-  // Let's adjust the plan: pullFile might be better implemented within InstallationProcessor
-  // where file system access (`fs`) is more appropriate, or we add `fs` dependency here.
-  // For now, let's implement a simpler version that returns the stream,
-  // or perhaps rethink if pullFile is truly needed by InstallationProcessor right now.
-  // Looking back at install.txt logic, it only uses shell, install, push.
-  // Standard install uses install and push.
-  // Let's comment out pullFile for now as it seems unused and requires 'fs'.
 
   async pullFile(serial: string, remotePath: string, localPath: string): Promise<boolean> {
     // Requires 'fs' module - consider if needed or implement differently
