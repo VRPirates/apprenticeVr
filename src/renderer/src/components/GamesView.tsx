@@ -36,7 +36,8 @@ import {
   Image,
   Badge,
   Divider,
-  ProgressBar
+  ProgressBar,
+  Spinner // Import Spinner
 } from '@fluentui/react-components'
 import {
   ArrowClockwiseRegular,
@@ -421,8 +422,9 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             : undefined
           const isDownloading = downloadInfo?.status === 'Downloading'
           const isExtracting = downloadInfo?.status === 'Extracting'
-          const isQueued = downloadInfo?.status === 'Queued' // Check for Queued status
-          const isInstallError = downloadInfo?.status === 'InstallError' // Check for InstallError status
+          const isQueued = downloadInfo?.status === 'Queued'
+          const isInstalling = downloadInfo?.status === 'Installing' // Check for Installing
+          const isInstallError = downloadInfo?.status === 'InstallError'
 
           return (
             <div
@@ -445,29 +447,43 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS }}
               >
-                {/* Add Queued Badge */}
                 {isQueued && (
                   <Badge shape="rounded" color="informative" appearance="outline">
                     Queued
                   </Badge>
                 )}
-                {/* Add InstallError Badge */}
+                {/* Add Installing Badge/Spinner */}
+                {isInstalling && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: tokens.spacingHorizontalXS
+                    }}
+                  >
+                    <Spinner size="tiny" aria-label="Installing" />
+                    <Badge shape="rounded" color="brand" appearance="outline">
+                      Installing
+                    </Badge>
+                  </div>
+                )}
                 {isInstallError && (
                   <Badge shape="rounded" color="danger" appearance="outline">
                     Install Error
                   </Badge>
                 )}
-                {/* Add other badges or indicators here if needed in the future */}
+                {/* Potential spinner icon if needed
+                {isInstalling && <Spinner size="tiny" />} */}
               </div>
 
-              {/* Progress Bar for Downloading/Extracting */}
-              {(isDownloading || isExtracting) && downloadInfo && (
+              {/* Progress Bar for Downloading/Extracting (hide if installing) */}
+              {(isDownloading || isExtracting) && !isInstalling && downloadInfo && (
                 <ProgressBar
                   value={downloadInfo.progress}
                   max={100}
                   shape="rounded"
                   thickness="medium"
-                  className={styles.progressBarAcrossRow} // Keep using the style for positioning
+                  className={styles.progressBarAcrossRow}
                   aria-label={isDownloading ? 'Download progress' : 'Extraction progress'}
                 />
               )}
