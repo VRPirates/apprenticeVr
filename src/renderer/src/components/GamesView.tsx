@@ -1373,7 +1373,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
               onOpenChange={(_e, data) => !data.open && setIsDeleteConfirmOpen(false)}
               modalType="alert"
             >
-              <DialogSurface mountNode={tableContainerRef.current}>
+              <DialogSurface mountNode={document.querySelector('#portal')}>
                 <DialogBody>
                   <DialogTitle>Confirm Uninstall</DialogTitle>
                   <div>
