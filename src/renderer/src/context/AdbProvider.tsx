@@ -68,7 +68,20 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     })
 
     const removeDeviceChanged = window.api.adb.onDeviceChanged((device) => {
-      setDevices((prevDevices) => prevDevices.map((d) => (d.id === device.id ? device : d)))
+      // setDevices((prevDevices) => prevDevices.map((d) => (d.id === device.id ? device : d)))
+      // Implement upsert logic for changed devices
+      setDevices((prevDevices) => {
+        const existingDeviceIndex = prevDevices.findIndex((d) => d.id === device.id)
+        if (existingDeviceIndex !== -1) {
+          // Device exists, update it
+          const newDevices = [...prevDevices]
+          newDevices[existingDeviceIndex] = device
+          return newDevices
+        } else {
+          // Device doesn't exist, add it (handles transition from offline/auth to device)
+          return [...prevDevices, device]
+        }
+      })
     })
 
     const removeTrackerError = window.api.adb.onTrackerError((errorMsg) => {
