@@ -222,8 +222,6 @@
 .games-table td {
   white-space: nowrap;
   text-overflow: ellipsis;
-  /* Add a subtle bottom border for row separation */
-  border-bottom: 1px solid var(--colorNeutralForeground2);
 }
 
 .games-table th {
@@ -344,7 +342,7 @@
 
 
 .row-not-installed:hover {
-  background-color: var(--colorNeutralBackground4); /* Standard hover for non-installed */
+  background-color: var(--colorNeutralBackground2); /* Standard hover for non-installed */
 }
 
 
@@ -373,14 +371,11 @@
 }
 
 .games-table th {
-  background-color: var(--colorNeutralBackground4);
+  background-color: var(--colorNeutralBackground1);
   z-index: 0;
 }
 
-/* Apply left border to TH except the first one to visually separate */
-.games-table th:not(:first-child) {
-  border-right: 1px solid var(--colorNeutralForeground2);
-}
+
 
 /* Cell Styling for Version Column (Added) */
 .version-cell {

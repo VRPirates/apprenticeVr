@@ -15,71 +15,46 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAdb } from '../hooks/useAdb'
 import { useGames } from '../hooks/useGames'
 import { useDownload } from '../hooks/useDownload'
-import { GameInfo } from '../types/adb' // Make sure GameInfo is imported
+import { GameInfo } from '../types/adb'
 import placeholderImage from '../assets/images/game-placeholder.png'
-// Import Dialog components
 import {
-  Dialog,
-  DialogTrigger,
-  DialogSurface,
-  DialogBody,
-  DialogTitle,
-  DialogActions,
-  Button, // Keep Button import
-  DialogContent,
+  Button,
   tokens,
   shorthands,
   makeStyles,
   Title2,
   Text,
   Input,
-  Image,
   Badge,
-  Divider,
   ProgressBar,
-  Spinner // Import Spinner
+  Spinner
 } from '@fluentui/react-components'
 import {
   ArrowClockwiseRegular,
   DismissRegular,
   PlugDisconnectedRegular,
-  DocumentDataRegular,
-  CalendarClockRegular,
-  ArrowDownloadRegular as DownloadIcon,
-  TagRegular,
-  DeleteRegular,
-  ArrowSyncRegular,
-  ArrowUpRegular,
-  InfoRegular,
   CheckmarkCircleRegular
 } from '@fluentui/react-icons'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
+import GameDetailsDialog from './GameDetailsDialog'
 
 interface GamesViewProps {
   onBackToDevices: () => void
 }
 
-// Define the expanded filter type
 type FilterType = 'all' | 'installed' | 'update'
 
-// Filter function specifically for game name AND package name
 const filterGameNameAndPackage: FilterFn<GameInfo> = (row, _columnId, filterValue) => {
   const searchStr = String(filterValue).toLowerCase()
   const gameName = String(row.original.name ?? '').toLowerCase()
   const packageName = String(row.original.packageName ?? '').toLowerCase()
-
-  // Simple check if search string is in name or package name
   return gameName.includes(searchStr) || packageName.includes(searchStr)
-  // Or use matchSorter on combined data if preferred
-  // return matchSorter([`${gameName} ${packageName}`], searchStr).length > 0;
 }
 
-// Extend the FilterFns interface
 declare module '@tanstack/react-table' {
   interface FilterFns {
     gameNameAndPackageFilter: FilterFn<GameInfo>
   }
-  // ... FilterMeta if needed ...
 }
 
 const useStyles = makeStyles({
@@ -128,7 +103,6 @@ const useStyles = makeStyles({
     overflow: 'hidden'
   },
   toolbar: {
-    // Rely on Fluent UI Toolbar component for styling
     marginBottom: tokens.spacingVerticalL,
     flexShrink: 0
   },
@@ -137,7 +111,6 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalS
   },
   toolbarRight: {
-    // Style the right group in toolbar
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalM
@@ -163,36 +136,24 @@ const useStyles = makeStyles({
   },
   tableWrapper: {
     flexGrow: 1,
-    overflow: 'auto', // Scroll for table content
-    position: 'relative' // Needed for virtualizer
-  },
-  dialogContentLayout: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: tokens.spacingVerticalM,
-    marginTop: tokens.spacingVerticalL
-  },
-  deleteConfirmText: {
-    ...shorthands.padding(tokens.spacingVerticalM, 0)
+    overflow: 'auto',
+    position: 'relative'
   },
   namePackageCellContainer: {
     position: 'relative',
-    paddingBottom: '8px', // Add padding to prevent overlap with progress bar
-    height: '100%', // Ensure container fills cell height
+    paddingBottom: '8px',
+    height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center' // Vertically center the text
+    justifyContent: 'center'
   },
-  namePackageCellText: {
-    // Styles specific to the text part if needed
-  },
+  namePackageCellText: {},
   progressBarAcrossRow: {
     position: 'absolute',
     bottom: '0',
     left: '0',
     right: '0',
     height: '4px'
-    // Consider adding a small z-index if needed
   },
   statusIconCell: {
     display: 'flex',
@@ -257,12 +218,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [dialogGame, setDialogGame] = useState<GameInfo | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false)
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<boolean>(false)
-  const [currentGameNote, setCurrentGameNote] = useState<string | null>(null)
-  const [loadingNote, setLoadingNote] = useState<boolean>(false)
   const tableContainerRef = useRef<HTMLDivElement>(null)
 
-  // Calculate counts based on the full games list
   const counts = useMemo(() => {
     const total = games.length
     const installed = games.filter((g) => g.isInstalled).length
@@ -270,17 +227,13 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     return { total, installed, updates }
   }, [games])
 
-  // Update column filter when activeFilter state changes
   useEffect(() => {
     setColumnFilters((prev) => {
-      // Remove existing isInstalled and hasUpdate filters first
       const otherFilters = prev.filter((f) => f.id !== 'isInstalled' && f.id !== 'hasUpdate')
-
       switch (activeFilter) {
         case 'installed':
           return [...otherFilters, { id: 'isInstalled', value: true }]
         case 'update':
-          // Ensure the game is also considered 'installed' when filtering for updates
           return [
             ...otherFilters,
             { id: 'isInstalled', value: true },
@@ -293,38 +246,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     })
   }, [activeFilter])
 
-  // Fetch note when dialog opens
-  useEffect(() => {
-    let isMounted = true // Prevent state update on unmounted component
-
-    if (isDialogOpen && dialogGame && dialogGame.releaseName) {
-      const fetchNote = async (): Promise<void> => {
-        setLoadingNote(true)
-        setCurrentGameNote(null) // Clear previous note
-        try {
-          const note = await getNote(dialogGame.releaseName)
-          if (isMounted) {
-            setCurrentGameNote(note)
-          }
-        } catch (err) {
-          console.error(`Error fetching note for \${dialogGame.releaseName}:`, err)
-          if (isMounted) {
-            setCurrentGameNote('Error loading note.') // Show error in dialog
-          }
-        } finally {
-          if (isMounted) {
-            setLoadingNote(false)
-          }
-        }
-      }
-      fetchNote()
-    }
-    return () => {
-      isMounted = false
-    }
-  }, [isDialogOpen, dialogGame, getNote])
-
-  // Effect to refresh installed packages when installation completes
   useEffect(() => {
     const unsubscribe = window.api.adb.onInstallationCompleted((deviceId) => {
       console.log(`[GamesView] Received installation-completed event for device: ${deviceId}`)
@@ -344,9 +265,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       console.log('[GamesView] Cleaning up installation completed listener.')
       unsubscribe()
     }
-  }, [selectedDevice, loadPackages]) // Depend on selectedDevice and loadPackages
+  }, [selectedDevice, loadPackages])
 
-  // --- Re-add Map for Download Status/Progress --- START
   const downloadStatusMap = useMemo(() => {
     const map = new Map<string, { status: string; progress: number }>()
     downloadQueue.forEach((item) => {
@@ -361,9 +281,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     })
     return map
   }, [downloadQueue])
-  // --- Re-add Map for Download Status/Progress --- END
 
-  // Columns definition updated
   const columns = useMemo<ColumnDef<GameInfo>[]>(
     () => [
       {
@@ -423,7 +341,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           const isDownloading = downloadInfo?.status === 'Downloading'
           const isExtracting = downloadInfo?.status === 'Extracting'
           const isQueued = downloadInfo?.status === 'Queued'
-          const isInstalling = downloadInfo?.status === 'Installing' // Check for Installing
+          const isInstalling = downloadInfo?.status === 'Installing'
           const isInstallError = downloadInfo?.status === 'InstallError'
 
           return (
@@ -439,11 +357,9 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             >
               <div style={{ marginBottom: tokens.spacingVerticalXS }}>
                 {' '}
-                {/* Add some space below text */}
                 <div className="game-name-main">{game.name}</div>
                 <div className="game-package-sub">{game.packageName}</div>
               </div>
-              {/* Status Indicator Area */}
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS }}
               >
@@ -452,7 +368,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                     Queued
                   </Badge>
                 )}
-                {/* Add Installing Badge/Spinner */}
                 {isInstalling && (
                   <div
                     style={{
@@ -472,11 +387,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                     Install Error
                   </Badge>
                 )}
-                {/* Potential spinner icon if needed
-                {isInstalling && <Spinner size="tiny" />} */}
               </div>
-
-              {/* Progress Bar for Downloading/Extracting (hide if installing) */}
               {(isDownloading || isExtracting) && !isInstalling && downloadInfo && (
                 <ProgressBar
                   value={downloadInfo.progress}
@@ -500,10 +411,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           const listVersion = row.original.version
           const isInstalled = row.original.isInstalled
           const deviceVersion = row.original.deviceVersionCode
-          // hasUpdate is used for row styling now, not text
-
           const displayListVersion = listVersion ? `v${listVersion}` : '-'
-
           return (
             <div className="version-cell">
               <div className="list-version-main">{displayListVersion}</div>
@@ -542,7 +450,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         enableResizing: false
       }
     ],
-    [downloadStatusMap, styles]
+    [downloadStatusMap, styles, tokens]
   )
 
   const table = useReactTable({
@@ -567,16 +475,14 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     getSortedRowModel: getSortedRowModel()
   })
 
-  // Virtualizer setup
   const { rows } = table.getRowModel()
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 90, // Keep estimateSize
+    estimateSize: () => 90,
     overscan: 10
   })
 
-  // Format date for display
   const formatDate = (date: Date | null): string => {
     if (!date) return 'Never'
     return new Intl.DateTimeFormat('en-US', {
@@ -588,7 +494,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     }).format(date)
   }
 
-  // Determine the current process message
   const getProcessMessage = (): string => {
     if (downloadProgress > 0 && downloadProgress < 100) {
       return `Downloading game data... ${downloadProgress}%`
@@ -600,7 +505,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     return ''
   }
 
-  // Calculate the current progress percentage
   const getCurrentProgress = (): number => {
     if (downloadProgress > 0 && downloadProgress < 100) {
       return downloadProgress
@@ -610,7 +514,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     return 0
   }
 
-  // Handle Row Click - Updated to open Dialog
   const handleRowClick = (
     _event: React.MouseEvent<HTMLTableRowElement>,
     row: Row<GameInfo>
@@ -620,7 +523,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     setIsDialogOpen(true)
   }
 
-  // Simple handler to close main dialog
   const handleCloseDialog = useCallback((): void => {
     setIsDialogOpen(false)
     setTimeout(() => {
@@ -628,7 +530,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     }, 300)
   }, [])
 
-  // Placeholder actions - Ensure they close the dialog
   const handleInstall = (game: GameInfo | null): void => {
     if (!game) return
     console.log('Install action triggered for:', game.packageName)
@@ -636,22 +537,18 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       .then((success) => {
         if (success) {
           console.log(`Successfully added ${game.releaseName} to download queue.`)
-          // Optionally navigate to downloads view or show notification?
         } else {
           console.log(`Failed to add ${game.releaseName} to queue (might already exist).`)
-          // Optionally show notification?
         }
       })
       .catch((err) => {
         console.error('Error adding to queue:', err)
-        // Show error notification?
       })
     handleCloseDialog()
   }
   const handleReinstall = (game: GameInfo | null): void => {
     if (!game) return
     console.log('Reinstall action triggered for:', game.packageName)
-    // Basic Reinstall: Just add to download queue again
     addDownloadToQueue(game)
       .then((success) => {
         if (success) {
@@ -668,7 +565,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const handleUpdate = (game: GameInfo | null): void => {
     if (!game) return
     console.log('Update action triggered for:', game.packageName)
-    // Basic Update: Just add to download queue again
     addDownloadToQueue(game)
       .then((success) => {
         if (success) {
@@ -683,210 +579,69 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     handleCloseDialog()
   }
 
-  // Action for retrying download/install
   const handleRetry = (game: GameInfo | null): void => {
     if (!game || !game.releaseName) return
     console.log('Retry action triggered for:', game.releaseName)
-    retryDownload(game.releaseName) // Call retryDownload from the hook
+    retryDownload(game.releaseName)
     handleCloseDialog()
   }
 
-  // Action for cancelling download/extraction
   const handleCancelDownload = (game: GameInfo | null): void => {
     if (!game || !game.releaseName) return
     console.log('Cancel download/extraction action triggered for:', game.releaseName)
-    cancelDownload(game.releaseName) // Call `cancelDownload` from the hook
+    cancelDownload(game.releaseName)
     handleCloseDialog()
   }
 
-  // Helper function to render action buttons based on game state
-  const renderActionButtons = (game: GameInfo | null): React.ReactNode => {
-    if (!game) return null
-
-    const status = downloadStatusMap.get(game.releaseName || '')?.status
-    const canCancel = status === 'Downloading' || status === 'Extracting' || status === 'Queued'
-    const isDownloaded = status === 'Completed'
-    const isInstalled = game.isInstalled
-    const hasUpdate = game.hasUpdate
-    const isInstallError = status === 'InstallError' // Check specifically for InstallError
-    const isErrorOrCancelled = status === 'Error' || status === 'Cancelled'
-
-    // Show cancel button if Downloading, Extracting, or Queued
-    if (canCancel) {
-      return (
-        <Button
-          appearance="danger"
-          icon={<DismissRegular />}
-          onClick={() => handleCancelDownload(game)}
-        >
-          Cancel Download
-        </Button>
-      )
+  const handleInstallFromCompleted = (game: GameInfo | null): void => {
+    if (!game || !game.releaseName || !selectedDevice) {
+      console.error('Missing game, releaseName, or deviceId for install from completed action')
+      window.alert('Cannot start installation: Missing required information.')
+      return
     }
-
-    // Handle InstallError or regular Error/Cancelled states with Retry
-    if (isInstallError || isErrorOrCancelled) {
-      return (
-        <>
-          <Button
-            appearance="primary"
-            icon={<ArrowClockwiseRegular />} // Use retry icon
-            onClick={() => handleRetry(game)} // Call retry handler
-            disabled={isBusy}
-          >
-            Retry
-          </Button>
-          {/* Optionally allow deleting files even after error */}
-          <Button
-            appearance="danger"
-            icon={<DeleteRegular />}
-            onClick={() => handleDeleteDownloaded(game)}
-            disabled={isBusy}
-          >
-            Delete Downloaded Files
-          </Button>
-        </>
-      )
-    }
-
-    // Existing logic for other states (Install, Update, Reinstall, Delete)
-    if (isInstalled) {
-      if (hasUpdate) {
-        return (
-          <>
-            <Button
-              appearance="primary"
-              icon={<ArrowUpRegular />}
-              onClick={() => handleUpdate(game)}
-              disabled={!isConnected || isBusy}
-            >
-              Update
-            </Button>
-            <Button
-              appearance="danger"
-              icon={<DeleteRegular />}
-              onClick={handleDeleteRequest}
-              disabled={!isConnected || isBusy}
-            >
-              Delete
-            </Button>
-          </>
-        )
-      } else {
-        return (
-          <>
-            <Button
-              appearance="secondary"
-              icon={<ArrowSyncRegular />}
-              onClick={() => handleReinstall(game)}
-              disabled={!isConnected || isBusy}
-            >
-              Reinstall
-            </Button>
-            <Button
-              appearance="danger"
-              icon={<DeleteRegular />}
-              onClick={handleDeleteRequest}
-              disabled={!isConnected || isBusy}
-            >
-              Delete
-            </Button>
-          </>
-        )
-      }
-    }
-
-    if (isDownloaded) {
-      return (
-        <>
-          <Button
-            appearance="primary"
-            icon={<CheckmarkCircleRegular />}
-            onClick={() => {
-              if (game?.releaseName && selectedDevice) {
-                console.log(
-                  `Requesting install from completed for ${game.releaseName} on ${selectedDevice}`
-                )
-                window.api.downloads
-                  .installFromCompleted(game.releaseName, selectedDevice)
-                  .catch((err) => {
-                    console.error('Error triggering install from completed:', err)
-                    window.alert(
-                      'Failed to start installation. Please check the main process logs.'
-                    )
-                  })
-                handleCloseDialog() // Close dialog after triggering
-              } else {
-                console.error('Missing releaseName or deviceId for install action')
-                window.alert('Cannot start installation: Missing required information.')
-              }
-            }}
-            disabled={!isConnected || isBusy || !selectedDevice}
-          >
-            Install
-          </Button>
-          <Button
-            appearance="danger"
-            icon={<DeleteRegular />}
-            onClick={() => handleDeleteDownloaded(game)}
-          >
-            Delete Downloaded Files
-          </Button>
-        </>
-      )
-    }
-
-    // Default: Show Install button
-    return (
-      <Button
-        appearance="primary"
-        icon={<DownloadIcon />}
-        onClick={() => handleInstall(game)}
-        disabled={isBusy}
-      >
-        Install
-      </Button>
-    )
+    console.log(`Requesting install from completed for ${game.releaseName} on ${selectedDevice}`)
+    window.api.downloads.installFromCompleted(game.releaseName, selectedDevice).catch((err) => {
+      console.error('Error triggering install from completed:', err)
+      window.alert('Failed to start installation. Please check the main process logs.')
+    })
+    handleCloseDialog()
   }
 
-  // Delete Action - Opens confirmation dialog
-  const handleDeleteRequest = (): void => {
-    console.log('Delete requested for:', dialogGame?.packageName)
-    setIsDeleteConfirmOpen(true)
-  }
-
-  // Confirmed Delete Action - Performs delete and closes dialogs
-  const handleConfirmDelete = useCallback(async (): Promise<void> => {
-    if (!dialogGame || !selectedDevice || !dialogGame.packageName) return
-
-    const gameToDelete = { ...dialogGame } // Capture game before closing dialogs
-    setIsDeleteConfirmOpen(false) // Close confirmation
-    setIsDialogOpen(false) // Close main action dialog
-    setDialogGame(null) // Clear game data
-
-    console.log(`Proceeding with uninstall for ${gameToDelete.packageName}...`)
-    setIsLoading(true)
-    try {
-      const success = await window.api.adb.uninstallPackage(
-        selectedDevice,
-        gameToDelete.packageName
-      )
-      if (success) {
-        console.log('Uninstall successful, refreshing package list...')
-        await loadPackages()
-      } else {
-        console.error('Uninstall failed.')
-        window.alert('Failed to uninstall the game.')
+  const handleConfirmDelete = useCallback(
+    async (gameToDelete: GameInfo): Promise<void> => {
+      if (!selectedDevice || !gameToDelete.packageName) {
+        console.error('Cannot delete: Missing selected device or package name', {
+          selectedDevice,
+          packageName: gameToDelete.packageName
+        })
+        window.alert('Failed to uninstall: Missing device or package name.')
+        return
       }
-    } catch (error) {
-      console.error('Error during uninstall IPC call:', error)
-      window.alert('An error occurred during uninstallation.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [dialogGame, selectedDevice, loadPackages]) // Dependencies
+      handleCloseDialog()
+      console.log(`Proceeding with uninstall for ${gameToDelete.packageName}...`)
+      setIsLoading(true)
+      try {
+        const success = await window.api.adb.uninstallPackage(
+          selectedDevice,
+          gameToDelete.packageName
+        )
+        if (success) {
+          console.log('Uninstall successful, refreshing package list...')
+          await loadPackages()
+        } else {
+          console.error('Uninstall failed.')
+          window.alert('Failed to uninstall the game.')
+        }
+      } catch (error) {
+        console.error('Error during uninstall IPC call:', error)
+        window.alert('An error occurred during uninstallation.')
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [selectedDevice, loadPackages, handleCloseDialog]
+  )
 
-  // Placeholder action for deleting downloaded files
   const handleDeleteDownloaded = useCallback(
     async (game: GameInfo | null): Promise<void> => {
       if (!game || !game.releaseName) return
@@ -895,10 +650,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         const success = await deleteFiles(game.releaseName)
         if (success) {
           console.log(`Successfully requested deletion of files for ${game.releaseName}.`)
-          // Queue update handled by listener
         } else {
           console.error(`Failed to delete files for ${game.releaseName}.`)
-          // Optionally show an error to the user
           window.alert('Failed to delete downloaded files. Check logs.')
         }
       } catch (error) {
@@ -910,34 +663,10 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     [deleteFiles, handleCloseDialog]
   )
 
-  // Combine loading states for display/disabling elements
   const isBusy = adbLoading || loadingGames || isLoading
 
   return (
     <div className="games-view">
-      {/* <div className="games-header">
-        <div className="games-header-left">
-          <button className="back-button" onClick={onBackToDevices}>
-            ← Back to Devices
-          </button>
-          <h2>VR Games Library</h2>
-        </div>
-
-        <div className="device-info-bar">
-          {isConnected ? (
-            <>
-              <span className="connected-device">
-                Connected to: <strong>{selectedDevice}</strong>
-              </span>
-              <button className="disconnect-button" onClick={disconnectDevice}>
-                Disconnect
-              </button>
-            </>
-          ) : (
-            <span className="device-warning">No device connected</span>
-          )}
-        </div>
-      </div> */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <Button icon={<ArrowLeftRegular />} onClick={onBackToDevices} appearance="transparent">
@@ -975,7 +704,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
               {isBusy ? 'Working...' : 'Refresh Games'}
             </Button>
             <span className="last-synced">Last synced: {formatDate(lastSyncTime)}</span>
-            {/* Install Status Filter Buttons */}
             {isConnected && (
               <div className="filter-buttons">
                 <button
@@ -993,7 +721,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                 <button
                   onClick={() => setActiveFilter('update')}
                   className={activeFilter === 'update' ? 'active' : ''}
-                  disabled={counts.updates === 0} // Disable if no updates
+                  disabled={counts.updates === 0}
                 >
                   Updates ({counts.updates})
                 </button>
@@ -1080,24 +808,22 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                     </tr>
                   ))}
                 </thead>
-                {/* Virtualized Table Body */}
                 <tbody
                   style={{ height: `${rowVirtualizer.getTotalSize()}px`, position: 'relative' }}
                 >
                   {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                    const row = rows[virtualRow.index] as Row<GameInfo> // Get the actual row data
-                    // Combine class names
+                    const row = rows[virtualRow.index] as Row<GameInfo>
                     const rowClasses = [
                       row.original.isInstalled ? 'row-installed' : 'row-not-installed',
                       row.original.hasUpdate ? 'row-update-available' : ''
                     ]
-                      .filter(Boolean) // Remove empty strings
+                      .filter(Boolean)
                       .join(' ')
 
                     return (
                       <tr
                         key={row.id}
-                        className={rowClasses} // Apply combined classes
+                        className={rowClasses}
                         style={{
                           position: 'absolute',
                           top: 0,
@@ -1106,7 +832,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                           height: `${virtualRow.size}px`,
                           transform: `translateY(${virtualRow.start}px)`
                         }}
-                        onClick={(e) => handleRowClick(e, row)} // Add onClick handler
+                        onClick={(e) => handleRowClick(e, row)}
                       >
                         {row.getVisibleCells().map((cell) => (
                           <td
@@ -1126,290 +852,25 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
               </table>
             </div>
 
-            {/* ---- Main Action Dialog ---- */}
-            <Dialog
-              open={isDialogOpen}
-              onOpenChange={(_e, data) => !data.open && handleCloseDialog()}
-              modalType="modal"
-            >
-              <DialogSurface mountNode={document.querySelector('#portal')}>
-                <DialogBody>
-                  <DialogTitle>{dialogGame?.name}</DialogTitle>
-                  <DialogContent>
-                    {/* Game Details */}
-                    {dialogGame && (
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '150px 1fr',
-                          gap: tokens.spacingHorizontalL,
-                          marginTop: tokens.spacingVerticalL,
-                          marginBottom: tokens.spacingVerticalXL,
-                          alignItems: 'start'
-                        }}
-                      >
-                        {/* Left Column: Thumbnail */}
-                        <div>
-                          <Image
-                            src={
-                              dialogGame.thumbnailPath
-                                ? `file://${dialogGame.thumbnailPath}`
-                                : placeholderImage
-                            }
-                            alt={`${dialogGame.name} thumbnail`}
-                            shape="rounded"
-                            width={150}
-                            height={150}
-                            fit="cover"
-                          />
-                        </div>
-
-                        {/* Right Column: Details (Using Flexbox now) */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: tokens.spacingVerticalL
-                          }}
-                        >
-                          {/* Top Info: Name, Package, Status */}
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: tokens.spacingVerticalXS
-                            }}
-                          >
-                            <Text size={600} weight="semibold">
-                              {dialogGame.name}
-                            </Text>
-                            <Text
-                              size={300}
-                              weight="regular"
-                              style={{ color: tokens.colorNeutralForeground2 }}
-                            >
-                              {dialogGame.packageName}
-                            </Text>
-                            {/* Container for Badges and Inline Info */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                gap: tokens.spacingHorizontalL,
-                                alignItems: 'center',
-                                marginTop: tokens.spacingVerticalS,
-                                flexWrap: 'wrap'
-                              }}
-                            >
-                              {/* Status Badges */}
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  gap: tokens.spacingHorizontalS,
-                                  alignItems: 'center'
-                                }}
-                              >
-                                <Badge
-                                  shape="rounded"
-                                  color={(() => {
-                                    const status = downloadStatusMap.get(
-                                      dialogGame.releaseName || ''
-                                    )?.status
-                                    if (dialogGame.isInstalled) return 'success'
-                                    if (status === 'Completed') return 'brand'
-                                    if (status === 'InstallError') return 'danger'
-                                    return 'informative' // Default for others
-                                  })()}
-                                  appearance="filled"
-                                >
-                                  {(() => {
-                                    const status = downloadStatusMap.get(
-                                      dialogGame.releaseName || ''
-                                    )?.status
-                                    if (dialogGame.isInstalled) return 'Installed'
-                                    if (status === 'Completed') return 'Downloaded'
-                                    if (status === 'InstallError') return 'Install Error'
-                                    return 'Not Installed' // Default
-                                  })()}
-                                </Badge>
-                                {dialogGame.hasUpdate && (
-                                  <Badge shape="rounded" color="brand" appearance="filled">
-                                    Update Available
-                                  </Badge>
-                                )}
-                              </div>
-                              {/* Inline Info: Size */}
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: tokens.spacingHorizontalXS
-                                }}
-                              >
-                                <DocumentDataRegular fontSize={16} />
-                                <Text size={300}>{dialogGame.size || '-'}</Text>
-                              </div>
-                              {/* Inline Info: Downloads */}
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: tokens.spacingHorizontalXS
-                                }}
-                              >
-                                <DownloadIcon fontSize={16} />
-                                <Text size={300}>
-                                  {dialogGame.downloads?.toLocaleString() || '-'}
-                                </Text>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Divider */}
-                          <Divider />
-
-                          {/* Detail List with Icons (Size and Downloads Removed) */}
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              gap: tokens.spacingVerticalM
-                            }}
-                          >
-                            {/* Version Info */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: tokens.spacingHorizontalS
-                              }}
-                            >
-                              <InfoRegular fontSize={16} />
-                              <Text>
-                                {dialogGame.version ? `v${dialogGame.version}` : '-'}
-                                {dialogGame.isInstalled &&
-                                  dialogGame.deviceVersionCode &&
-                                  ` (Device: v${dialogGame.deviceVersionCode})`}
-                              </Text>
-                            </div>
-                            {/* Release Name */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: tokens.spacingHorizontalS
-                              }}
-                            >
-                              <TagRegular fontSize={16} />
-                              <Text>{dialogGame.releaseName || '-'}</Text>
-                            </div>
-                            {/* Size REMOVED */}
-                            {/* Last Updated */}
-                            <div
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: tokens.spacingHorizontalS
-                              }}
-                            >
-                              <CalendarClockRegular fontSize={16} />
-                              <Text>{dialogGame.lastUpdated || '-'}</Text>
-                            </div>
-                            {/* Downloads REMOVED */}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Divider before Note */}
-                    <Divider style={{ marginTop: tokens.spacingVerticalS }} />
-
-                    {/* Note Section */}
-                    {dialogGame && (
-                      <div
-                        style={{
-                          marginTop: tokens.spacingVerticalL,
-                          marginBottom: tokens.spacingVerticalL
-                        }}
-                      >
-                        <Text
-                          weight="semibold"
-                          style={{ marginBottom: tokens.spacingVerticalS, display: 'block' }}
-                        >
-                          Note:
-                        </Text>
-                        {loadingNote ? (
-                          <Text>Loading note...</Text>
-                        ) : currentGameNote ? (
-                          // Using a pre-wrap div to respect newlines in the note
-                          <div
-                            style={{
-                              whiteSpace: 'pre-wrap',
-                              maxHeight: '150px',
-                              overflowY: 'auto',
-                              backgroundColor: tokens.colorNeutralBackground2,
-                              padding: tokens.spacingVerticalS,
-                              borderRadius: tokens.borderRadiusMedium
-                            }}
-                          >
-                            <Text>{currentGameNote}</Text>
-                          </div>
-                        ) : (
-                          <Text>No note available.</Text>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Actions List - Adding Icons */}
-                    {dialogGame && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: tokens.spacingVerticalS
-                        }}
-                      >
-                        {renderActionButtons(dialogGame)}
-                      </div>
-                    )}
-                  </DialogContent>
-                  <DialogActions>
-                    <DialogTrigger disableButtonEnhancement>
-                      <Button appearance="secondary" onClick={handleCloseDialog}>
-                        Close
-                      </Button>
-                    </DialogTrigger>
-                  </DialogActions>
-                </DialogBody>
-              </DialogSurface>
-            </Dialog>
-
-            {/* ---- Delete Confirmation Dialog ---- */}
-            <Dialog
-              open={isDeleteConfirmOpen}
-              onOpenChange={(_e, data) => !data.open && setIsDeleteConfirmOpen(false)}
-              modalType="alert"
-            >
-              <DialogSurface mountNode={document.querySelector('#portal')}>
-                <DialogBody>
-                  <DialogTitle>Confirm Uninstall</DialogTitle>
-                  <div>
-                    Are you sure you want to uninstall
-                    <strong> {dialogGame?.name} </strong>({dialogGame?.packageName})? This will also
-                    remove associated OBB and Data files.
-                  </div>
-                  <DialogActions>
-                    <DialogTrigger disableButtonEnhancement>
-                      <Button appearance="secondary" onClick={() => setIsDeleteConfirmOpen(false)}>
-                        Cancel
-                      </Button>
-                    </DialogTrigger>
-                    <Button appearance="primary" onClick={handleConfirmDelete}>
-                      Uninstall
-                    </Button>
-                  </DialogActions>
-                </DialogBody>
-              </DialogSurface>
-            </Dialog>
+            {dialogGame && (
+              <GameDetailsDialog
+                game={dialogGame}
+                open={isDialogOpen}
+                onClose={handleCloseDialog}
+                downloadStatusMap={downloadStatusMap}
+                onInstall={handleInstall}
+                onReinstall={handleReinstall}
+                onUpdate={handleUpdate}
+                onRetry={handleRetry}
+                onCancelDownload={handleCancelDownload}
+                onConfirmDelete={handleConfirmDelete}
+                onDeleteDownloaded={handleDeleteDownloaded}
+                onInstallFromCompleted={handleInstallFromCompleted}
+                getNote={getNote}
+                isConnected={isConnected}
+                isBusy={isBusy}
+              />
+            )}
           </>
         )}
       </div>
