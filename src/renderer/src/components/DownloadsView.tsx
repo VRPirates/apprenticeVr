@@ -152,6 +152,9 @@ const DownloadsView: React.FC = () => {
                     </Text>
                   </>
                 )}
+                {item.status === 'Installing' && (
+                  <Text className={styles.statusText}>Installing...</Text>
+                )}
                 {item.status === 'Queued' && <Text className={styles.statusText}>Queued</Text>}
                 {item.status === 'Completed' && (
                   <Text style={{ color: tokens.colorPaletteGreenForeground1 }}>Completed</Text>
@@ -169,13 +172,25 @@ const DownloadsView: React.FC = () => {
                     )}
                   </>
                 )}
+                {/* Added InstallError Display */}
+                {item.status === 'InstallError' && (
+                  <>
+                    <Text className={styles.errorText}>Install Error</Text>
+                    {item.error && (
+                      <Text size={200} className={styles.errorText} title={item.error}>
+                        {item.error.substring(0, 30)}...
+                      </Text>
+                    )}
+                  </>
+                )}
               </div>
               {/* Actions */}
               <div className={styles.actions}>
                 {/* Cancel Button */}
                 {(item.status === 'Queued' ||
                   item.status === 'Downloading' ||
-                  item.status === 'Extracting') && (
+                  item.status === 'Extracting' ||
+                  item.status === 'Installing') && (
                   <Button
                     icon={<CloseIcon />}
                     aria-label="Cancel"
@@ -187,7 +202,9 @@ const DownloadsView: React.FC = () => {
                 )}
 
                 {/* Retry Button */}
-                {(item.status === 'Cancelled' || item.status === 'Error') && (
+                {(item.status === 'Cancelled' ||
+                  item.status === 'Error' ||
+                  item.status === 'InstallError') && (
                   <Button
                     icon={<RetryIcon />}
                     aria-label="Retry download"
@@ -198,18 +215,19 @@ const DownloadsView: React.FC = () => {
                   />
                 )}
 
-                {/* Remove Button (appears when not actively downloading/extracting) */}
+                {/* Remove Button (appears when not actively downloading/extracting/installing) */}
                 {(item.status === 'Completed' ||
                   item.status === 'Cancelled' ||
                   item.status === 'Error' ||
+                  item.status === 'InstallError' ||
                   item.status === 'Queued') && (
                   <Button
                     icon={<DeleteRegular />}
-                    aria-label="Remove from list"
+                    aria-label="Remove from list and delete files"
                     size="small"
                     appearance="subtle"
                     onClick={() => removeFromQueue(item.releaseName)}
-                    title="Remove from list"
+                    title="Remove from list and delete files"
                   />
                 )}
               </div>

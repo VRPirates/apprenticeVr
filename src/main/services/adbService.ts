@@ -3,7 +3,7 @@ import Tracker from '@devicefarmer/adbkit/dist/src/adb/tracker'
 import { BrowserWindow } from 'electron'
 import { EventEmitter } from 'events'
 import dependencyService from './dependencyService'
-
+import fs from 'fs'
 interface PackageInfo {
   packageName: string
   // More metadata fields will be added in the future
@@ -162,6 +162,110 @@ class AdbService extends EventEmitter {
         console.warn(`ADB command failed for ${packageName}, possibly disconnected?`)
       }
       return null
+    }
+  }
+
+  async installPackage(serial: string, apkPath: string): Promise<boolean> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
+    console.log(`Attempting to install ${apkPath} on ${serial}...`)
+    try {
+      const device = this.client.getDevice(serial)
+      // Use the adbkit built-in install method.
+      // It handles pushing the file to a temporary location on the device first.
+      // It implicitly handles replacing existing apps (like -r).
+      const success = await device.install(apkPath)
+      if (success) {
+        console.log(`Successfully installed ${apkPath}.`)
+      } else {
+        // adbkit's install might not give detailed output on failure like pm install does
+        console.error(`Installation of ${apkPath} reported failure by adbkit.`)
+      }
+      return success
+    } catch (error) {
+      console.error(`Error installing package ${apkPath} on device ${serial}:`, error)
+      // Check for specific error codes if adbkit provides them
+      if (error instanceof Error && error.message.includes('INSTALL_FAILED')) {
+        console.error(`Install failed with code: ${error.message}`) // Log specific error if available
+      }
+      return false
+    }
+  }
+
+  async runShellCommand(serial: string, command: string): Promise<string | null> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
+    console.log(`Running command on ${serial}: ${command}`)
+    try {
+      const device = this.client.getDevice(serial)
+      const stream = await device.shell(command)
+      const outputBuffer = await Adb.util.readAll(stream)
+      const output = outputBuffer.toString().trim()
+      console.log(`Command output: ${output}`)
+      return output
+    } catch (error) {
+      console.error(`Error running shell command "${command}" on device ${serial}:`, error)
+      return null // Indicate failure
+    }
+  }
+
+  async pushFileOrFolder(serial: string, localPath: string, remotePath: string): Promise<boolean> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
+    console.log(`Pushing ${localPath} to ${serial}:${remotePath}...`)
+    try {
+      const device = this.client.getDevice(serial)
+      const transfer = await device.push(localPath, remotePath)
+      return new Promise((resolve, reject) => {
+        transfer.on('end', () => {
+          console.log(`Successfully pushed ${localPath} to ${remotePath}.`)
+          resolve(true)
+        })
+        transfer.on('error', (err) => {
+          console.error(`Error pushing ${localPath} to ${remotePath}:`, err)
+          reject(err) // Let the promise reject on error
+        })
+      })
+    } catch (error) {
+      console.error(`Error initiating push of ${localPath} to ${serial}:${remotePath}:`, error)
+      return false // Indicate failure if the push couldn't even start
+    }
+  }
+
+  // Note: adbkit's pull returns a stream. This helper reads the stream and saves to a local file.
+  // This implementation doesn't exist directly in adbkit, so we need fs.
+  // Let's adjust the plan: pullFile might be better implemented within InstallationProcessor
+  // where file system access (`fs`) is more appropriate, or we add `fs` dependency here.
+  // For now, let's implement a simpler version that returns the stream,
+  // or perhaps rethink if pullFile is truly needed by InstallationProcessor right now.
+  // Looking back at install.txt logic, it only uses shell, install, push.
+  // Standard install uses install and push.
+  // Let's comment out pullFile for now as it seems unused and requires 'fs'.
+
+  async pullFile(serial: string, remotePath: string, localPath: string): Promise<boolean> {
+    // Requires 'fs' module - consider if needed or implement differently
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
+    console.log(`Pulling ${serial}:${remotePath} to ${localPath}...`)
+    try {
+      const device = this.client.getDevice(serial)
+      const transfer = await device.pull(remotePath)
+      console.warn(`pullFile implementation is incomplete - needs fs to save stream.`)
+      const stream = fs.createWriteStream(localPath)
+      await new Promise((resolve, reject) => {
+        transfer.pipe(stream)
+        transfer.on('end', resolve)
+        transfer.on('error', reject)
+      })
+      console.log(`Successfully pulled ${remotePath} to ${localPath}.`)
+      return false // Return false until fully implemented
+    } catch (error) {
+      console.error(`Error pulling ${remotePath} from ${serial}:`, error)
+      return false
     }
   }
 

@@ -3,13 +3,22 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import adbService from './services/adbService'
-import gameService from './services/gameService'
 import dependencyService from './services/dependencyService'
+import gameService from './services/gameService'
 import downloadService from './services/downloadService'
 import { DependencyStatus } from '../renderer/src/types/adb'
-import { GameInfo } from './services/gameService'
 
 let mainWindow: BrowserWindow | null = null
+
+// Listener for download service events to forward to renderer
+downloadService.on('installation:success', (deviceId) => {
+  console.log(
+    `[Main] Detected successful installation for device: ${deviceId}. Notifying renderer.`
+  )
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('installation-completed', deviceId)
+  }
+})
 
 // Function to send dependency progress to renderer
 function sendDependencyProgress(
@@ -212,30 +221,31 @@ app.whenReady().then(async () => {
   })
 
   // --- Download Handlers ---
-  ipcMain.handle('download:getQueue', () => {
-    return downloadService.getQueue()
-  })
-
-  ipcMain.handle('download:add', (_event, game: GameInfo) => {
-    return downloadService.addToQueue(game)
-  })
-
-  ipcMain.on('download:remove', (_event, releaseName: string) => {
+  ipcMain.handle('download:get-queue', () => downloadService.getQueue())
+  ipcMain.handle('download:add', (_event, game) => downloadService.addToQueue(game))
+  ipcMain.on('download:remove', (_event, releaseName) =>
     downloadService.removeFromQueue(releaseName)
-  })
-
-  ipcMain.on('download:cancel', (_event, releaseName: string) => {
+  )
+  ipcMain.on('download:cancel', (_event, releaseName) =>
     downloadService.cancelUserRequest(releaseName)
+  )
+  ipcMain.on('download:retry', (_event, releaseName) => downloadService.retryDownload(releaseName))
+  ipcMain.handle('download:delete-files', (_event, releaseName) =>
+    downloadService.deleteDownloadedFiles(releaseName)
+  )
+  ipcMain.handle('download:install-from-completed', (_event, releaseName, deviceId) => {
+    console.log(
+      `[IPC] Received request to install from completed: ${releaseName} on device ${deviceId}`
+    )
+    // No return value needed, fire-and-forget, status updated via queue listener
+    downloadService.installFromCompleted(releaseName, deviceId).catch((err) => {
+      // Log error here as the renderer won't get a rejection for this invoke
+      console.error(
+        `[IPC Handler Error] installFromCompleted failed for ${releaseName} on ${deviceId}:`,
+        err
+      )
+    })
   })
-
-  ipcMain.on('download:retry', (_event, releaseName: string) => {
-    downloadService.retryDownload(releaseName)
-  })
-
-  ipcMain.handle('download:deleteFiles', async (_event, releaseName: string) => {
-    return await downloadService.deleteDownloadedFiles(releaseName)
-  })
-  // -------------------------
 
   // Create window FIRST
   createWindow()

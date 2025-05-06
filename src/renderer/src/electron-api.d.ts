@@ -32,6 +32,7 @@ declare global {
         retry: (releaseName: string) => void
         onQueueUpdated: (callback: (queue: DownloadItem[]) => void) => () => void
         deleteFiles(releaseName: string): Promise<boolean>
+        installFromCompleted: (releaseName: string, deviceId: string) => Promise<void>
       }
       onDependencyProgress: (
         callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void

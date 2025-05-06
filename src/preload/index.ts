@@ -1,8 +1,8 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { GameInfo } from '../main/services/gameService'
 import { DependencyStatus } from '../renderer/src/types/adb'
-import { DownloadItem } from '../main/services/downloadTypes'
+import { DownloadItem } from '../main/services/download/types'
 
 // Type definitions (consider moving to a shared types file)
 interface DeviceInfo {
@@ -56,6 +56,11 @@ const api = {
       const listener = (_: unknown, error: string): void => callback(error)
       ipcRenderer.on('device-tracker-error', listener)
       return () => ipcRenderer.removeListener('device-tracker-error', listener)
+    },
+    onInstallationCompleted: (callback: (deviceId: string) => void): (() => void) => {
+      const listener = (_event: IpcRendererEvent, deviceId: string): void => callback(deviceId)
+      ipcRenderer.on('installation-completed', listener)
+      return () => ipcRenderer.removeListener('installation-completed', listener)
     }
   },
   games: {
@@ -82,7 +87,9 @@ const api = {
     cancel: (releaseName: string): void => ipcRenderer.send('download:cancel', releaseName),
     retry: (releaseName: string): void => ipcRenderer.send('download:retry', releaseName),
     deleteFiles: (releaseName: string): Promise<boolean> =>
-      ipcRenderer.invoke('download:deleteFiles', releaseName),
+      ipcRenderer.invoke('download:delete-files', releaseName),
+    installFromCompleted: (releaseName: string, deviceId: string): Promise<void> =>
+      ipcRenderer.invoke('download:install-from-completed', releaseName, deviceId),
     onQueueUpdated: (callback: (queue: DownloadItem[]) => void): (() => void) => {
       const listener = (_: unknown, queue: DownloadItem[]): void => callback(queue)
       ipcRenderer.on('download:queue-updated', listener)

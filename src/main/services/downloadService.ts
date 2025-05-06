@@ -4,11 +4,13 @@ import { promises as fs, existsSync } from 'fs'
 import { GameInfo } from './gameService'
 import { DownloadItem, DownloadStatus } from './download/types'
 import dependencyService from './dependencyService'
+import adbService from './adbService'
 import { EventEmitter } from 'events'
 import { debounce } from './download/utils'
 import { QueueManager } from './download/queueManager'
 import { DownloadProcessor } from './download/downloadProcessor'
 import { ExtractionProcessor } from './download/extractionProcessor'
+import { InstallationProcessor } from './download/installationProcessor'
 
 interface VrpConfig {
   baseUri?: string
@@ -23,10 +25,13 @@ class DownloadService extends EventEmitter {
   private queueManager: QueueManager
   private downloadProcessor: DownloadProcessor
   private extractionProcessor: ExtractionProcessor
+  private installationProcessor: InstallationProcessor
+  private adbService: typeof adbService
 
   constructor() {
     super()
     this.queueManager = new QueueManager()
+    this.adbService = adbService
     this.downloadsDir = join(app.getPath('userData'), 'downloads')
     this.debouncedEmitUpdate = debounce(this.emitUpdate.bind(this), 300)
     this.downloadProcessor = new DownloadProcessor(
@@ -38,6 +43,11 @@ class DownloadService extends EventEmitter {
     this.extractionProcessor = new ExtractionProcessor(
       this.queueManager,
       dependencyService,
+      this.debouncedEmitUpdate
+    )
+    this.installationProcessor = new InstallationProcessor(
+      this.queueManager,
+      this.adbService,
       this.debouncedEmitUpdate
     )
   }
@@ -52,7 +62,10 @@ class DownloadService extends EventEmitter {
     await this.queueManager.loadQueue()
 
     const changed = this.queueManager.updateAllItems(
-      (item) => item.status === 'Downloading' || item.status === 'Extracting',
+      (item) =>
+        item.status === 'Downloading' ||
+        item.status === 'Extracting' ||
+        item.status === 'Installing',
       {
         status: 'Queued',
         pid: undefined,
@@ -62,7 +75,9 @@ class DownloadService extends EventEmitter {
     )
 
     if (changed) {
-      console.log('Reset status for items from Downloading/Extracting to Queued after restart.')
+      console.log(
+        'Reset status for items from Downloading/Extracting/Installing to Queued after restart.'
+      )
     }
 
     this.isInitialized = true
@@ -104,6 +119,7 @@ class DownloadService extends EventEmitter {
     const newItem: DownloadItem = {
       gameId: game.id,
       releaseName: game.releaseName,
+      packageName: game.packageName,
       gameName: game.name,
       status: 'Queued',
       progress: 0,
@@ -153,43 +169,113 @@ class DownloadService extends EventEmitter {
 
     this.isProcessing = true
     console.log(`[Service ProcessQueue] Processing next item: ${nextItem.releaseName}`)
+
+    let targetDeviceId: string | null = null
     try {
-      const downloadResult = await this.downloadProcessor.startDownload(nextItem)
-
-      if (downloadResult.success && downloadResult.startExtraction && downloadResult.finalState) {
+      const devices = await this.adbService.listDevices()
+      const authorizedDevices = devices.filter((d) => d.type === 'device')
+      if (authorizedDevices.length === 1) {
+        targetDeviceId = authorizedDevices[0].id
+        console.log(`[Service ProcessQueue] Found single authorized device: ${targetDeviceId}`)
+      } else if (authorizedDevices.length === 0) {
         console.log(
-          `[Service ProcessQueue] Download successful for ${nextItem.releaseName}. Starting extraction...`
+          '[Service ProcessQueue] No authorized devices found for potential installation.'
         )
-        const extractionSuccess = await this.extractionProcessor.startExtraction(
-          downloadResult.finalState
-        )
-
-        if (extractionSuccess) {
-          console.log(`[Service ProcessQueue] Extraction successful for ${nextItem.releaseName}.`)
-        } else {
-          console.log(
-            `[Service ProcessQueue] Extraction failed or was cancelled for ${nextItem.releaseName}.`
-          )
-        }
-        this.isProcessing = false
-        this.processQueue()
       } else {
         console.log(
-          `[Service ProcessQueue] Download did not complete successfully for ${nextItem.releaseName}. Status: ${downloadResult.finalState?.status}`
+          `[Service ProcessQueue] Multiple authorized devices found (${authorizedDevices.length}). Installation requires a single target.`
+        )
+      }
+    } catch (err) {
+      console.error('[Service ProcessQueue] Error listing devices:', err)
+      // Proceed without device ID, installation step will be skipped
+    }
+
+    try {
+      const downloadResult = await this.downloadProcessor.startDownload(nextItem)
+      if (!downloadResult.success) {
+        console.log(
+          `[Service ProcessQueue] Download failed/cancelled for ${nextItem.releaseName}. Status: ${downloadResult.finalState?.status}`
         )
         this.isProcessing = false
         this.processQueue()
+        return
       }
+      if (!downloadResult.startExtraction || !downloadResult.finalState) {
+        console.log(
+          `[Service ProcessQueue] Download successful but extraction flag not set for ${nextItem.releaseName}.`
+        )
+        this.isProcessing = false
+        this.processQueue()
+        return
+      }
+      const itemAfterDownload = downloadResult.finalState
+
+      console.log(
+        `[Service ProcessQueue] Download successful for ${itemAfterDownload.releaseName}. Starting extraction...`
+      )
+      const extractionSuccess = await this.extractionProcessor.startExtraction(itemAfterDownload)
+      if (!extractionSuccess) {
+        console.log(
+          `[Service ProcessQueue] Extraction failed or was cancelled for ${itemAfterDownload.releaseName}.`
+        )
+        this.isProcessing = false
+        this.processQueue()
+        return
+      }
+      const itemAfterExtraction = this.queueManager.findItem(itemAfterDownload.releaseName)
+      if (!itemAfterExtraction || itemAfterExtraction.status !== 'Completed') {
+        console.warn(
+          `[Service ProcessQueue] Extraction reported success for ${itemAfterDownload.releaseName}, but item status is now ${itemAfterExtraction?.status}. Skipping installation.`
+        )
+        this.isProcessing = false
+        this.processQueue()
+        return
+      }
+
+      if (!targetDeviceId) {
+        console.warn(
+          `[Service ProcessQueue] Extraction successful for ${itemAfterExtraction.releaseName}, but no single authorized device found for installation.`
+        )
+        // Mark as Completed (download/extract), installation skipped.
+        this.isProcessing = false
+        this.processQueue()
+        return
+      }
+
+      console.log(
+        `[Service ProcessQueue] Extraction successful for ${itemAfterExtraction.releaseName}. Starting installation on ${targetDeviceId}...`
+      )
+      const installationSuccess = await this.installationProcessor.startInstallation(
+        itemAfterExtraction,
+        targetDeviceId
+      )
+      if (installationSuccess) {
+        // Emit event on successful installation
+        this.emit('installation:success', targetDeviceId)
+      } else {
+        // Error is already logged by the installation processor
+        console.error(
+          `[Service ProcessQueue] Installation failed for ${itemAfterExtraction.releaseName}.`
+        )
+      } // No need for specific success log here, handled by processor
+
+      this.isProcessing = false
+      this.processQueue()
     } catch (error) {
       console.error(
-        `[Service ProcessQueue] UNEXPECTED error processing ${nextItem.releaseName}:`,
+        `[Service ProcessQueue] UNEXPECTED error in main processing loop for ${nextItem.releaseName}:`,
         error
       )
+      const currentItem = this.queueManager.findItem(nextItem.releaseName)
       this.updateItemStatus(
         nextItem.releaseName,
         'Error',
-        nextItem.progress ?? 0,
-        'Unexpected processing error'
+        currentItem?.progress ?? 0,
+        'Unexpected processing error',
+        undefined,
+        undefined,
+        currentItem?.extractProgress
       )
       this.isProcessing = false
       this.processQueue()
@@ -208,8 +294,23 @@ class DownloadService extends EventEmitter {
     const updates: Partial<DownloadItem> = { status, progress, error, speed, eta }
     if (extractProgress !== undefined) {
       updates.extractProgress = extractProgress
-    } else if (status !== 'Extracting' && status !== 'Completed') {
+    } else if (
+      status !== 'Extracting' &&
+      status !== 'Completed' &&
+      status !== 'Installing' &&
+      status !== 'InstallError'
+    ) {
       updates.extractProgress = undefined
+    }
+    if (status !== 'Downloading') {
+      updates.speed = undefined
+      updates.eta = undefined
+    }
+    if (status !== 'Downloading' && status !== 'Extracting' && status !== 'Installing') {
+      updates.pid = undefined
+    }
+    if (status !== 'Error' && status !== 'InstallError') {
+      updates.error = undefined
     }
 
     const updated = this.queueManager.updateItem(releaseName, updates)
@@ -248,6 +349,10 @@ class DownloadService extends EventEmitter {
         error: undefined
       })
       if (updated) this.debouncedEmitUpdate()
+    } else if (item.status === 'Installing') {
+      console.warn(
+        `[Service cancelUserRequest] Cancellation requested for ${releaseName} during 'Installing' state - Not supported.`
+      )
     } else {
       console.warn(
         `[Service cancelUserRequest] Cannot cancel ${releaseName} - status: ${item.status}`
@@ -257,7 +362,10 @@ class DownloadService extends EventEmitter {
 
   public retryDownload(releaseName: string): void {
     const item = this.queueManager.findItem(releaseName)
-    if (item && (item.status === 'Cancelled' || item.status === 'Error')) {
+    if (
+      item &&
+      (item.status === 'Cancelled' || item.status === 'Error' || item.status === 'InstallError')
+    ) {
       console.log(`[Service] Retrying download: ${releaseName}`)
 
       if (this.downloadProcessor.isDownloadActive(releaseName)) {
@@ -334,6 +442,97 @@ class DownloadService extends EventEmitter {
       const updated = this.queueManager.updateItem(releaseName, { error: errorMsg })
       if (updated) this.emitUpdate()
       return false
+    }
+  }
+
+  public async installFromCompleted(releaseName: string, deviceId: string): Promise<void> {
+    console.log(`[Service] Request to install completed item: ${releaseName} on ${deviceId}`)
+    const item = this.queueManager.findItem(releaseName)
+
+    if (!item) {
+      console.error(`[Service installFromCompleted] Item not found: ${releaseName}`)
+      throw new Error(`Item not found: ${releaseName}`)
+    }
+
+    if (item.status !== 'Completed') {
+      console.error(
+        `[Service installFromCompleted] Item ${releaseName} has status ${item.status}, not 'Completed'. Cannot start installation.`
+      )
+      throw new Error(`Item ${releaseName} is not in 'Completed' state.`)
+    }
+
+    if (this.isProcessing) {
+      console.warn(
+        `[Service installFromCompleted] Queue is already processing. Installation for ${releaseName} will be handled if it becomes the next item.`
+      )
+      // Optionally, we could queue this specific action, but for now, let the main loop handle it
+      // Or force a status change back to Queued? Seems counter-intuitive.
+      // Let's just rely on the check within startInstallation to set status to Installing
+      // and proceed if not already processing.
+      // throw new Error('Queue is busy') // Maybe throw error?
+      return // Don't throw, just log and return. Main loop might pick it up later?
+    }
+
+    // Check if the target device is still connected and authorized
+    try {
+      const devices = await this.adbService.listDevices()
+      const targetDevice = devices.find((d) => d.id === deviceId && d.type === 'device')
+      if (!targetDevice) {
+        console.error(
+          `[Service installFromCompleted] Target device ${deviceId} not found or not authorized.`
+        )
+        throw new Error(`Target device ${deviceId} not found or not authorized.`)
+      }
+    } catch (err) {
+      console.error(
+        `[Service installFromCompleted] Error verifying target device ${deviceId}:`,
+        err
+      )
+      throw new Error(`Failed to verify target device ${deviceId}.`)
+    }
+
+    console.log(
+      `[Service installFromCompleted] Triggering installation processor for ${releaseName} on ${deviceId}...`
+    )
+
+    // Directly trigger the installation processor
+    // The installationProcessor will handle setting the status to 'Installing'
+    try {
+      const success = await this.installationProcessor.startInstallation(item, deviceId)
+      // Log based on success
+      if (success) {
+        console.log(
+          `[Service installFromCompleted] Installation process initiated and reported success for ${releaseName}.`
+        )
+        // Emit event on successful installation
+        this.emit('installation:success', deviceId)
+      } else {
+        console.warn(
+          `[Service installFromCompleted] Installation process initiated for ${releaseName} but reported failure.`
+        )
+      }
+      // Note: We don't await the full completion here, just the initiation.
+      // The status updates will come via the processor and emitUpdate.
+    } catch (error) {
+      console.error(
+        `[Service installFromCompleted] Error initiating installation for ${releaseName}:`,
+        error
+      )
+      // Attempt to set error status if possible
+      this.updateItemStatus(
+        releaseName,
+        'InstallError',
+        item.progress ?? 100, // Keep progress, default to 100 if undefined
+        `Failed to start installation: ${error instanceof Error ? error.message : String(error)}`.substring(
+          0,
+          200
+        ),
+        undefined, // speed - not applicable
+        undefined, // eta - not applicable
+        item.extractProgress ?? 100 // Keep extract progress, default to 100 if undefined
+      )
+      // Re-throw or just log?
+      throw error // Re-throw so the IPC handler logs it
     }
   }
 }

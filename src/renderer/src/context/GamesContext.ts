@@ -10,6 +10,7 @@ export interface GamesContextType {
   downloadProgress: number // Game data download
   extractProgress: number // Game data extract
   refreshGames: () => Promise<void>
+  loadGames: () => Promise<void>
   getNote: (releaseName: string) => Promise<string>
   isInitialLoadComplete: boolean
 }

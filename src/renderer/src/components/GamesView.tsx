@@ -243,6 +243,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     addToQueue: addDownloadToQueue,
     queue: downloadQueue,
     cancelDownload,
+    retryDownload,
     deleteFiles
   } = useDownload()
 
@@ -322,6 +323,28 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     }
   }, [isDialogOpen, dialogGame, getNote])
 
+  // Effect to refresh installed packages when installation completes
+  useEffect(() => {
+    const unsubscribe = window.api.adb.onInstallationCompleted((deviceId) => {
+      console.log(`[GamesView] Received installation-completed event for device: ${deviceId}`)
+      if (selectedDevice && deviceId === selectedDevice) {
+        console.log(`[GamesView] Refreshing packages for current device ${selectedDevice}...`)
+        loadPackages()
+          .then(() => console.log('[GamesView] Package refresh triggered successfully.'))
+          .catch((err) => console.error('[GamesView] Error triggering package refresh:', err))
+      } else {
+        console.log(
+          `[GamesView] Installation completed event for non-selected device (${deviceId}), ignoring.`
+        )
+      }
+    })
+
+    return () => {
+      console.log('[GamesView] Cleaning up installation completed listener.')
+      unsubscribe()
+    }
+  }, [selectedDevice, loadPackages]) // Depend on selectedDevice and loadPackages
+
   // --- Re-add Map for Download Status/Progress --- START
   const downloadStatusMap = useMemo(() => {
     const map = new Map<string, { status: string; progress: number }>()
@@ -399,6 +422,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           const isDownloading = downloadInfo?.status === 'Downloading'
           const isExtracting = downloadInfo?.status === 'Extracting'
           const isQueued = downloadInfo?.status === 'Queued' // Check for Queued status
+          const isInstallError = downloadInfo?.status === 'InstallError' // Check for InstallError status
 
           return (
             <div
@@ -425,6 +449,12 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                 {isQueued && (
                   <Badge shape="rounded" color="informative" appearance="outline">
                     Queued
+                  </Badge>
+                )}
+                {/* Add InstallError Badge */}
+                {isInstallError && (
+                  <Badge shape="rounded" color="danger" appearance="outline">
+                    Install Error
                   </Badge>
                 )}
                 {/* Add other badges or indicators here if needed in the future */}
@@ -575,12 +605,12 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   }
 
   // Simple handler to close main dialog
-  const handleCloseDialog = (): void => {
+  const handleCloseDialog = useCallback((): void => {
     setIsDialogOpen(false)
     setTimeout(() => {
       setDialogGame(null)
     }, 300)
-  }
+  }, [])
 
   // Placeholder actions - Ensure they close the dialog
   const handleInstall = (game: GameInfo | null): void => {
@@ -635,6 +665,172 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       })
       .catch((err) => console.error('Error adding to queue for update:', err))
     handleCloseDialog()
+  }
+
+  // Action for retrying download/install
+  const handleRetry = (game: GameInfo | null): void => {
+    if (!game || !game.releaseName) return
+    console.log('Retry action triggered for:', game.releaseName)
+    retryDownload(game.releaseName) // Call retryDownload from the hook
+    handleCloseDialog()
+  }
+
+  // Action for cancelling download/extraction
+  const handleCancelDownload = (game: GameInfo | null): void => {
+    if (!game || !game.releaseName) return
+    console.log('Cancel download/extraction action triggered for:', game.releaseName)
+    cancelDownload(game.releaseName) // Call `cancelDownload` from the hook
+    handleCloseDialog()
+  }
+
+  // Helper function to render action buttons based on game state
+  const renderActionButtons = (game: GameInfo | null): React.ReactNode => {
+    if (!game) return null
+
+    const status = downloadStatusMap.get(game.releaseName || '')?.status
+    const canCancel = status === 'Downloading' || status === 'Extracting' || status === 'Queued'
+    const isDownloaded = status === 'Completed'
+    const isInstalled = game.isInstalled
+    const hasUpdate = game.hasUpdate
+    const isInstallError = status === 'InstallError' // Check specifically for InstallError
+    const isErrorOrCancelled = status === 'Error' || status === 'Cancelled'
+
+    // Show cancel button if Downloading, Extracting, or Queued
+    if (canCancel) {
+      return (
+        <Button
+          appearance="danger"
+          icon={<DismissRegular />}
+          onClick={() => handleCancelDownload(game)}
+        >
+          Cancel Download
+        </Button>
+      )
+    }
+
+    // Handle InstallError or regular Error/Cancelled states with Retry
+    if (isInstallError || isErrorOrCancelled) {
+      return (
+        <>
+          <Button
+            appearance="primary"
+            icon={<ArrowClockwiseRegular />} // Use retry icon
+            onClick={() => handleRetry(game)} // Call retry handler
+            disabled={isBusy}
+          >
+            Retry
+          </Button>
+          {/* Optionally allow deleting files even after error */}
+          <Button
+            appearance="danger"
+            icon={<DeleteRegular />}
+            onClick={() => handleDeleteDownloaded(game)}
+            disabled={isBusy}
+          >
+            Delete Downloaded Files
+          </Button>
+        </>
+      )
+    }
+
+    // Existing logic for other states (Install, Update, Reinstall, Delete)
+    if (isInstalled) {
+      if (hasUpdate) {
+        return (
+          <>
+            <Button
+              appearance="primary"
+              icon={<ArrowUpRegular />}
+              onClick={() => handleUpdate(game)}
+              disabled={!isConnected || isBusy}
+            >
+              Update
+            </Button>
+            <Button
+              appearance="danger"
+              icon={<DeleteRegular />}
+              onClick={handleDeleteRequest}
+              disabled={!isConnected || isBusy}
+            >
+              Delete
+            </Button>
+          </>
+        )
+      } else {
+        return (
+          <>
+            <Button
+              appearance="secondary"
+              icon={<ArrowSyncRegular />}
+              onClick={() => handleReinstall(game)}
+              disabled={!isConnected || isBusy}
+            >
+              Reinstall
+            </Button>
+            <Button
+              appearance="danger"
+              icon={<DeleteRegular />}
+              onClick={handleDeleteRequest}
+              disabled={!isConnected || isBusy}
+            >
+              Delete
+            </Button>
+          </>
+        )
+      }
+    }
+
+    if (isDownloaded) {
+      return (
+        <>
+          <Button
+            appearance="primary"
+            icon={<CheckmarkCircleRegular />}
+            onClick={() => {
+              if (game?.releaseName && selectedDevice) {
+                console.log(
+                  `Requesting install from completed for ${game.releaseName} on ${selectedDevice}`
+                )
+                window.api.downloads
+                  .installFromCompleted(game.releaseName, selectedDevice)
+                  .catch((err) => {
+                    console.error('Error triggering install from completed:', err)
+                    window.alert(
+                      'Failed to start installation. Please check the main process logs.'
+                    )
+                  })
+                handleCloseDialog() // Close dialog after triggering
+              } else {
+                console.error('Missing releaseName or deviceId for install action')
+                window.alert('Cannot start installation: Missing required information.')
+              }
+            }}
+            disabled={!isConnected || isBusy || !selectedDevice}
+          >
+            Install
+          </Button>
+          <Button
+            appearance="danger"
+            icon={<DeleteRegular />}
+            onClick={() => handleDeleteDownloaded(game)}
+          >
+            Delete Downloaded Files
+          </Button>
+        </>
+      )
+    }
+
+    // Default: Show Install button
+    return (
+      <Button
+        appearance="primary"
+        icon={<DownloadIcon />}
+        onClick={() => handleInstall(game)}
+        disabled={isBusy}
+      >
+        Install
+      </Button>
+    )
   }
 
   // Delete Action - Opens confirmation dialog
@@ -697,14 +893,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     },
     [deleteFiles, handleCloseDialog]
   )
-
-  // Action for cancelling download/extraction
-  const handleCancelDownload = (game: GameInfo | null): void => {
-    if (!game || !game.releaseName) return
-    console.log('Cancel download/extraction action triggered for:', game.releaseName)
-    cancelDownload(game.releaseName) // Call `cancelDownload` from the hook
-    handleCloseDialog()
-  }
 
   // Combine loading states for display/disabling elements
   const isBusy = adbLoading || loadingGames || isLoading
@@ -1006,22 +1194,26 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                               >
                                 <Badge
                                   shape="rounded"
-                                  color={
-                                    dialogGame.isInstalled
-                                      ? 'success'
-                                      : downloadStatusMap.get(dialogGame.releaseName || '')
-                                            ?.status === 'Completed'
-                                        ? 'brand'
-                                        : 'informative'
-                                  }
+                                  color={(() => {
+                                    const status = downloadStatusMap.get(
+                                      dialogGame.releaseName || ''
+                                    )?.status
+                                    if (dialogGame.isInstalled) return 'success'
+                                    if (status === 'Completed') return 'brand'
+                                    if (status === 'InstallError') return 'danger'
+                                    return 'informative' // Default for others
+                                  })()}
                                   appearance="filled"
                                 >
-                                  {dialogGame.isInstalled
-                                    ? 'Installed'
-                                    : downloadStatusMap.get(dialogGame.releaseName || '')
-                                          ?.status === 'Completed'
-                                      ? 'Downloaded'
-                                      : 'Not Installed'}
+                                  {(() => {
+                                    const status = downloadStatusMap.get(
+                                      dialogGame.releaseName || ''
+                                    )?.status
+                                    if (dialogGame.isInstalled) return 'Installed'
+                                    if (status === 'Completed') return 'Downloaded'
+                                    if (status === 'InstallError') return 'Install Error'
+                                    return 'Not Installed' // Default
+                                  })()}
                                 </Badge>
                                 {dialogGame.hasUpdate && (
                                   <Badge shape="rounded" color="brand" appearance="filled">
@@ -1160,111 +1352,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                           gap: tokens.spacingVerticalS
                         }}
                       >
-                        {(() => {
-                          const status = downloadStatusMap.get(dialogGame.releaseName || '')?.status
-                          // Combine conditions for showing cancel button
-                          const canCancel =
-                            status === 'Downloading' ||
-                            status === 'Extracting' ||
-                            status === 'Queued'
-                          const isDownloaded = status === 'Completed'
-                          const isInstalled = dialogGame.isInstalled
-                          const hasUpdate = dialogGame.hasUpdate
-
-                          // Show cancel button if Downloading, Extracting, or Queued
-                          if (canCancel) {
-                            return (
-                              <Button
-                                appearance="danger"
-                                icon={<DismissRegular />}
-                                onClick={() => handleCancelDownload(dialogGame)}
-                              >
-                                Cancel Download
-                              </Button>
-                            )
-                          }
-
-                          // Existing logic for other states (Install, Update, Reinstall, Delete)
-                          if (isInstalled) {
-                            if (hasUpdate) {
-                              return (
-                                <>
-                                  <Button
-                                    appearance="primary"
-                                    icon={<ArrowUpRegular />}
-                                    onClick={() => handleUpdate(dialogGame)}
-                                    disabled={!isConnected || isBusy}
-                                  >
-                                    Update
-                                  </Button>
-                                  <Button
-                                    appearance="danger"
-                                    icon={<DeleteRegular />}
-                                    onClick={handleDeleteRequest}
-                                    disabled={!isConnected || isBusy}
-                                  >
-                                    Delete
-                                  </Button>
-                                </>
-                              )
-                            } else {
-                              return (
-                                <>
-                                  <Button
-                                    appearance="secondary"
-                                    icon={<ArrowSyncRegular />}
-                                    onClick={() => handleReinstall(dialogGame)}
-                                    disabled={!isConnected || isBusy}
-                                  >
-                                    Reinstall
-                                  </Button>
-                                  <Button
-                                    appearance="danger"
-                                    icon={<DeleteRegular />}
-                                    onClick={handleDeleteRequest}
-                                    disabled={!isConnected || isBusy}
-                                  >
-                                    Delete
-                                  </Button>
-                                </>
-                              )
-                            }
-                          }
-
-                          if (isDownloaded) {
-                            return (
-                              <>
-                                <Button
-                                  appearance="primary"
-                                  icon={<CheckmarkCircleRegular />}
-                                  onClick={() =>
-                                    alert('Installation from downloaded files not implemented yet.')
-                                  }
-                                >
-                                  Install (Downloaded)
-                                </Button>
-                                <Button
-                                  appearance="danger"
-                                  icon={<DeleteRegular />}
-                                  onClick={() => handleDeleteDownloaded(dialogGame)}
-                                >
-                                  Delete Downloaded Files
-                                </Button>
-                              </>
-                            )
-                          }
-
-                          // Default: Show Install button
-                          return (
-                            <Button
-                              appearance="primary"
-                              icon={<DownloadIcon />}
-                              onClick={() => handleInstall(dialogGame)}
-                            >
-                              Install
-                            </Button>
-                          )
-                        })()}
+                        {renderActionButtons(dialogGame)}
                       </div>
                     )}
                   </DialogContent>

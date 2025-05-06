@@ -5,11 +5,14 @@ export type DownloadStatus =
   | 'Error'
   | 'Cancelled'
   | 'Extracting'
+  | 'Installing'
+  | 'InstallError'
 
 export interface DownloadItem {
   gameId: string // GameInfo.id (unique identifier for the game)
   releaseName: string // Identifier for the specific download artifact
   gameName: string // For display purposes
+  packageName: string // For display purposes
   status: DownloadStatus
   progress: number // 0-100
   error?: string // Error message if status is 'Error'

@@ -77,6 +77,7 @@ export interface AdbAPI {
   onDeviceRemoved: (callback: (device: DeviceInfo) => void) => () => void
   onDeviceChanged: (callback: (device: DeviceInfo) => void) => () => void
   onTrackerError: (callback: (error: string) => void) => () => void
+  onInstallationCompleted: (callback: (deviceId: string) => void) => () => void
 }
 
 export interface GamesAPI {
@@ -96,11 +97,14 @@ export type DownloadStatus =
   | 'Error'
   | 'Cancelled'
   | 'Extracting' // Added Extracting status
+  | 'Installing'
+  | 'InstallError'
 
 export interface DownloadItem {
   gameId: string
   releaseName: string
   gameName: string
+  packageName: string
   status: DownloadStatus
   progress: number
   error?: string

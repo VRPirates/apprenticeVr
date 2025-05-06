@@ -208,6 +208,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     downloadProgress,
     extractProgress,
     refreshGames,
+    loadGames,
     getNote,
     isInitialLoadComplete
   }
