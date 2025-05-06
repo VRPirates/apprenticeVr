@@ -568,22 +568,84 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       })
     handleCloseDialog()
   }
-  const handleReinstall = (game: GameInfo | null): void => {
-    if (!game) return
-    console.log('Reinstall action triggered for:', game.packageName)
-    addDownloadToQueue(game)
-      .then((success) => {
-        if (success) {
-          console.log(`Successfully added ${game.releaseName} to queue for reinstall.`)
+
+  const handleReinstall = async (game: GameInfo | null): Promise<void> => {
+    if (!game || !game.packageName || !game.releaseName || !selectedDevice) {
+      console.error(
+        'Reinstall Error: Missing game data, package name, release name, or device ID.',
+        {
+          game,
+          selectedDevice
+        }
+      )
+      window.alert('Cannot start reinstall: Essential information is missing.')
+      handleCloseDialog() // Ensure dialog closes even on early exit
+      return
+    }
+
+    console.log(`Reinstall: Starting for ${game.name} (${game.packageName}) on ${selectedDevice}.`)
+    setIsLoading(true)
+    handleCloseDialog() // Close dialog before starting potentially long operation
+
+    try {
+      // Step 1: Uninstall the package
+      console.log(`Reinstall: Attempting to uninstall ${game.packageName}...`)
+      const uninstallSuccess = await window.api.adb.uninstallPackage(
+        selectedDevice,
+        game.packageName
+      )
+
+      if (uninstallSuccess) {
+        console.log(`Reinstall: Successfully uninstalled ${game.packageName}.`)
+        // The game is now uninstalled from the device.
+        // Downloaded files (if any) should still be present.
+
+        const downloadInfo = downloadStatusMap.get(game.releaseName)
+
+        if (downloadInfo?.status === 'Completed') {
+          console.log(
+            `Reinstall: Files for ${game.releaseName} are 'Completed'. Initiating install from completed.`
+          )
+          await window.api.downloads.installFromCompleted(game.releaseName, selectedDevice)
+          console.log(`Reinstall: 'installFromCompleted' called for ${game.releaseName}.`)
         } else {
           console.log(
-            `Failed to add ${game.releaseName} to queue for reinstall (might already exist).`
+            `Reinstall: Files for ${game.releaseName} not 'Completed' (status: ${downloadInfo?.status}). Adding to download queue.`
           )
+          const addToQueueSuccess = await addDownloadToQueue(game)
+          if (addToQueueSuccess) {
+            console.log(`Reinstall: Successfully added ${game.releaseName} to download queue.`)
+          } else {
+            console.warn(
+              `Reinstall: Failed to add ${game.releaseName} to queue. Current status: ${downloadInfo?.status}.`
+            )
+            window.alert(
+              `Reinstall for ${game.name} failed: Could not add to download queue. Please check logs.`
+            )
+          }
         }
-      })
-      .catch((err) => console.error('Error adding to queue for reinstall:', err))
-    handleCloseDialog()
+      } else {
+        console.error(
+          `Reinstall: Failed to uninstall ${game.packageName}. Installation step will be skipped.`
+        )
+        window.alert(`Failed to uninstall ${game.name}. Reinstall aborted.`)
+      }
+    } catch (error) {
+      console.error(`Reinstall: Error during process for ${game.name}:`, error)
+      window.alert(
+        `An error occurred during the reinstall process for ${game.name}. Please check logs.`
+      )
+    } finally {
+      setIsLoading(false)
+      // Refresh packages to update UI. The 'installation-completed' event should also trigger this,
+      // but it's good to have a fallback or an immediate refresh after the uninstall part.
+      console.log(`Reinstall: Process finished for ${game.name}. Triggering package refresh.`)
+      loadPackages().catch((err) =>
+        console.error('Reinstall: Error refreshing packages post-operation:', err)
+      )
+    }
   }
+
   const handleUpdate = (game: GameInfo | null): void => {
     if (!game) return
     console.log('Update action triggered for:', game.packageName)
