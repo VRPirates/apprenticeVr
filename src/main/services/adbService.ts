@@ -1,4 +1,4 @@
-import { Adb, Device as AdbKitDevice } from '@devicefarmer/adbkit'
+import { Adb, Device as AdbKitDevice, DeviceClient } from '@devicefarmer/adbkit'
 import Tracker from '@devicefarmer/adbkit/dist/src/adb/tracker'
 import { BrowserWindow } from 'electron'
 import { EventEmitter } from 'events'
@@ -369,64 +369,164 @@ class AdbService extends EventEmitter {
     }
   }
 
+  private async _pushDirectoryRecursive(
+    serial: string,
+    localDirPath: string,
+    remoteDirPath: string,
+    deviceClient: DeviceClient
+  ): Promise<boolean> {
+    // 1. Create the remote directory
+    try {
+      console.log(`[AdbService Recursive] Ensuring remote directory exists: ${remoteDirPath}`)
+      const mkdirOutput = await this.runShellCommand(serial, `mkdir -p "${remoteDirPath}"`)
+      if (mkdirOutput === null) {
+        // runShellCommand logs errors and returns null on failure
+        console.error(
+          `[AdbService Recursive] Failed to create remote directory ${remoteDirPath} (runShellCommand indicated failure).`
+        )
+        return false
+      }
+    } catch (error) {
+      // This catch block is for unexpected errors from runShellCommand itself, though it's designed to catch its own.
+      console.error(
+        `[AdbService Recursive] Exception while creating remote directory ${remoteDirPath}:`,
+        error
+      )
+      return false
+    }
+
+    // 2. Read entries in localDirPath
+    let entries
+    try {
+      entries = await fs.promises.readdir(localDirPath, { withFileTypes: true })
+    } catch (readDirError) {
+      console.error(
+        `[AdbService Recursive] Failed to read local directory ${localDirPath}:`,
+        readDirError
+      )
+      return false
+    }
+
+    // 3. For each entry
+    for (const entry of entries) {
+      const localEntryPath = path.join(localDirPath, entry.name)
+      const remoteEntryPath = path.join(remoteDirPath, entry.name) // Full path for the entry on device
+
+      if (entry.isFile()) {
+        console.log(
+          `[AdbService Recursive] Pushing file ${localEntryPath} to ${serial}:${remoteEntryPath}`
+        )
+        try {
+          const transfer = await deviceClient.push(localEntryPath, remoteEntryPath)
+          const filePushSuccess = await new Promise<boolean>((resolve) => {
+            transfer.on('end', () => resolve(true))
+            transfer.on('error', (err: Error) => {
+              console.error(
+                `[AdbService Recursive] Error pushing file ${localEntryPath} to ${remoteEntryPath}:`,
+                err
+              )
+              resolve(false)
+            })
+          })
+
+          if (!filePushSuccess) {
+            console.error(
+              `[AdbService Recursive] Failed to push file ${localEntryPath}. Aborting directory push.`
+            )
+            return false // Stop if any file fails
+          }
+        } catch (filePushError) {
+          console.error(
+            `[AdbService Recursive] Exception during push of file ${localEntryPath}:`,
+            filePushError
+          )
+          return false
+        }
+      } else if (entry.isDirectory()) {
+        console.log(
+          `[AdbService Recursive] Pushing directory ${localEntryPath} to ${serial}:${remoteEntryPath}`
+        )
+        const subdirPushSuccess = await this._pushDirectoryRecursive(
+          serial,
+          localEntryPath,
+          remoteEntryPath,
+          deviceClient
+        )
+        if (!subdirPushSuccess) {
+          console.error(
+            `[AdbService Recursive] Failed to push subdirectory ${localEntryPath}. Aborting directory push.`
+          )
+          return false // Stop if any subdirectory fails
+        }
+      }
+    }
+    return true // All entries processed successfully
+  }
+
   async pushFileOrFolder(serial: string, localPath: string, remotePath: string): Promise<boolean> {
     if (!this.client) {
       throw new Error('adb service not initialized!')
     }
 
-    let finalRemotePath = remotePath
+    let finalRemotePath = remotePath // Will be determined in the try block
+
     try {
       const localStat = await fs.promises.stat(localPath)
 
+      // Determine the final remote path based on whether it's a file or directory
+      // and if the remote path needs basename appending.
       if (localStat.isFile()) {
-        // If remotePath explicitly ends with a slash, it denotes a directory.
-        // ADB CLI usually handles pushing a file into such a directory by appending the filename.
-        // However, the observed error "couldn't create file: Is a directory" suggests
-        // that this might fail in some scenarios.
-        // To be robust, if localPath is a file and remotePath ends with '/',
-        // we explicitly form the full target file path.
         if (remotePath.endsWith('/')) {
           finalRemotePath = path.join(remotePath, path.basename(localPath))
         }
         // If localPath is a file and remotePath does not end with '/',
         // remotePath is assumed to be the full target file path.
       } else if (localStat.isDirectory()) {
-        // If localPath is a directory:
         if (remotePath.endsWith('/')) {
-          // If remotePath ends with a slash (e.g., "/sdcard/"), it's treated as a parent directory.
-          // We append the local directory's name to form the full target path.
           // e.g., localPath="dir", remotePath="/sdcard/" => finalRemotePath="/sdcard/dir"
           finalRemotePath = path.join(remotePath, path.basename(localPath))
         }
         // If remotePath does not end with a slash (e.g., "/sdcard/targetdir"),
         // it's assumed to be the explicit full path for the target directory.
-        // In this case, finalRemotePath remains as is.
+        // finalRemotePath is already correctly set by assignment from remotePath.
       }
 
-      console.log(
-        `Pushing ${localPath} to ${serial}:${finalRemotePath}... (original remote: ${remotePath})`
-      )
-
       const deviceClient = this.client.getDevice(serial)
-      const transfer = await deviceClient.push(localPath, finalRemotePath)
-      return new Promise((resolve, reject) => {
-        transfer.on('end', () => {
-          console.log(`Successfully pushed ${localPath} to ${finalRemotePath}.`)
-          resolve(true)
+
+      if (localStat.isDirectory()) {
+        console.log(
+          `[AdbService] Pushing directory ${localPath} to ${serial}:${finalRemotePath} using recursive method.`
+        )
+        return await this._pushDirectoryRecursive(serial, localPath, finalRemotePath, deviceClient)
+      } else {
+        // It's a file
+        console.log(
+          `Pushing file ${localPath} to ${serial}:${finalRemotePath}... (original remote: ${remotePath})`
+        )
+        const transfer = await deviceClient.push(localPath, finalRemotePath)
+        return new Promise<boolean>((resolve, reject) => {
+          transfer.on('end', () => {
+            console.log(`Successfully pushed file ${localPath} to ${finalRemotePath}.`)
+            resolve(true)
+          })
+          transfer.on('error', (err) => {
+            console.error(`Error pushing file ${localPath} to ${finalRemotePath}:`, err)
+            reject(err) // This will be caught by the outer catch block
+          })
         })
-        transfer.on('error', (err) => {
-          console.error(`Error pushing ${localPath} to ${finalRemotePath}:`, err)
-          reject(err)
-        })
-      })
+      }
     } catch (error: unknown) {
-      // Check for a specific structure of filesystem errors (like ENOENT from fs.promises.stat)
-      if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
+      // Handle errors from fs.promises.stat or rejections from file push
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error as { code: string }).code === 'ENOENT'
+      ) {
         console.error(
           `[AdbService] Local file/folder not found for push: ${localPath}. Code: ${(error as { code: string }).code}`
         )
       } else {
-        // For other errors, log the error object itself for more details
         console.error(
           `[AdbService] Error during push operation for ${localPath} to ${serial}:${finalRemotePath} (original remote: ${remotePath}):`,
           error
