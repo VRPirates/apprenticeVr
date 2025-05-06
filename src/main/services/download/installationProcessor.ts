@@ -161,13 +161,12 @@ export class InstallationProcessor {
                   console.log(
                     `[InstallProc]   Installing ${apkPath} with flags: ${installArgs.join(' ')}`
                   )
-                  // We need to pass the flags via shell, installPackage was refactored
-                  // const installCommand = `pm install ${installArgs.join(' ')} "${apkPath}"`
-                  // console.log(`[InstallProc] Running shell command: ${installCommand}`)
-                  // const output = await this.adbService.runShellCommand(deviceId, installCommand)
-
                   // Use the simplified installPackage which handles push+install
-                  await this.adbService.installPackage(deviceId, apkPath)
+                  // We will now pass the installArgs to allow for flags like -r, -g
+                  // Ensure -r and -g are included for compatibility and permissions.
+                  const combinedFlags = Array.from(new Set(['-r', '-g', ...installArgs]))
+
+                  await this.adbService.installPackage(deviceId, apkPath, { flags: combinedFlags })
                   commandSuccess = true // Assuming installPackage throws on error
                   // if (output?.includes('Success')) {
                   //   commandSuccess = true
@@ -306,8 +305,8 @@ export class InstallationProcessor {
         const apkPath = join(item.downloadPath, apk)
         console.log(`[InstallProc Standard] Installing ${apkPath}...`)
         try {
-          // Use the simplified installPackage
-          await this.adbService.installPackage(deviceId, apkPath)
+          // Use the simplified installPackage, now with flags for reinstall and granting permissions
+          await this.adbService.installPackage(deviceId, apkPath, { flags: ['-r', '-g'] })
           console.log(`[InstallProc Standard] Successfully installed ${apk}`)
         } catch (installError: unknown) {
           const errorMsg =

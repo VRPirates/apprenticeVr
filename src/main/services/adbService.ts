@@ -323,31 +323,145 @@ class AdbService extends EventEmitter {
     }
   }
 
-  async installPackage(serial: string, apkPath: string): Promise<boolean> {
+  async installPackage(
+    serial: string,
+    apkPath: string,
+    options?: { flags?: string[] }
+  ): Promise<boolean> {
     if (!this.client) {
       throw new Error('adb service not initialized!')
     }
-    console.log(`Attempting to install ${apkPath} on ${serial}...`)
-    try {
-      const deviceClient = this.client.getDevice(serial)
-      // Use the adbkit built-in install method.
-      // It handles pushing the file to a temporary location on the device first.
-      // It implicitly handles replacing existing apps (like -r).
-      const success = await deviceClient.install(apkPath)
-      if (success) {
-        console.log(`Successfully installed ${apkPath}.`)
-      } else {
-        // adbkit's install might not give detailed output on failure like pm install does
-        console.error(`Installation of ${apkPath} reported failure by adbkit.`)
+    console.log(
+      `Attempting to install ${apkPath} on ${serial}${options?.flags ? ` with flags: ${options.flags.join(' ')}` : ''}...`
+    )
+    const deviceClient = this.client.getDevice(serial)
+
+    if (options?.flags && options.flags.length > 0) {
+      const apkFileName = path.basename(apkPath)
+      const remoteTempApkPath = `/data/local/tmp/${apkFileName}`
+
+      try {
+        // 1. Push APK to temporary location
+        console.log(`[ADB Service] Pushing ${apkPath} to ${remoteTempApkPath}...`)
+        const pushTransfer = await deviceClient.push(apkPath, remoteTempApkPath)
+        await new Promise<void>((resolve, reject) => {
+          pushTransfer.on('end', resolve)
+          pushTransfer.on('error', (err: Error) => {
+            console.error(
+              `[ADB Service] Error pushing APK ${apkPath} to ${remoteTempApkPath}:`,
+              err
+            )
+            reject(err)
+          })
+        })
+        console.log(`[ADB Service] Successfully pushed ${apkPath} to ${remoteTempApkPath}.`)
+
+        // 2. Construct and execute pm install command
+        const installCommand = `pm install ${options.flags.join(' ')} "${remoteTempApkPath}"`
+        console.log(`[ADB Service] Running install command: ${installCommand}`)
+        let output = await this.runShellCommand(serial, installCommand) // runShellCommand already logs
+
+        // Check for INSTALL_FAILED_UPDATE_INCOMPATIBLE and attempt uninstall then retry
+        if (output?.includes('INSTALL_FAILED_UPDATE_INCOMPATIBLE')) {
+          console.warn(
+            `[ADB Service] Install failed due to incompatible update. Attempting uninstall and retry. Original error: ${output}`
+          )
+          const packageNameMatch = output.match(/Package ([a-zA-Z0-9_.]+)/)
+          if (packageNameMatch && packageNameMatch[1]) {
+            const packageName = packageNameMatch[1]
+            console.log(`[ADB Service] Extracted package name for uninstall: ${packageName}`)
+            const uninstallSuccess = await this.uninstallPackage(serial, packageName)
+            if (uninstallSuccess) {
+              console.log(
+                `[ADB Service] Successfully uninstalled ${packageName}. Retrying installation...`
+              )
+              output = await this.runShellCommand(serial, installCommand) // Retry install
+            } else {
+              console.error(
+                `[ADB Service] Failed to uninstall ${packageName}. Installation will likely still fail.`
+              )
+            }
+          } else {
+            console.warn(
+              '[ADB Service] Could not extract package name from incompatibility error. Cannot attempt uninstall.'
+            )
+          }
+        }
+
+        // 3. Clean up temporary APK
+        console.log(`[ADB Service] Cleaning up temporary APK: ${remoteTempApkPath}`)
+        const cleanupOutput = await this.runShellCommand(serial, `rm -f "${remoteTempApkPath}"`)
+        if (cleanupOutput === null || !cleanupOutput.includes('No such file or directory')) {
+          // Consider logging if rm -f didn't behave as expected (e.g. permission errors other than file not found)
+          if (cleanupOutput !== null && cleanupOutput.trim() !== '') {
+            console.warn(
+              `[ADB Service] Output during cleanup of ${remoteTempApkPath}: ${cleanupOutput}`
+            )
+          } else if (cleanupOutput === null) {
+            console.warn(
+              `[ADB Service] Failed to execute cleanup command for ${remoteTempApkPath} or no output.`
+            )
+          }
+        }
+
+        if (output?.includes('Success')) {
+          console.log(`Successfully installed ${apkPath} with flags. Output: ${output}`)
+          return true
+        } else {
+          console.error(
+            `Installation of ${apkPath} with flags failed or success not confirmed. Output: ${output || 'No output'}`
+          )
+          // Attempt to extract common failure reasons
+          if (output?.includes('INSTALL_FAILED_UPDATE_INCOMPATIBLE')) {
+            console.error(
+              'Detailed error: INSTALL_FAILED_UPDATE_INCOMPATIBLE. Signatures might still mismatch or other issue.'
+            )
+          } else if (output?.includes('INSTALL_FAILED_VERSION_DOWNGRADE')) {
+            console.error(
+              'Detailed error: INSTALL_FAILED_VERSION_DOWNGRADE. Cannot downgrade versions with these flags.'
+            )
+          } else if (output?.includes('INSTALL_FAILED_ALREADY_EXISTS')) {
+            console.error('Detailed error: INSTALL_FAILED_ALREADY_EXISTS. Package already exists.')
+          }
+          return false
+        }
+      } catch (error) {
+        console.error(
+          `[ADB Service] Error during flagged installation of ${apkPath} on device ${serial}:`,
+          error
+        )
+        // Ensure cleanup is attempted even if earlier steps fail
+        try {
+          console.log(`[ADB Service] Attempting cleanup of ${remoteTempApkPath} after error...`)
+          await this.runShellCommand(serial, `rm -f "${remoteTempApkPath}"`)
+        } catch (cleanupError) {
+          console.error(
+            `[ADB Service] Error during cleanup of ${remoteTempApkPath} after initial error:`,
+            cleanupError
+          )
+        }
+        return false
       }
-      return success
-    } catch (error) {
-      console.error(`Error installing package ${apkPath} on device ${serial}:`, error)
-      // Check for specific error codes if adbkit provides them
-      if (error instanceof Error && error.message.includes('INSTALL_FAILED')) {
-        console.error(`Install failed with code: ${error.message}`) // Log specific error if available
+    } else {
+      // Original logic for installation without flags
+      try {
+        const success = await deviceClient.install(apkPath)
+        if (success) {
+          console.log(`Successfully installed ${apkPath} using adbkit.install.`)
+        } else {
+          console.error(`Installation of ${apkPath} reported failure by adbkit.install.`)
+        }
+        return success
+      } catch (error) {
+        console.error(
+          `Error installing package ${apkPath} on device ${serial} (adbkit.install):`,
+          error
+        )
+        if (error instanceof Error && error.message.includes('INSTALL_FAILED')) {
+          console.error(`Install failed with code: ${error.message}`)
+        }
+        return false
       }
-      return false
     }
   }
 
