@@ -113,7 +113,7 @@ interface GameDetailsDialogProps {
   downloadStatusMap: Map<string, { status: string; progress: number }>
   onInstall: (game: GameInfo) => void
   onReinstall: (game: GameInfo) => void
-  onUpdate: (game: GameInfo) => void
+  onUpdate: (game: GameInfo) => Promise<void>
   onRetry: (game: GameInfo) => void
   onCancelDownload: (game: GameInfo) => void
   onConfirmDelete: (game: GameInfo) => void

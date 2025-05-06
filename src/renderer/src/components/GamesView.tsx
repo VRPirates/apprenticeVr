@@ -646,21 +646,55 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     }
   }
 
-  const handleUpdate = (game: GameInfo | null): void => {
-    if (!game) return
-    console.log('Update action triggered for:', game.packageName)
-    addDownloadToQueue(game)
-      .then((success) => {
-        if (success) {
-          console.log(`Successfully added ${game.releaseName} to queue for update.`)
+  const handleUpdate = async (game: GameInfo | null): Promise<void> => {
+    if (!game || !game.releaseName || !selectedDevice) {
+      console.error('Update action aborted: Missing game data, releaseName, or selectedDevice.', {
+        game,
+        selectedDevice
+      })
+      window.alert('Cannot start update: Essential information is missing.')
+      handleCloseDialog()
+      return
+    }
+
+    console.log(
+      `Update action triggered for: ${game.name} (${game.packageName}) on ${selectedDevice}`
+    )
+    handleCloseDialog() // Close dialog early
+
+    try {
+      const downloadInfo = downloadStatusMap.get(game.releaseName)
+
+      if (downloadInfo?.status === 'Completed') {
+        console.log(
+          `Update for ${game.releaseName}: Files are already 'Completed'. Initiating install from completed.`
+        )
+        await window.api.downloads.installFromCompleted(game.releaseName, selectedDevice)
+        console.log(`Update: 'installFromCompleted' called for ${game.releaseName}.`)
+        // Optionally, refresh packages or rely on 'installation-completed' event
+        // loadPackages().catch(err => console.error('Update: Error refreshing packages post-install:', err));
+      } else {
+        console.log(
+          `Update for ${game.releaseName}: Files not 'Completed' (status: ${downloadInfo?.status}). Adding to download queue.`
+        )
+        const addToQueueSuccess = await addDownloadToQueue(game)
+        if (addToQueueSuccess) {
+          console.log(`Update: Successfully added ${game.releaseName} to download queue.`)
         } else {
-          console.log(
-            `Failed to add ${game.releaseName} to queue for update (might already exist).`
+          console.warn(
+            `Update: Failed to add ${game.releaseName} to queue. Current status: ${downloadInfo?.status}.`
+          )
+          window.alert(
+            `Could not queue ${game.name} for update. It might already be in the queue or an error occurred. Please check logs.`
           )
         }
-      })
-      .catch((err) => console.error('Error adding to queue for update:', err))
-    handleCloseDialog()
+      }
+    } catch (error) {
+      console.error(`Update: Error during process for ${game.name}:`, error)
+      window.alert(
+        `An error occurred during the update process for ${game.name}. Please check logs.`
+      )
+    }
   }
 
   const handleRetry = (game: GameInfo | null): void => {
