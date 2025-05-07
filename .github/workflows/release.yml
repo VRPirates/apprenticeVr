@@ -1,0 +1,118 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*.*.*' # Trigger on version tags like v1.0.0, v1.2.3, etc.
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+        # You can specify Node versions if needed, e.g., node-version: [18.x, 20.x]
+    
+    outputs:
+      package_version: ${{ steps.build_details.outputs.package_version }} # Output version for use in release job name
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8 # Specify your project's pnpm version or let it use latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x' # Specify your project's Node.js version
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile # Assumes pnpm-lock.yaml exists
+
+      - name: Determine build command and artifact path
+        id: build_details
+        shell: bash
+        run: |
+          PRODUCT_NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          echo "package_version=${VERSION}" >> $GITHUB_OUTPUT
+
+          # Default output directory for electron-builder is 'dist'
+          OUTPUT_DIR="dist"
+
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            echo "BUILD_COMMAND=pnpm run build && electron-builder --win --publish never" >> $GITHUB_OUTPUT
+            # Example: dist/apprenticevr Setup 1.0.0.exe
+            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME} Setup ${VERSION}.exe" >> $GITHUB_OUTPUT
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            echo "BUILD_COMMAND=pnpm run build && electron-builder --mac --publish never" >> $GITHUB_OUTPUT
+            # Example: dist/apprenticevr-1.0.0.dmg. Using a glob for flexibility with arch in filename.
+            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}*.dmg" >> $GITHUB_OUTPUT
+          elif [ "$RUNNER_OS" == "Linux" ]; then
+            echo "BUILD_COMMAND=pnpm run build && electron-builder --linux --publish never" >> $GITHUB_OUTPUT
+            # Example: dist/apprenticevr-1.0.0.AppImage. Using a glob for flexibility.
+            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}*.AppImage" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build application
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # electron-builder might need this for some operations
+        run: ${{ steps.build_details.outputs.BUILD_COMMAND }}
+
+      - name: List output directory (for debugging)
+        run: |
+          ls -R dist || echo "dist directory not found or empty"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifact-${{ matrix.os }} # e.g., build-artifact-windows-latest
+          path: ${{ steps.build_details.outputs.ARTIFACT_PATH }}
+          if-no-files-found: error # Fail the workflow if the artifact isn't found
+
+  create_release:
+    name: Create GitHub Release
+    needs: build # Run after all 'build' matrix jobs complete
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create releases and upload assets
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts # All artifacts will be downloaded into the 'artifacts' directory
+
+      - name: List downloaded artifacts (for debugging)
+        run: |
+          ls -R artifacts
+          echo "Tag for release: ${{ github.ref_name }}"
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }} # Uses the tag that triggered the workflow
+          name: Release ${{ github.ref_name }} # e.g., "Release v1.0.0"
+          body: |
+            Automated release for version ${{ github.ref_name }}.
+            
+            **Assets:**
+            - Windows Installer
+            - macOS Installer
+            - Linux AppImage (or other configured Linux packages)
+          draft: false
+          prerelease: false # Set to true if you want to mark releases as pre-releases
+          files: | # Globs to find the downloaded artifacts
+            artifacts/build-artifact-windows-latest/*
+            artifacts/build-artifact-macos-latest/*
+            artifacts/build-artifact-ubuntu-latest/* 
