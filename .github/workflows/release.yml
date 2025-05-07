@@ -68,9 +68,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # electron-builder might need this for some operations
         run: ${{ steps.build_details.outputs.BUILD_COMMAND }}
 
-      - name: List output directory (for debugging)
-        run: |
-          ls -R dist || echo "dist directory not found or empty"
+      # - name: List output directory (for debugging)
+      #   run: |
+      #     ls -R dist || echo "dist directory not found or empty"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -91,10 +91,10 @@ jobs:
         with:
           path: artifacts # All artifacts will be downloaded into the 'artifacts' directory
 
-      - name: List downloaded artifacts (for debugging)
-        run: |
-          ls -R artifacts
-          echo "Tag for release: ${{ github.ref_name }}"
+      # - name: List downloaded artifacts (for debugging)
+      #   run: |
+      #     ls -R artifacts
+      #     echo "Tag for release: ${{ github.ref_name }}"
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2

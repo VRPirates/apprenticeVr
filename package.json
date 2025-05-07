@@ -65,16 +65,5 @@
       "electron",
       "esbuild"
     ]
-  },
-  "build": {
-    "appId": "com.apprenticevr",
-    "productName": "ApprenticeVR",
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "jizrt",
-        "repo": "apprenticevr"
-      }
-    ]
   }
 }
