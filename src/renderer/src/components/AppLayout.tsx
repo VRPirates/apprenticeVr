@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 import { AdbProvider } from '../context/AdbProvider'
 import { GamesProvider } from '../context/GamesProvider'
 import DeviceList from './DeviceList'
@@ -195,27 +195,59 @@ const AppLayout: React.FC = () => {
     setIsDarkMode(data.checked)
   }
 
-  // --- Calculate Download Summary --- START
-  const activeDownloads = useMemo(() => {
-    return downloadQueue.filter(
-      (item) => item.status === 'Downloading' || item.status === 'Extracting'
-    ).length
-  }, [downloadQueue])
-
-  const queuedDownloads = useMemo(() => {
-    return downloadQueue.filter((item) => item.status === 'Queued').length
+  const downloadQueueProgress = useMemo(() => {
+    const activeDownloads = downloadQueue.filter((item) => item.status === 'Downloading')
+    const extractingDownloads = downloadQueue.filter((item) => item.status === 'Extracting')
+    const installingDownloads = downloadQueue.filter((item) => item.status === 'Installing')
+    const queuedDownloads = downloadQueue.filter((item) => item.status === 'Queued')
+    return {
+      activeDownloads,
+      extractingDownloads,
+      installingDownloads,
+      queuedDownloads
+    }
   }, [downloadQueue])
 
   const getDownloadButtonContent = (): { icon: React.ReactNode; text: string } => {
-    if (activeDownloads > 0) {
+    const { activeDownloads, extractingDownloads, installingDownloads, queuedDownloads } =
+      downloadQueueProgress
+
+    if (activeDownloads.length > 0) {
+      const activeDownload = activeDownloads[0]
+      const activeDownloadName = activeDownload.gameName
+      const activeDownloadProgress = activeDownload.progress
+      const activeDownloadEta = activeDownload.eta || ''
+      const activeDownloadSpeed = activeDownload.speed || ''
+      let text = `${activeDownloadName} (${activeDownloadProgress}%) ${activeDownloadEta} ${activeDownloadSpeed}`
+      if (queuedDownloads.length > 0) {
+        text += ` (+${queuedDownloads.length})`
+      }
       return {
         icon: <Spinner size="tiny" style={{ animationDuration: '1s' }} />,
-        text: `Downloading (${activeDownloads})`
+        text
       }
-    } else if (queuedDownloads > 0) {
+    } else if (extractingDownloads.length > 0) {
+      const extractingDownload = extractingDownloads[0]
+      const extractingDownloadName = extractingDownload.gameName
+      const extractingDownloadProgress = extractingDownload.extractProgress || 0
+      let text = `Extracting ${extractingDownloadName} (${extractingDownloadProgress}%)...`
+      if (queuedDownloads.length > 0) {
+        text += ` (+${queuedDownloads.length})`
+      }
       return {
-        icon: <DownloadIcon />,
-        text: `Queued (${queuedDownloads})`
+        icon: <Spinner size="tiny" style={{ animationDuration: '1s' }} />,
+        text
+      }
+    } else if (installingDownloads.length > 0) {
+      const installingDownload = installingDownloads[0]
+      const installingDownloadName = installingDownload.gameName
+      let text = `Installing ${installingDownloadName}...`
+      if (queuedDownloads.length > 0) {
+        text += ` (+${queuedDownloads.length})`
+      }
+      return {
+        icon: <Spinner size="tiny" style={{ animationDuration: '1s' }} />,
+        text
       }
     } else {
       return {
@@ -245,6 +277,10 @@ const AppLayout: React.FC = () => {
                     setIsDownloadsOpen(true)
                   }}
                   icon={downloadButtonIcon}
+                  style={{
+                    // monospace font
+                    fontFamily: 'monospace'
+                  }}
                 >
                   {downloadButtonText}
                 </Button>
