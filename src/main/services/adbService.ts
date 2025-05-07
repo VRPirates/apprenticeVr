@@ -3,7 +3,7 @@ import Tracker from '@devicefarmer/adbkit/dist/src/adb/tracker'
 import { BrowserWindow } from 'electron'
 import { EventEmitter } from 'events'
 import dependencyService from './dependencyService'
-import fs from 'fs'
+import fs, { Dirent } from 'fs'
 import path from 'path'
 
 interface PackageInfo {
@@ -41,9 +41,9 @@ const QUEST_MODEL_NAMES: Record<QuestModel, string> = {
   hollywood: 'Meta Quest 2',
   seacliff: 'Meta Quest Pro',
   eureka: 'Meta Quest 3',
-  panther: 'Meta Quest 3S / Lite', // Assuming based on user input
+  panther: 'Meta Quest 3S / Lite',
   sekiu: 'Meta XR Simulator',
-  quest: 'Meta Quest (Unknown)' // Fallback for generic 'quest'
+  quest: 'Meta Quest (Unknown)'
 }
 
 class AdbService extends EventEmitter {
@@ -496,7 +496,6 @@ class AdbService extends EventEmitter {
         return false
       }
     } else {
-      // Original logic for installation without flags
       try {
         const success = await deviceClient.install(apkPath)
         if (success) {
@@ -532,7 +531,7 @@ class AdbService extends EventEmitter {
       return output
     } catch (error) {
       console.error(`Error running shell command "${command}" on device ${serial}:`, error)
-      return null // Indicate failure
+      return null
     }
   }
 
@@ -547,14 +546,12 @@ class AdbService extends EventEmitter {
       console.log(`[AdbService Recursive] Ensuring remote directory exists: ${remoteDirPath}`)
       const mkdirOutput = await this.runShellCommand(serial, `mkdir -p "${remoteDirPath}"`)
       if (mkdirOutput === null) {
-        // runShellCommand logs errors and returns null on failure
         console.error(
           `[AdbService Recursive] Failed to create remote directory ${remoteDirPath} (runShellCommand indicated failure).`
         )
         return false
       }
     } catch (error) {
-      // This catch block is for unexpected errors from runShellCommand itself, though it's designed to catch its own.
       console.error(
         `[AdbService Recursive] Exception while creating remote directory ${remoteDirPath}:`,
         error
@@ -563,7 +560,7 @@ class AdbService extends EventEmitter {
     }
 
     // 2. Read entries in localDirPath
-    let entries
+    let entries: Dirent[]
     try {
       entries = await fs.promises.readdir(localDirPath, { withFileTypes: true })
     } catch (readDirError) {
@@ -600,7 +597,7 @@ class AdbService extends EventEmitter {
             console.error(
               `[AdbService Recursive] Failed to push file ${localEntryPath}. Aborting directory push.`
             )
-            return false // Stop if any file fails
+            return false
           }
         } catch (filePushError) {
           console.error(
@@ -623,11 +620,11 @@ class AdbService extends EventEmitter {
           console.error(
             `[AdbService Recursive] Failed to push subdirectory ${localEntryPath}. Aborting directory push.`
           )
-          return false // Stop if any subdirectory fails
+          return false
         }
       }
     }
-    return true // All entries processed successfully
+    return true
   }
 
   async pushFileOrFolder(serial: string, localPath: string, remotePath: string): Promise<boolean> {
@@ -683,7 +680,6 @@ class AdbService extends EventEmitter {
         })
       }
     } catch (error: unknown) {
-      // Handle errors from fs.promises.stat or rejections from file push
       if (
         error &&
         typeof error === 'object' &&
@@ -704,7 +700,6 @@ class AdbService extends EventEmitter {
   }
 
   async pullFile(serial: string, remotePath: string, localPath: string): Promise<boolean> {
-    // Requires 'fs' module - consider if needed or implement differently
     if (!this.client) {
       throw new Error('adb service not initialized!')
     }
