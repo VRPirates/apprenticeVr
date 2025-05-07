@@ -97,7 +97,9 @@
   border-radius: 4px;
   margin-bottom: 8px;
   border: 1px solid #e0e0e0;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .device-item:hover {
@@ -144,4 +146,4 @@
 .device-item button:disabled {
   background-color: #8ab4f8;
   cursor: not-allowed;
-} 
+}

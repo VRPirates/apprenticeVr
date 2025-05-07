@@ -16,7 +16,7 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
         # You can specify Node versions if needed, e.g., node-version: [18.x, 20.x]
-    
+
     outputs:
       package_version: ${{ steps.build_details.outputs.package_version }} # Output version for use in release job name
 
@@ -105,7 +105,7 @@ jobs:
           name: Release ${{ github.ref_name }} # e.g., "Release v1.0.0"
           body: |
             Automated release for version ${{ github.ref_name }}.
-            
+
             **Assets:**
             - Windows Installer
             - macOS Installer
@@ -115,4 +115,4 @@ jobs:
           files: | # Globs to find the downloaded artifacts
             artifacts/build-artifact-windows-latest/*
             artifacts/build-artifact-macos-latest/*
-            artifacts/build-artifact-ubuntu-latest/* 
+            artifacts/build-artifact-ubuntu-latest/*

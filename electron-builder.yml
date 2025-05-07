@@ -15,7 +15,7 @@ extraResources:
   - from: resources/bin/${os}
     to: bin
     filter:
-      - "**/*"
+      - '**/*'
 win:
   executableName: apprenticevr
 nsis:

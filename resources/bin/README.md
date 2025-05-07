@@ -5,11 +5,13 @@ This directory contains external binary dependencies for different platforms tha
 ## Directory Structure
 
 ### Rclone
+
 - `win32/rclone.exe` - Windows rclone binary
 - `darwin/rclone` - macOS rclone binary
 - `linux/rclone` - Linux rclone binary
 
 ### 7-Zip
+
 - `win32/7z.exe` - Windows 7-Zip binary
 - `darwin/7z` - macOS 7-Zip binary
 - `linux/7z` - Linux 7-Zip binary
@@ -17,6 +19,7 @@ This directory contains external binary dependencies for different platforms tha
 ## How to Add Binaries
 
 ### Rclone
+
 1. Download the appropriate rclone binary for each platform from the official website: https://rclone.org/downloads/
 2. Place the binary in the corresponding directory:
    - Windows: `win32/rclone.exe`
@@ -29,6 +32,7 @@ This directory contains external binary dependencies for different platforms tha
    ```
 
 ### 7-Zip
+
 1. Download the appropriate 7-Zip binary for each platform:
    - Windows: https://www.7-zip.org/download.html (get the standalone console version)
    - macOS: Install via brew (`brew install p7zip`) and copy to `darwin/7z`
@@ -51,4 +55,4 @@ For development purposes, make sure you have rclone and 7z installed on your sys
 
 ## License
 
-Please respect the license terms when distributing these binaries with your application. 
+Please respect the license terms when distributing these binaries with your application.

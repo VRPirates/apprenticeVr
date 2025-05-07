@@ -20,7 +20,6 @@
   align-items: center;
 }
 
-
 .games-header h2 {
   margin: 0;
   color: #333;
@@ -43,9 +42,6 @@
   font-size: 0.9em;
 }
 
-
-
-
 .games-toolbar {
   display: flex;
   justify-content: space-between;
@@ -66,7 +62,6 @@
   color: var(--colorNeutralForeground2);
   font-size: 0.9em;
 }
-
 
 .game-count {
   color: var(--colorNeutralForeground2);
@@ -107,7 +102,6 @@
   flex-grow: 1; /* Allow list to grow */
 }
 
-
 .game-thumbnail {
   width: 80px;
   height: 80px;
@@ -130,14 +124,12 @@
   flex-grow: 1;
 }
 
-
 .game-details-row {
   display: flex;
   gap: 12px;
   margin-bottom: 4px;
   flex-wrap: wrap;
 }
-
 
 .download-progress {
   margin: 20px 0;
@@ -183,7 +175,6 @@
   gap: 16px;
 }
 
-
 .table-wrapper {
   overflow-y: auto; /* Make table body scrollable */
   flex-grow: 1;
@@ -197,12 +188,12 @@
   width: 100%;
   border-collapse: collapse;
   /* Ensure fixed layout is active */
-  table-layout: fixed; 
+  table-layout: fixed;
 }
 
 .games-table tbody {
   /* Required for virtualizer absolute positioning context */
-  position: relative; 
+  position: relative;
 }
 
 .games-table th,
@@ -230,14 +221,12 @@
   border-bottom: 1px solid var(--colorNeutralForeground2);
 }
 
-
-
 /* Cell Styling for Name/Package */
 .name-package-cell {
   display: flex;
   flex-direction: column;
   line-height: 1.3; /* Adjust line height for spacing */
-   /* Ensure this wrapper itself handles overflow if needed, though td should handle it */
+  /* Ensure this wrapper itself handles overflow if needed, though td should handle it */
   overflow: hidden;
   /* flex: 1;
   width: 100%; */
@@ -258,7 +247,7 @@
   color: var(--colorNeutralForeground3); /* Grey color */
   font-family: monospace;
   margin-top: 2px; /* Small space between name and package */
-   /* Ensure truncation */
+  /* Ensure truncation */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -308,7 +297,10 @@
   border: 1px solid #dadce0;
   border-radius: 12px; /* More rounded */
   cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s;
 }
 
 .filter-buttons button:hover {
@@ -333,25 +325,21 @@
   font-weight: 600;
 }
 
-
- /* Standard hover for non-installed */
+/* Standard hover for non-installed */
 /* .row-installed:hover {
   background-color: var(--colorPaletteGreenBackground2);
 } */
- /* Standard hover for non-installed */
+/* Standard hover for non-installed */
 /* .row-update-available:hover {
   background-color: var(--colorPaletteGreenBackground2);
 } */
 
-
-.row-not-installed:hover, .row-installed:hover, .row-update-available:hover {
-  background-color: var(--colorNeutralBackground2); 
+.row-not-installed:hover,
+.row-installed:hover,
+.row-update-available:hover {
+  background-color: var(--colorNeutralBackground2);
   cursor: pointer;
 }
-
-
-
-
 
 /* Resizer Styles */
 .resizer {
@@ -379,21 +367,19 @@
   z-index: 0;
 }
 
-
-
 /* Cell Styling for Version Column (Added) */
 .version-cell {
   display: flex;
   flex-direction: column;
   justify-content: center; /* Align vertically */
   height: 100%;
-  line-height: 1.3; 
+  line-height: 1.3;
 }
 
 .list-version-main {
   font-weight: normal; /* Or match game-name-main if needed */
   font-size: 1em;
-   /* Ensure truncation if needed */
+  /* Ensure truncation if needed */
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -408,4 +394,3 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
