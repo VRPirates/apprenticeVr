@@ -205,12 +205,14 @@ export class DownloadProcessor {
           }
           return
         }
-
+        console.log(`[DownProc] Rclone output: ${data.toString()}`)
         outputBuffer += data.toString()
         const lines = outputBuffer.split(/\r\n|\n|\r/).filter((line) => line.length > 0)
 
         if (lines.length > 0) {
-          const lastLineComplete = /ETA \S+$/.test(lines[lines.length - 1])
+          const lastLineComplete =
+            transferLineRegex.test(lines[lines.length - 1]) &&
+            etaRegex.test(lines[lines.length - 1])
           const linesToProcess = lastLineComplete ? lines : lines.slice(0, -1)
           outputBuffer = lastLineComplete ? '' : lines[lines.length - 1]
 
