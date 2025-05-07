@@ -95,14 +95,13 @@ export interface GamesAPI {
   onExtractProgress: (callback: (progress: DownloadProgress) => void) => () => void
 }
 
-// Added Download Types Mirroring Main Process
 export type DownloadStatus =
   | 'Queued'
   | 'Downloading'
   | 'Completed'
   | 'Error'
   | 'Cancelled'
-  | 'Extracting' // Added Extracting status
+  | 'Extracting'
   | 'Installing'
   | 'InstallError'
 
@@ -120,6 +119,5 @@ export interface DownloadItem {
   thumbnailPath?: string
   speed?: string
   eta?: string
-  extractProgress?: number // Added extraction progress
+  extractProgress?: number
 }
-// -----------------------------------------

@@ -7,23 +7,22 @@ import {
   CardHeader,
   CardPreview,
   Spinner,
-  Body1, // For messages like "No devices found"
-  Title3, // For the card title
+  Body1,
+  Title3,
   makeStyles,
   tokens,
   shorthands,
-  Text // To display device ID/Type
-  // Badge // Removed unused import
+  Text
 } from '@fluentui/react-components'
 import {
-  DeviceMeetingRoomRegular, // Icon for devices
+  DeviceMeetingRoomRegular,
   PlugDisconnectedRegular,
-  ArrowClockwiseRegular as RefreshIcon, // Use a different icon for Refresh
-  BatteryChargeRegular, // Icon for Battery
-  StorageRegular, // Icon for Storage
-  DismissCircleRegular, // Icon for Disconnect
-  WarningRegular, // Icon for warnings (e.g., not a Quest device)
-  ErrorCircleRegular // Icon for error states (e.g., offline, unauthorized)
+  ArrowClockwiseRegular as RefreshIcon,
+  BatteryChargeRegular,
+  StorageRegular,
+  DismissCircleRegular,
+  WarningRegular,
+  ErrorCircleRegular
 } from '@fluentui/react-icons'
 
 interface DeviceListProps {
@@ -31,12 +30,11 @@ interface DeviceListProps {
   onConnected?: () => void
 }
 
-// Fluent UI Styles
 const useStyles = makeStyles({
   card: {
     width: '100%',
-    maxWidth: '600px', // Limit width
-    margin: 'auto' // Center the card
+    maxWidth: '600px',
+    margin: 'auto'
   },
   headerActions: {
     display: 'flex',
@@ -54,7 +52,7 @@ const useStyles = makeStyles({
     ':hover': {
       backgroundColor: tokens.colorNeutralBackground1Hover
     },
-    cursor: 'default' // Default cursor, connect button is clickable
+    cursor: 'default'
   },
   deviceInfo: {
     display: 'flex',
@@ -64,7 +62,7 @@ const useStyles = makeStyles({
   deviceText: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingHorizontalXXS // Added small gap for items within deviceText
+    gap: tokens.spacingHorizontalXXS
   },
   deviceId: {
     fontWeight: tokens.fontWeightSemibold
@@ -74,7 +72,6 @@ const useStyles = makeStyles({
     fontSize: tokens.fontSizeBase200
   },
   deviceDetailsLine: {
-    // For battery and storage
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalXS,
@@ -93,7 +90,7 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalXS,
-    color: tokens.colorPalettePumpkinBorderActive, // A warning color
+    color: tokens.colorPalettePumpkinBorderActive,
     fontSize: tokens.fontSizeBase200,
     marginTop: tokens.spacingVerticalXXS
   },
@@ -101,7 +98,7 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalXS,
-    color: tokens.colorPaletteRedBorderActive, // An error/status color
+    color: tokens.colorPaletteRedBorderActive,
     fontSize: tokens.fontSizeBase200,
     marginTop: tokens.spacingVerticalXXS
   }
@@ -120,7 +117,6 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
   } = useAdb()
   const styles = useStyles()
 
-  // Connect to a device and call onConnected callback if provided
   const handleConnect = async (serial: string): Promise<void> => {
     const success = await connectToDevice(serial)
     if (success && onConnected) {
@@ -173,7 +169,6 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
         {!error && devices.length > 0 && (
           <div>
             {' '}
-            {/* Use a simple div for the list for now */}
             {devices.map((device) => {
               const isCurrentDeviceConnected = selectedDevice === device.id && isConnected
               const isConnectable = device.type === 'device' || device.type === 'emulator'
@@ -232,7 +227,6 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
                       )}
                     </div>
                   </div>
-                  {/* Conditional Button: Connect / Connected / Disconnect */}
                   {isCurrentDeviceConnected ? (
                     <Button
                       icon={<DismissCircleRegular />}

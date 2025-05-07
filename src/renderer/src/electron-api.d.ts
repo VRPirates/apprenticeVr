@@ -1,8 +1,5 @@
 import { IpcRenderer } from 'electron'
-import { GameInfo, AdbAPI, DependencyStatus, DownloadItem } from './types/adb' // Import DownloadItem
-
-// REMOVE local DependencyStatus definition if present
-// interface DependencyStatus { ... }
+import { GameInfo, AdbAPI, DependencyStatus, DownloadItem } from './types/adb'
 
 declare global {
   interface Window {
@@ -37,11 +34,9 @@ declare global {
       onDependencyProgress: (
         callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void
       ) => () => void
-      onDependencySetupComplete: (
-        callback: (status: DependencyStatus) => void // Uses imported type
-      ) => () => void
+      onDependencySetupComplete: (callback: (status: DependencyStatus) => void) => () => void
       onDependencySetupError: (
-        callback: (errorInfo: { message: string; status: DependencyStatus }) => void // Uses imported type
+        callback: (errorInfo: { message: string; status: DependencyStatus }) => void
       ) => () => void
     }
   }

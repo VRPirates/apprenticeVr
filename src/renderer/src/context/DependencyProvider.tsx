@@ -14,15 +14,13 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
 
   useEffect(() => {
     console.log('DependencyProvider mounted. Requesting dependency initialization...')
-    // Request initialization from main process
-    window.api.initializeDependencies() // No await needed, fire-and-forget request
 
     // Setup listeners
     const removeProgressListener = window.api.onDependencyProgress((status, progressData) => {
       console.log('Received dependency progress:', progressData)
       setStatus(status)
       setProgress(progressData)
-      setError(null) // Clear error on progress
+      setError(null)
     })
 
     const removeCompleteListener = window.api.onDependencySetupComplete((finalStatus) => {
@@ -33,7 +31,6 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
         finalStatus.sevenZip.ready && finalStatus.rclone.ready && finalStatus.adb.ready
       setIsReady(allReady)
 
-      // Determine error message if not all ready
       let combinedError: string | null = null
       if (!allReady) {
         const errors: string[] = []
@@ -46,17 +43,18 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
       }
       setError(combinedError)
 
-      setProgress(null) // Clear progress
+      setProgress(null)
     })
 
     const removeErrorListener = window.api.onDependencySetupError((errorInfo) => {
       console.error('Dependency setup error:', errorInfo)
       setStatus(errorInfo.status)
       setIsReady(false)
-      // Simplify error message here, completion listener provides details
       setError(errorInfo.message || 'Unknown dependency setup error')
-      setProgress(null) // Clear progress
+      setProgress(null)
     })
+
+    window.api.initializeDependencies() // No await needed, fire-and-forget request
 
     return () => {
       console.log('DependencyProvider unmounting, removing listeners.')
@@ -64,7 +62,7 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
       removeCompleteListener()
       removeErrorListener()
     }
-  }, []) // Run only once on mount
+  }, [])
 
   const value: DependencyContextType = {
     isReady,

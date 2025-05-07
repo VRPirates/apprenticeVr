@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { AdbProvider } from '../context/AdbProvider'
 import { GamesProvider } from '../context/GamesProvider'
 import DeviceList from './DeviceList'
@@ -73,7 +73,6 @@ const useStyles = makeStyles({
   }
 })
 
-// Define props for the inner MainContent component
 interface MainContentProps {
   currentView: AppView
   onDeviceConnected: () => void
@@ -81,7 +80,6 @@ interface MainContentProps {
   onBackToDeviceList: () => void
 }
 
-// Inner component that consumes the DependencyContext
 const MainContent: React.FC<MainContentProps> = ({
   currentView,
   onDeviceConnected,
@@ -96,15 +94,12 @@ const MainContent: React.FC<MainContentProps> = ({
     status: dependencyStatus
   } = useDependency()
 
-  // Render function based on view
   const renderCurrentView = (): React.ReactNode => {
     switch (currentView) {
-      case AppView.DEVICE_LIST:
-        return <DeviceList onConnected={onDeviceConnected} onSkip={onSkipConnection} />
       case AppView.GAMES:
         return <GamesView onBackToDevices={onBackToDeviceList} />
+      case AppView.DEVICE_LIST:
       default:
-        // Fallback to Device List if view is unknown
         return <DeviceList onConnected={onDeviceConnected} onSkip={onSkipConnection} />
     }
   }
@@ -113,7 +108,6 @@ const MainContent: React.FC<MainContentProps> = ({
     if (dependencyError) {
       const errorDetails: string[] = []
       if (!dependencyStatus?.sevenZip.ready) errorDetails.push('7zip')
-      // Add rclone check later
       const failedDeps = errorDetails.length > 0 ? ` (${errorDetails.join(', ')})` : ''
 
       return (
@@ -122,22 +116,18 @@ const MainContent: React.FC<MainContentProps> = ({
             Dependency Error{failedDeps}
           </Text>
           <Text>{dependencyError}</Text>
-          {/* Add instructions or retry logic? */}
         </div>
       )
     }
-    // Show progress if available - only rclone needs downloading/extracting now
     let progressText = 'Checking requirements...'
     console.log('dependencyStatus', dependencyStatus)
     console.log('dependencyProgress', dependencyProgress)
     if (dependencyStatus?.rclone.downloading && dependencyProgress) {
-      // Show specific rclone progress only if it's downloading
       progressText = `Setting up ${dependencyProgress.name}... ${dependencyProgress.percentage}%`
       if (dependencyProgress.name === 'rclone-extract') {
         progressText = `Extracting ${dependencyProgress.name.replace('-extract', '')}...`
       }
     } else if (dependencyStatus?.adb.downloading && dependencyProgress) {
-      // Show specific adb progress if it's downloading/extracting
       progressText = `Setting up ${dependencyProgress.name}... ${dependencyProgress.percentage}%`
       if (dependencyProgress.name === 'adb-extract') {
         progressText = `Extracting ${dependencyProgress.name.replace('-extract', '')}...`
@@ -146,12 +136,10 @@ const MainContent: React.FC<MainContentProps> = ({
       dependencyStatus &&
       (!dependencyStatus.sevenZip.ready ||
         !dependencyStatus.rclone.ready ||
-        !dependencyStatus.adb.ready) // Added adb check
+        !dependencyStatus.adb.ready)
     ) {
-      // Generic checking message if not downloading but still not ready
       progressText = 'Setting up requirements...'
     }
-    // If all deps are ready, this block is skipped anyway by the `if (!dependenciesReady)` check above
 
     return (
       <div className={styles.loadingOrErrorContainer}>
@@ -161,7 +149,6 @@ const MainContent: React.FC<MainContentProps> = ({
     )
   }
 
-  // Dependencies are ready, render the rest of the app providers here
   return (
     <AdbProvider>
       <GamesProvider>{renderCurrentView()}</GamesProvider>
@@ -171,7 +158,9 @@ const MainContent: React.FC<MainContentProps> = ({
 
 const AppLayout: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DEVICE_LIST)
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(
+    window.matchMedia('(prefers-color-scheme: dark)').matches
+  )
   const [isDownloadsOpen, setIsDownloadsOpen] = useState(false)
   const mountNodeRef = useRef<HTMLDivElement>(null)
   const styles = useStyles()
@@ -188,6 +177,21 @@ const AppLayout: React.FC = () => {
   const handleBackToDeviceList = (): void => {
     setCurrentView(AppView.DEVICE_LIST)
   }
+
+  useEffect(() => {
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e: MediaQueryListEvent): void => {
+      setIsDarkMode(e.matches)
+    }
+
+    darkModeMediaQuery.addEventListener('change', handleChange)
+    // Set initial state
+    setIsDarkMode(darkModeMediaQuery.matches)
+
+    return () => {
+      darkModeMediaQuery.removeEventListener('change', handleChange)
+    }
+  }, [])
 
   const currentTheme = isDarkMode ? teamsDarkTheme : teamsLightTheme
 
@@ -258,7 +262,6 @@ const AppLayout: React.FC = () => {
   }
 
   const { icon: downloadButtonIcon, text: downloadButtonText } = getDownloadButtonContent()
-  // --- Calculate Download Summary --- END
 
   return (
     <FluentProvider theme={currentTheme}>
@@ -278,7 +281,6 @@ const AppLayout: React.FC = () => {
                   }}
                   icon={downloadButtonIcon}
                   style={{
-                    // monospace font
                     fontFamily: 'monospace'
                   }}
                 >

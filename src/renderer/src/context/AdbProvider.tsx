@@ -42,7 +42,6 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
   // Initialize device tracking when provider mounts
   useEffect(() => {
     if (!isInitialLoadComplete) return
-    // Start device tracking
     window.api.adb.startTrackingDevices()
 
     // Device listeners
@@ -68,8 +67,6 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     })
 
     const removeDeviceChanged = window.api.adb.onDeviceChanged((device) => {
-      // setDevices((prevDevices) => prevDevices.map((d) => (d.id === device.id ? device : d)))
-      // Implement upsert logic for changed devices
       setDevices((prevDevices) => {
         const existingDeviceIndex = prevDevices.findIndex((d) => d.id === device.id)
         if (existingDeviceIndex !== -1) {
@@ -91,7 +88,6 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     // Initial device load
     refreshDevices()
 
-    // Cleanup listeners when provider unmounts
     return () => {
       window.api.adb.stopTrackingDevices()
       removeDeviceAdded()
@@ -129,7 +125,6 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     }
   }, [isConnected, selectedDevice, loadPackages])
 
-  // Load available devices
   const refreshDevices = async (): Promise<void> => {
     try {
       setIsLoading(true)
@@ -144,7 +139,6 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     }
   }
 
-  // Connect to a device
   const connectToDevice = async (serial: string): Promise<boolean> => {
     try {
       setError(null)
@@ -164,7 +158,6 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     }
   }
 
-  // Disconnect from device
   const disconnectDevice = (): void => {
     setSelectedDevice(null)
     setIsConnected(false)

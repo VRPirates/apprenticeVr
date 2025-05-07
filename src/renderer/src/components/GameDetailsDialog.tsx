@@ -16,7 +16,6 @@ import {
   Image,
   Badge,
   Divider,
-  // ProgressBar, // Likely not needed here anymore, handled in table view
   Spinner
 } from '@fluentui/react-components'
 import {

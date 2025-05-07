@@ -6,7 +6,6 @@ import { execa } from 'execa'
 import * as yauzl from 'yauzl'
 import { ServiceStatus } from './service'
 
-// Type definitions
 type ProgressCallback = (
   status: DependencyStatus,
   progress: { name: string; percentage: number }
@@ -32,7 +31,6 @@ export interface DependencyStatus {
   adb: AdbDependencyInfo
 }
 
-// Simple interface for GitHub Release Asset
 interface GitHubAsset {
   name: string
   browser_download_url: string
@@ -47,13 +45,11 @@ class DependencyService {
 
   constructor() {
     this.binDir = join(app.getPath('userData'), 'bin')
-    // Path to bundled binaries - needs to handle packaged vs. dev environments
     this.resourcesBinDir = app.isPackaged
-      ? join(process.resourcesPath, 'bin') // In packaged app, 'resources/bin'
-      : join(app.getAppPath(), 'resources', 'bin') // In dev, 'projectRoot/resources/bin'
+      ? join(process.resourcesPath, 'bin')
+      : join(app.getAppPath(), 'resources', 'bin')
 
     this.status = {
-      // 7zip status simplified - only checks existence
       sevenZip: { ready: false, path: null, error: null },
       rclone: { ready: false, path: null, error: null, downloading: false },
       adb: { ready: false, path: null, error: null, downloading: false }
@@ -76,13 +72,10 @@ class DependencyService {
     // Ensure userData bin directory exists for downloads like rclone
     await fsPromises.mkdir(this.binDir, { recursive: true })
 
-    // Check for bundled 7zip
     this.checkBundled7zip()
 
-    // Check or download rclone (this remains the same)
     await this.checkOrDownloadRclone(progressCallback)
 
-    // Check or download adb
     await this.checkOrDownloadAdb(progressCallback)
 
     console.log('DependencyService initialization finished.')
@@ -174,8 +167,6 @@ class DependencyService {
     this.status.sevenZip.path = target7zPath // Update status to point to the new path
 
     try {
-      // this.binDir is created in initialize(), so no need for mkdirSync here for it.
-
       // Check if the binary needs to be copied
       if (!existsSync(target7zPath)) {
         console.log(`Copying 7zip from ${source7zPath} to ${target7zPath}`)

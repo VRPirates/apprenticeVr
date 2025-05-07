@@ -49,10 +49,6 @@ function createWindow(): void {
   mainWindow.on('ready-to-show', () => {
     if (mainWindow) {
       mainWindow.show()
-      // Don't initialize here anymore, do it after window creation in whenReady
-      // gameService.initialize().catch((err) => {
-      //   console.error('Error initializing gameService:', err)
-      // })
     }
   })
 

@@ -36,22 +36,17 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
         }
       })
 
-    // Setup listener for updates
     const removeUpdateListener = window.api.downloads.onQueueUpdated((updatedQueue) => {
-      // console.log('Received download queue update:', updatedQueue) // Debug log
       console.log('[DownloadProvider] Received queue update:', JSON.stringify(updatedQueue))
       setQueue(updatedQueue)
-      // Clear error on update, assuming update means things are working
       setError(null)
-      // Might want to set isLoading based on whether anything is Downloading?
-      // setIsLoading(updatedQueue.some(item => item.status === 'Downloading'));
     })
 
     return () => {
       isMounted = false
       removeUpdateListener()
     }
-  }, []) // Run only once on mount
+  }, [])
 
   const addToQueue = useCallback(async (game: GameInfo): Promise<boolean> => {
     console.log(`Context: Adding ${game.releaseName} to queue...`)
@@ -83,49 +78,41 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
     }
   }, [])
 
-  // Renamed from pauseDownload
   const cancelDownload = useCallback((releaseName: string): void => {
     console.log(`Context: Cancelling ${releaseName}...`)
     try {
-      window.api.downloads.cancel(releaseName) // Use new cancel API
+      window.api.downloads.cancel(releaseName)
     } catch (err) {
       console.error('Error cancelling download via IPC:', err)
       setError(`Failed to cancel download.`)
     }
   }, [])
 
-  // Renamed from resumeDownload
   const retryDownload = useCallback((releaseName: string): void => {
     console.log(`Context: Retrying ${releaseName}...`)
     try {
-      window.api.downloads.retry(releaseName) // Use new retry API
+      window.api.downloads.retry(releaseName)
     } catch (err) {
       console.error('Error retrying download via IPC:', err)
       setError(`Failed to retry download.`)
     }
   }, [])
 
-  // --- Add deleteFiles function --- START
   const deleteFiles = useCallback(async (releaseName: string): Promise<boolean> => {
     console.log(`Context: Deleting downloaded files for ${releaseName}...`)
-    setIsLoading(true) // Optional: Indicate loading state during deletion
     try {
       const success = await window.api.downloads.deleteFiles(releaseName)
       if (!success) {
         console.warn(`Context: Failed to delete files for ${releaseName} (backend error).`)
         setError('Failed to delete downloaded files.')
       }
-      // Queue update will be triggered by the main process via onQueueUpdated
       return success
     } catch (err) {
       console.error('Error deleting downloaded files via IPC:', err)
       setError('Failed to delete downloaded files.')
       return false
-    } finally {
-      setIsLoading(false) // Reset loading state
     }
   }, [])
-  // --- Add deleteFiles function --- END
 
   const value: DownloadContextType = {
     queue,
@@ -135,7 +122,7 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
     removeFromQueue,
     cancelDownload,
     retryDownload,
-    deleteFiles // <<< Pass deleteFiles
+    deleteFiles
   }
 
   return <DownloadContext.Provider value={value}>{children}</DownloadContext.Provider>

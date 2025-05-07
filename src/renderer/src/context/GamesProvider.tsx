@@ -14,7 +14,6 @@ const parseVersion = (versionString: string): number | null => {
   const match = versionString.match(/\d+/g) // Find all sequences of digits
   if (!match) return null
   // Join digits and parse as integer (handles versions like "1.2.3" -> 123)
-  // Adjust this logic if version comparison needs to be more sophisticated
   try {
     return parseInt(match.join(''), 10)
   } catch (e) {
@@ -54,7 +53,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
     console.log(`Checking versions for ${installedGamePackages.length} installed packages...`)
 
-    // Use Promise.allSettled to fetch all versions concurrently
     const results = await Promise.allSettled(
       installedGamePackages.map(async (pkgName) => {
         try {
@@ -65,7 +63,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
         } catch (err) {
           console.error(`Error fetching version code for ${pkgName}:`, err)
         }
-        return null // Indicate failure or no version code found
+        return null
       })
     )
 
@@ -122,8 +120,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
       const syncTime = await window.api.games.getLastSyncTime()
       setLastSyncTime(syncTime ? new Date(syncTime) : null)
-      // Reset device versions when reloading game list? Maybe not necessary.
-      // setDeviceVersionCodes({});
     } catch (err) {
       console.error('Error loading games:', err)
       setError('Failed to load games')
@@ -159,7 +155,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   }, [])
 
   useEffect(() => {
-    // ... (keep progress listener setup)
     const removeDownloadProgressListener = window.api.games.onDownloadProgress((progress) => {
       if (progress.type === 'meta') {
         setDownloadProgress(progress.progress)

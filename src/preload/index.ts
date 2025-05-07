@@ -4,7 +4,6 @@ import { GameInfo } from '../main/services/gameService'
 import { DependencyStatus } from '../renderer/src/types/adb'
 import { DownloadItem } from '../main/services/download/types'
 
-// Type definitions (consider moving to a shared types file)
 interface DeviceInfo {
   id: string
   type: string
@@ -20,7 +19,6 @@ interface ExtractProgress {
   progress: number
 }
 
-// Custom APIs for renderer
 const api = {
   initializeDependencies: (): void => ipcRenderer.send('initialize-dependencies'),
   initializeGameService: (): Promise<void> => ipcRenderer.invoke('initialize-game-service'),

@@ -14,7 +14,7 @@ import {
   DismissRegular as CloseIcon,
   ArrowCounterclockwiseRegular as RetryIcon
 } from '@fluentui/react-icons'
-import { formatDistanceToNow } from 'date-fns' // For relative time
+import { formatDistanceToNow } from 'date-fns'
 import placeholderImage from '../assets/images/game-placeholder.png'
 
 const useStyles = makeStyles({
@@ -172,7 +172,6 @@ const DownloadsView: React.FC = () => {
                     )}
                   </>
                 )}
-                {/* Added InstallError Display */}
                 {item.status === 'InstallError' && (
                   <>
                     <Text className={styles.errorText}>Install Error</Text>
