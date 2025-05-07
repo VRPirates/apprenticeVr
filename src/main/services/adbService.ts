@@ -29,13 +29,13 @@ const QUEST_MODELS = [
   'eureka',
   'panther',
   'quest',
-  'vr',
   'pacific',
   'sekiu'
-]
+] as const
+type QuestModel = (typeof QUEST_MODELS)[number]
 
 // Mapping from codename (ro.product.device) to friendly name
-const QUEST_MODEL_NAMES: { [key: string]: string } = {
+const QUEST_MODEL_NAMES: Record<QuestModel, string> = {
   pacific: 'Oculus Go',
   monterey: 'Oculus Quest',
   hollywood: 'Meta Quest 2',
@@ -44,7 +44,6 @@ const QUEST_MODEL_NAMES: { [key: string]: string } = {
   panther: 'Meta Quest 3S / Lite', // Assuming based on user input
   sekiu: 'Meta XR Simulator',
   quest: 'Meta Quest (Unknown)' // Fallback for generic 'quest'
-  // 'vr' doesn't map to a specific product, handled below
 }
 
 class AdbService extends EventEmitter {
@@ -72,28 +71,24 @@ class AdbService extends EventEmitter {
 
     try {
       // Get product model
-      const modelOutput = await device.shell('getprop ro.product.device')
-      const modelResult = (await Adb.util.readAll(modelOutput)).toString().trim().toLowerCase()
+      const manufacturerOutput = await device.shell('getprop ro.product.manufacturer')
+      const manufacturerResult = (await Adb.util.readAll(manufacturerOutput))
+        .toString()
+        .trim()
+        .toLowerCase()
 
-      const isQuestDevice = QUEST_MODELS.includes(modelResult)
-      if (!isQuestDevice) {
-        console.log(
-          `Device ${serial} (model: ${modelResult}) is not a Quest device. Skipping detailed fetch.`
-        )
-        return {
-          model: modelResult,
-          isQuestDevice: false,
-          batteryLevel: null,
-          storageTotal: null,
-          storageFree: null,
-          friendlyModelName: null
-        }
-      }
+      const modelOutput = await device.shell('getprop ro.product.device')
+      const modelResult = (await Adb.util.readAll(modelOutput))
+        .toString()
+        .trim()
+        .toLowerCase() as QuestModel
+
+      const isQuestDevice = manufacturerResult === 'oculus' && QUEST_MODELS.includes(modelResult)
 
       // Determine friendly name
-      const friendlyModelName =
-        QUEST_MODEL_NAMES[modelResult] ||
-        (modelResult === 'vr' ? 'Meta VR Device (Generic)' : `Unknown Quest (${modelResult})`)
+      const friendlyModelName = isQuestDevice
+        ? QUEST_MODEL_NAMES[modelResult]
+        : `Unknown Device (${manufacturerResult} ${modelResult})`
 
       // Get battery level
       let batteryLevel: number | null = null
@@ -152,17 +147,35 @@ class AdbService extends EventEmitter {
       const extendedDevices: ExtendedDevice[] = []
 
       for (const device of devices) {
+        // For 'device' and 'emulator' types, always try to get details.
+        // For other types (offline, unauthorized, unknown), create a basic ExtendedDevice.
         if (device.type === 'device' || device.type === 'emulator') {
-          // Process only connected devices/emulators
           const details = await this.getDeviceDetails(device.id)
-          if (details && details.isQuestDevice) {
-            extendedDevices.push({ ...device, ...details })
-          } else if (details) {
-            // Optionally, you could still include non-Quest devices but mark them
-            console.log(
-              `Device ${device.id} (model: ${details.model}) is not a Quest device. Not adding to list.`
-            )
-          }
+          // Include the device even if details are null or it's not a Quest device.
+          // The 'isQuestDevice' field in 'details' (or lack thereof) will guide the UI.
+          extendedDevices.push({
+            ...device,
+            ...(details || {
+              model: null,
+              isQuestDevice: false,
+              batteryLevel: null,
+              storageTotal: null,
+              storageFree: null,
+              friendlyModelName: null
+            })
+          })
+        } else {
+          // For offline, unauthorized, unknown devices, we don't fetch extended details.
+          // We still want to list them.
+          extendedDevices.push({
+            ...device,
+            model: null,
+            isQuestDevice: false, // Not a connectable Quest device in this state
+            batteryLevel: null,
+            storageTotal: null,
+            storageFree: null,
+            friendlyModelName: null
+          })
         }
       }
       return extendedDevices
@@ -188,38 +201,78 @@ class AdbService extends EventEmitter {
       console.log('Device added:', device)
       if (device.type === 'device' || device.type === 'emulator') {
         const details = await this.getDeviceDetails(device.id)
-        if (details && details.isQuestDevice) {
-          const extendedDevice: ExtendedDevice = { ...device, ...details }
-          mainWindow.webContents.send('device-added', extendedDevice)
-        } else {
-          console.log(
-            `Tracked device ${device.id} (model: ${details?.model}) is not a Quest device or details fetch failed. Not sending 'device-added'.`
-          )
+        const extendedDevice: ExtendedDevice = {
+          ...device,
+          ...(details || {
+            model: null,
+            isQuestDevice: false,
+            batteryLevel: null,
+            storageTotal: null,
+            storageFree: null,
+            friendlyModelName: null
+          })
         }
+        mainWindow.webContents.send('device-added', extendedDevice)
+      } else {
+        // For 'offline', 'unauthorized', 'unknown' devices
+        const extendedDevice: ExtendedDevice = {
+          ...device,
+          model: null,
+          isQuestDevice: false,
+          batteryLevel: null,
+          storageTotal: null,
+          storageFree: null,
+          friendlyModelName: null
+        }
+        mainWindow.webContents.send('device-added', extendedDevice)
       }
     })
 
     this.deviceTracker.on('remove', (device) => {
       console.log('Device removed:', device)
-      // No need to fetch details for removal, just pass the ID
-      mainWindow.webContents.send('device-removed', { id: device.id })
+      // Send a basic device object, details aren't relevant for removal
+      mainWindow.webContents.send('device-removed', {
+        id: device.id,
+        type: device.type,
+        model: null,
+        isQuestDevice: false,
+        batteryLevel: null,
+        storageTotal: null,
+        storageFree: null,
+        friendlyModelName: null
+      } as ExtendedDevice) // Cast to ensure structure, though frontend mainly uses ID
     })
 
     this.deviceTracker.on('change', async (device: AdbKitDevice) => {
       console.log('Device changed:', device)
+      // This event typically signifies a device coming online (e.g., from 'offline' to 'device')
+      // or a device's properties changing.
       if (device.type === 'device' || device.type === 'emulator') {
         const details = await this.getDeviceDetails(device.id)
-        if (details && details.isQuestDevice) {
-          const extendedDevice: ExtendedDevice = { ...device, ...details }
-          mainWindow.webContents.send('device-changed', extendedDevice)
-        } else {
-          console.log(
-            `Tracked device ${device.id} (model: ${details?.model}) changed but is not a Quest device or details fetch failed. Not sending 'device-changed'.`
-          )
-          // If it was previously a Quest device and now it's not (e.g., model changed, or error), we might want to send a remove event
-          // Or, ensure the frontend handles devices that might lose their "Quest" status.
-          // For now, we just don't send an update if it's not a recognized Quest device.
+        const extendedDevice: ExtendedDevice = {
+          ...device,
+          ...(details || {
+            model: null,
+            isQuestDevice: false,
+            batteryLevel: null,
+            storageTotal: null,
+            storageFree: null,
+            friendlyModelName: null
+          })
         }
+        mainWindow.webContents.send('device-changed', extendedDevice)
+      } else {
+        // Handle changes for devices becoming offline, unauthorized, etc.
+        const extendedDevice: ExtendedDevice = {
+          ...device,
+          model: null,
+          isQuestDevice: false,
+          batteryLevel: null,
+          storageTotal: null,
+          storageFree: null,
+          friendlyModelName: null
+        }
+        mainWindow.webContents.send('device-changed', extendedDevice)
       }
     })
 

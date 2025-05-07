@@ -13,19 +13,6 @@ interface VrpConfig {
   lastSync?: Date
 }
 
-// GameInfo = {
-//   id: packageName || gameName.replace(/\s+/g, '-').toLowerCase(),
-//   name: gameName,
-//   packageName,
-//   version: versionCode,
-//   size,
-//   lastUpdated,
-//   rating: parseFloat(rating) || 0,
-//   ratingCount: parseInt(ratingCount) || 0,
-//   releaseName,
-//   downloads: parseInt(downloads) || 0,
-//   thumbnailPath: thumbnailPath || undefined
-// }
 export interface GameInfo {
   id: string
   name: string

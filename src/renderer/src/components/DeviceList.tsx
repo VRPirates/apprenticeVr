@@ -21,7 +21,9 @@ import {
   ArrowClockwiseRegular as RefreshIcon, // Use a different icon for Refresh
   BatteryChargeRegular, // Icon for Battery
   StorageRegular, // Icon for Storage
-  DismissCircleRegular // Icon for Disconnect
+  DismissCircleRegular, // Icon for Disconnect
+  WarningRegular, // Icon for warnings (e.g., not a Quest device)
+  ErrorCircleRegular // Icon for error states (e.g., offline, unauthorized)
 } from '@fluentui/react-icons'
 
 interface DeviceListProps {
@@ -61,7 +63,8 @@ const useStyles = makeStyles({
   },
   deviceText: {
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    gap: tokens.spacingHorizontalXXS // Added small gap for items within deviceText
   },
   deviceId: {
     fontWeight: tokens.fontWeightSemibold
@@ -85,6 +88,22 @@ const useStyles = makeStyles({
     textAlign: 'center',
     padding: tokens.spacingVerticalXXL,
     color: tokens.colorNeutralForeground2
+  },
+  warningText: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXS,
+    color: tokens.colorPalettePumpkinBorderActive, // A warning color
+    fontSize: tokens.fontSizeBase200,
+    marginTop: tokens.spacingVerticalXXS
+  },
+  deviceStatusText: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXS,
+    color: tokens.colorPaletteRedBorderActive, // An error/status color
+    fontSize: tokens.fontSizeBase200,
+    marginTop: tokens.spacingVerticalXXS
   }
 })
 
@@ -157,19 +176,46 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
             {/* Use a simple div for the list for now */}
             {devices.map((device) => {
               const isCurrentDeviceConnected = selectedDevice === device.id && isConnected
+              const isConnectable = device.type === 'device' || device.type === 'emulator'
+              const isKnownQuestDevice = device.isQuestDevice
+
+              let deviceStatusMessage = ''
+              if (device.type === 'offline') deviceStatusMessage = 'Offline'
+              else if (device.type === 'unauthorized')
+                deviceStatusMessage = 'Unauthorized - Check device'
+              else if (device.type === 'unknown') deviceStatusMessage = 'Unknown State'
+
               return (
                 <div key={device.id} className={styles.deviceItem}>
                   <div className={styles.deviceInfo}>
                     <DeviceMeetingRoomRegular fontSize={24} />
                     <div className={styles.deviceText}>
                       <Text weight="semibold" className={styles.deviceId}>
-                        {/* Display friendly name if available, otherwise fallback to model or ID */}
                         {device.friendlyModelName || device.model || device.id}
                       </Text>
                       <Text size={200} className={styles.deviceType}>
-                        {/* Show ID as secondary info if friendly name was shown */}
                         {device.friendlyModelName ? device.id : device.type}
+                        {!isConnectable && deviceStatusMessage && ` - ${deviceStatusMessage}`}
                       </Text>
+
+                      {/* Warning for connectable non-Quest devices */}
+                      {isConnectable && !isKnownQuestDevice && (
+                        <div className={styles.warningText}>
+                          <WarningRegular fontSize={16} />
+                          <Text size={200}>
+                            Not a recognized Quest device. Connection may have unintended results.
+                          </Text>
+                        </div>
+                      )}
+
+                      {/* Status for non-connectable devices */}
+                      {!isConnectable && deviceStatusMessage && (
+                        <div className={styles.deviceStatusText}>
+                          <ErrorCircleRegular fontSize={16} />
+                          <Text size={200}>{deviceStatusMessage}</Text>
+                        </div>
+                      )}
+
                       {device.batteryLevel !== null && (
                         <div className={styles.deviceDetailsLine}>
                           <BatteryChargeRegular fontSize={16} />
@@ -179,10 +225,9 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
                       {device.storageFree !== null && device.storageTotal !== null && (
                         <div className={styles.deviceDetailsLine}>
                           <StorageRegular fontSize={16} />
-                          {/* Ensure text renders correctly */}
-                          <Text
-                            size={200}
-                          >{`${device.storageFree} free / ${device.storageTotal} total`}</Text>
+                          <Text size={200}>
+                            {`${device.storageFree} free / ${device.storageTotal} total`}
+                          </Text>
                         </div>
                       )}
                     </div>
@@ -191,20 +236,25 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
                   {isCurrentDeviceConnected ? (
                     <Button
                       icon={<DismissCircleRegular />}
-                      onClick={disconnectDevice} // Call disconnect function
+                      onClick={disconnectDevice}
                       appearance="outline"
                       aria-label="Disconnect device"
                     >
                       Disconnect
                     </Button>
-                  ) : (
+                  ) : isConnectable ? (
                     <Button
                       icon={<PlugDisconnectedRegular />}
                       appearance="outline"
                       onClick={() => handleConnect(device.id)}
-                      disabled={isLoading} // Only disable connect if loading, not if already connected
+                      disabled={isLoading}
                     >
                       Connect
+                    </Button>
+                  ) : (
+                    // No button for non-connectable devices, or a disabled one if preferred
+                    <Button icon={<PlugDisconnectedRegular />} appearance="outline" disabled={true}>
+                      Cannot Connect
                     </Button>
                   )}
                 </div>
