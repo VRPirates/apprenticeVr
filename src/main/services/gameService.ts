@@ -192,12 +192,7 @@ class GameService {
       })
       this.vrpConfig = response.data as VrpConfig
 
-      console.log(
-        'VRP Config loaded - baseUri:',
-        !!this.vrpConfig?.baseUri,
-        'password:',
-        !!this.vrpConfig?.password
-      )
+      console.log('VRP Config loaded - baseUri:', !!this.vrpConfig?.baseUri)
 
       await this.saveConfig()
     } catch (error) {

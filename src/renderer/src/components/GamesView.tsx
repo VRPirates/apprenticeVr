@@ -483,7 +483,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         enableResizing: false
       }
     ],
-    [downloadStatusMap, styles, tokens]
+    [downloadStatusMap, styles]
   )
 
   const table = useReactTable({

@@ -99,7 +99,6 @@ export interface GamesAPI {
 export type DownloadStatus =
   | 'Queued'
   | 'Downloading'
-  // | 'Paused' // Removed Paused
   | 'Completed'
   | 'Error'
   | 'Cancelled'
