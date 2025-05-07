@@ -2,11 +2,11 @@ name: Create Release
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*' # Trigger on version tags like v1.0.0, v1.2.3, etc.
+  # push:
+  #   branches:
+  #     - main
+  #   tags:
+  #     - 'v*.*.*' # Trigger on version tags like v1.0.0, v1.2.3, etc.
 
 jobs:
   build:
