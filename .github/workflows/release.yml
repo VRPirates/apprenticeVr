@@ -27,7 +27,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8 # Specify your project's pnpm version or let it use latest
+          version: 9 # Updated from version 8
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
