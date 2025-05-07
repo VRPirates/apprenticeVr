@@ -50,16 +50,16 @@ jobs:
           OUTPUT_DIR="dist"
 
           if [ "$RUNNER_OS" == "Windows" ]; then
-            echo "BUILD_COMMAND=pnpm run build && electron-builder --win --publish never" >> $GITHUB_OUTPUT
-            # Example: dist/apprenticevr Setup 1.0.0.exe
+            echo "BUILD_COMMAND=pnpm run build && pnpm exec electron-builder --win --publish never" >> $GITHUB_OUTPUT
+            # Example: dist/apprenticevr Setup ${VERSION}.exe
             echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME} Setup ${VERSION}.exe" >> $GITHUB_OUTPUT
           elif [ "$RUNNER_OS" == "macOS" ]; then
-            echo "BUILD_COMMAND=pnpm run build && electron-builder --mac --publish never" >> $GITHUB_OUTPUT
-            # Example: dist/apprenticevr-1.0.0.dmg. Using a glob for flexibility with arch in filename.
+            echo "BUILD_COMMAND=pnpm run build && pnpm exec electron-builder --mac --publish never" >> $GITHUB_OUTPUT
+            # Example: dist/apprenticevr-${VERSION}*.dmg. Using a glob for flexibility with arch in filename.
             echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}*.dmg" >> $GITHUB_OUTPUT
           elif [ "$RUNNER_OS" == "Linux" ]; then
-            echo "BUILD_COMMAND=pnpm run build && electron-builder --linux --publish never" >> $GITHUB_OUTPUT
-            # Example: dist/apprenticevr-1.0.0.AppImage. Using a glob for flexibility.
+            echo "BUILD_COMMAND=pnpm run build && pnpm exec electron-builder --linux --publish never" >> $GITHUB_OUTPUT
+            # Example: dist/apprenticevr-${VERSION}*.AppImage. Using a glob for flexibility.
             echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}*.AppImage" >> $GITHUB_OUTPUT
           fi
 
