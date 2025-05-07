@@ -2,9 +2,9 @@ name: Create Release
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - main
+  push:
+    branches:
+      - main
   #   tags:
   #     - 'v*.*.*' # Trigger on version tags like v1.0.0, v1.2.3, etc.
 
@@ -101,10 +101,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }} # Uses the tag that triggered the workflow
-          name: Release ${{ github.ref_name }} # e.g., "Release v1.0.0"
+          tag_name: v${{ needs.build.outputs.package_version }}
+          name: Release v${{ needs.build.outputs.package_version }}
           body: |
-            Automated release for version ${{ github.ref_name }}.
+            Automated release for version ${{ needs.build.outputs.package_version }}.
 
             **Assets:**
             - Windows Installer
