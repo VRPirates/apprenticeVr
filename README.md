@@ -47,6 +47,25 @@ Here are some glimpses of ApprenticeVR in action:
 **Downloads Manager (Dark Mode)**
 ![Downloads Manager - Dark Mode](screenshots/04_download_dark.png)
 
+### macOS Specifics
+
+**Important:** Since the application is not signed by an Apple Developer ID, when you first try to open `apprenticevr.app` on macOS after building or downloading it, you might encounter an error message stating: `"apprenticeVR is damaged and can't be opened. You should move it to the Trash."`
+
+This error occurs because macOS Gatekeeper flags applications downloaded from the internet or built by unidentified developers as potentially unsafe. The `com.apple.quarantine` extended attribute is added to the application bundle by the system.
+
+To resolve this, you can remove this extended attribute by running the following command in your Terminal:
+
+```bash
+xattr -c /Applications/apprenticevr.app
+```
+
+**Note:**
+*   You might need to adjust the path `/Applications/apprenticevr.app` if you have placed the application in a different location.
+*   The `-c` flag in the `xattr` command stands for "clear," and it removes all extended attributes from the specified file or application bundle. By removing the quarantine attribute, you are essentially telling macOS that you trust this application.
+
+After running this command, you should be able to open ApprenticeVR without any issues.
+
+
 ## Recommended IDE Setup
 
 - [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
