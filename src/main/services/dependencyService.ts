@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { join } from 'path'
-import { promises as fsPromises, existsSync, createWriteStream, chmodSync } from 'fs'
+import { promises as fsPromises, existsSync, createWriteStream, chmodSync, copyFileSync } from 'fs'
 import axios, { AxiosProgressEvent } from 'axios'
 import { execa } from 'execa'
 import * as yauzl from 'yauzl'
@@ -141,36 +141,68 @@ class DependencyService {
 
   // New method to check for bundled 7zip
   private checkBundled7zip(): void {
-    const expectedPath = this.get7zPath()
-    this.status.sevenZip.path = expectedPath // Store the calculated path
+    const source7zPath = this.get7zPath() // Path in resources
+    this.status.sevenZip.error = null // Clear previous errors
 
-    if (!expectedPath) {
+    if (!source7zPath) {
       this.status.sevenZip.ready = false
-      this.status.sevenZip.error = `Unsupported platform: ${process.platform}`
+      this.status.sevenZip.error = `Unsupported platform for bundled 7zip: ${process.platform}`
+      console.error(this.status.sevenZip.error)
       return
     }
 
-    if (existsSync(expectedPath)) {
-      console.log(`Bundled 7zip found at ${expectedPath}`)
-      this.status.sevenZip.ready = true
-      this.status.sevenZip.error = null
+    if (!existsSync(source7zPath)) {
+      this.status.sevenZip.ready = false
+      this.status.sevenZip.error = `Bundled 7zip NOT found at source path: ${source7zPath}. Check app packaging.`
+      console.error(this.status.sevenZip.error)
+      return
+    }
 
-      // Ensure executable permissions on non-windows
+    console.log(`Found bundled 7zip at source: ${source7zPath}`)
+
+    // Determine the name of the 7zip binary (e.g., '7zzs', '7za.exe')
+    const binaryName = source7zPath.split(/[/\\]/).pop() // POSIX and Windows path separators
+    if (!binaryName) {
+      this.status.sevenZip.ready = false
+      this.status.sevenZip.error = `Could not determine binary name from path: ${source7zPath}`
+      console.error(this.status.sevenZip.error)
+      return
+    }
+
+    // Target path in the writable binDir (userData/bin)
+    const target7zPath = join(this.binDir, binaryName)
+    this.status.sevenZip.path = target7zPath // Update status to point to the new path
+
+    try {
+      // this.binDir is created in initialize(), so no need for mkdirSync here for it.
+
+      // Check if the binary needs to be copied
+      if (!existsSync(target7zPath)) {
+        console.log(`Copying 7zip from ${source7zPath} to ${target7zPath}`)
+        copyFileSync(source7zPath, target7zPath)
+        console.log(`Successfully copied 7zip to ${target7zPath}`)
+      } else {
+        console.log(`7zip already exists at target path ${target7zPath}. Skipping copy.`)
+      }
+
+      this.status.sevenZip.ready = true // Mark as ready (either copied or already existed)
+
+      // Ensure executable permissions on non-windows for the file at target7zPath
       if (process.platform !== 'win32') {
         try {
-          // Use sync version for simplicity during init check
-          chmodSync(expectedPath, 0o755)
-          console.log(`Ensured execute permissions for ${expectedPath}`)
+          chmodSync(target7zPath, 0o755)
+          console.log(`Ensured execute permissions for ${target7zPath}`)
         } catch (chmodError) {
-          console.warn(`Failed to ensure execute permissions for ${expectedPath}:`, chmodError)
+          console.warn(`Failed to ensure execute permissions for ${target7zPath}:`, chmodError)
           this.status.sevenZip.ready = false // Mark as not ready if permissions fail
-          this.status.sevenZip.error = `Permission error: ${chmodError instanceof Error ? chmodError.message : String(chmodError)}`
+          this.status.sevenZip.error = `Permission error on copied file: ${chmodError instanceof Error ? chmodError.message : String(chmodError)}`
         }
       }
-    } else {
-      console.error(`Bundled 7zip NOT found at expected path: ${expectedPath}`)
+    } catch (error) {
+      console.error(`Error during 7zip setup (copying or permissioning):`, error)
       this.status.sevenZip.ready = false
-      this.status.sevenZip.error = `Bundled 7zip not found at ${expectedPath}. Check app packaging.`
+      this.status.sevenZip.error = `Failed to set up 7zip: ${error instanceof Error ? error.message : String(error)}`
+      this.status.sevenZip.path = source7zPath // Revert path to source if copy/chmod fails for clarity
     }
   }
 
