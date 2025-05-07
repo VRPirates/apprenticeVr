@@ -51,8 +51,8 @@ jobs:
 
           if [ "$RUNNER_OS" == "Windows" ]; then
             echo "BUILD_COMMAND=pnpm run build && pnpm exec electron-builder --win --publish never" >> $GITHUB_OUTPUT
-            # Example: dist/apprenticevr Setup ${VERSION}.exe
-            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME} Setup ${VERSION}.exe" >> $GITHUB_OUTPUT
+            # Example: dist/apprenticevr-${VERSION}-setup.exe
+            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}-setup.exe" >> $GITHUB_OUTPUT
           elif [ "$RUNNER_OS" == "macOS" ]; then
             echo "BUILD_COMMAND=pnpm run build && pnpm exec electron-builder --mac --publish never" >> $GITHUB_OUTPUT
             # Example: dist/apprenticevr-${VERSION}*.dmg. Using a glob for flexibility with arch in filename.
