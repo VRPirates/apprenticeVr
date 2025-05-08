@@ -574,7 +574,7 @@ class AdbService extends EventEmitter {
     // 3. For each entry
     for (const entry of entries) {
       const localEntryPath = path.join(localDirPath, entry.name)
-      const remoteEntryPath = path.join(remoteDirPath, entry.name) // Full path for the entry on device
+      const remoteEntryPath = path.posix.join(remoteDirPath, entry.name)
 
       if (entry.isFile()) {
         console.log(
@@ -632,27 +632,39 @@ class AdbService extends EventEmitter {
       throw new Error('adb service not initialized!')
     }
 
-    let finalRemotePath = remotePath // Will be determined in the try block
+    // let finalRemotePath = remotePath // Will be determined in the try block
+    // Initialize with normalized remotePath to ensure it's always defined for logging in catch block
+    let finalRemotePath: string = remotePath.replace(/\\/g, '/')
 
     try {
       const localStat = await fs.promises.stat(localPath)
+      const normalizedOriginalRemotePath = remotePath.replace(/\\/g, '/') // Already done for finalRemotePath init, but keep for clarity if preferred
 
       // Determine the final remote path based on whether it's a file or directory
       // and if the remote path needs basename appending.
       if (localStat.isFile()) {
-        if (remotePath.endsWith('/')) {
-          finalRemotePath = path.join(remotePath, path.basename(localPath))
+        if (normalizedOriginalRemotePath.endsWith('/')) {
+          finalRemotePath = path.posix.join(normalizedOriginalRemotePath, path.basename(localPath))
+        } else {
+          // If remotePath does not end with '/',
+          // remotePath is assumed to be the full target file path.
+          finalRemotePath = normalizedOriginalRemotePath
         }
-        // If localPath is a file and remotePath does not end with '/',
-        // remotePath is assumed to be the full target file path.
       } else if (localStat.isDirectory()) {
-        if (remotePath.endsWith('/')) {
+        if (normalizedOriginalRemotePath.endsWith('/')) {
           // e.g., localPath="dir", remotePath="/sdcard/" => finalRemotePath="/sdcard/dir"
-          finalRemotePath = path.join(remotePath, path.basename(localPath))
+          finalRemotePath = path.posix.join(normalizedOriginalRemotePath, path.basename(localPath))
+        } else {
+          // If remotePath does not end with a slash (e.g., "/sdcard/targetdir"),
+          // it's assumed to be the explicit full path for the target directory.
+          finalRemotePath = normalizedOriginalRemotePath
         }
-        // If remotePath does not end with a slash (e.g., "/sdcard/targetdir"),
-        // it's assumed to be the explicit full path for the target directory.
-        // finalRemotePath is already correctly set by assignment from remotePath.
+      } else {
+        // This case should ideally not be reached if localStat succeeds
+        console.error(
+          `[AdbService] Local path ${localPath} is neither a file nor a directory after stat.`
+        )
+        return false
       }
 
       const deviceClient = this.client.getDevice(serial)
@@ -665,7 +677,7 @@ class AdbService extends EventEmitter {
       } else {
         // It's a file
         console.log(
-          `Pushing file ${localPath} to ${serial}:${finalRemotePath}... (original remote: ${remotePath})`
+          `Pushing file ${localPath} to ${serial}:${finalRemotePath}... (original remote: ${remotePath.replace(/\\/g, '/') /* Log normalized path here too for clarity */})`
         )
         const transfer = await deviceClient.push(localPath, finalRemotePath)
         return new Promise<boolean>((resolve, reject) => {
@@ -691,7 +703,7 @@ class AdbService extends EventEmitter {
         )
       } else {
         console.error(
-          `[AdbService] Error during push operation for ${localPath} to ${serial}:${finalRemotePath} (original remote: ${remotePath}):`,
+          `[AdbService] Error during push operation for ${localPath} to ${serial}:${finalRemotePath} (original remote: ${remotePath.replace(/\\/g, '/') /* Log normalized path here too for clarity */}):`,
           error
         )
       }
