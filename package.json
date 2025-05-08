@@ -1,6 +1,6 @@
 {
   "name": "apprenticevr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",
   "author": "example.com",
@@ -19,7 +19,8 @@
     "build:win": "electron-vite build && electron-builder --win",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "electron-vite build && electron-builder --linux",
-    "publish": "electron-builder --publish always"
+    "publish": "electron-builder --publish always",
+    "tag-version": "VERSION=$(node -p \"require('./package.json').version\") && TAG_NAME=\"v$VERSION\" && (git rev-parse $TAG_NAME >/dev/null 2>&1 || git tag $TAG_NAME) && echo \"Tag $TAG_NAME created or already exists.\""
   },
   "dependencies": {
     "@devicefarmer/adbkit": "^3.3.8",
