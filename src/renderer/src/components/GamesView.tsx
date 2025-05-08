@@ -380,6 +380,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
               <div style={{ marginBottom: tokens.spacingVerticalXS }}>
                 {' '}
                 <div className="game-name-main">{game.name}</div>
+                <div className="game-package-sub">{game.releaseName}</div>
                 <div className="game-package-sub">{game.packageName}</div>
               </div>
               <div
