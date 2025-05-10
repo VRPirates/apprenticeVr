@@ -1,5 +1,5 @@
 import React, { useEffect, useState, ReactNode, useCallback } from 'react'
-import { DeviceInfo, PackageInfo } from '../types/adb'
+import { AdbContextType, DeviceInfo, PackageInfo } from '../types/adb'
 import { AdbContext } from './AdbContext'
 import { useDependency } from '@renderer/hooks/useDependency'
 
@@ -45,7 +45,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     window.api.adb.startTrackingDevices()
 
     // Device listeners
-    const removeDeviceAdded = window.api.adb.onDeviceAdded((device) => {
+    const removeDeviceAdded = window.api.adb.onDeviceAdded((device: DeviceInfo) => {
       setDevices((prevDevices) => {
         // Check if device already exists
         if (prevDevices.some((d) => d.id === device.id)) {
@@ -177,7 +177,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     disconnectDevice,
     loadPackages,
     selectedDeviceDetails
-  }
+  } satisfies AdbContextType
 
   if (!isInitialLoadComplete) {
     return <div>Loading...</div>

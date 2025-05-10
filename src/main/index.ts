@@ -179,10 +179,7 @@ app.whenReady().then(async () => {
   // --- ADB Handlers ---
   ipcMain.handle('list-devices', async () => await adbService.listDevices())
   ipcMain.handle('connect-device', async (_event, serial: string) => {
-    return await adbService.connectToDevice(serial)
-  })
-  ipcMain.handle('disconnect-device', async () => {
-    // Implementation needed
+    return await adbService.connectDevice(serial)
   })
   ipcMain.handle(
     'get-installed-packages',

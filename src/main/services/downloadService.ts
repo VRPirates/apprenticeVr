@@ -1,7 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { promises as fs, existsSync } from 'fs'
-import { GameInfo } from './gameService'
 import { DownloadItem, DownloadStatus } from './download/types'
 import dependencyService from './dependencyService'
 import adbService from './adbService'
@@ -11,6 +10,7 @@ import { QueueManager } from './download/queueManager'
 import { DownloadProcessor } from './download/downloadProcessor'
 import { ExtractionProcessor } from './download/extractionProcessor'
 import { InstallationProcessor } from './download/installationProcessor'
+import { GameInfo } from '@shared/types'
 
 interface VrpConfig {
   baseUri?: string

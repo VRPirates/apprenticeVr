@@ -1,5 +1,5 @@
 import { IpcRenderer } from 'electron'
-import { GameInfo, AdbAPI, DependencyStatus, DownloadItem } from './types/adb'
+import { GameInfo, AdbAPIRenderer, DependencyStatus, DownloadItem } from './types/adb'
 
 declare global {
   interface Window {
@@ -8,7 +8,7 @@ declare global {
       initializeDependencies: () => void
       initializeGameService: () => Promise<void>
       initializeADBService: () => Promise<void>
-      adb: AdbAPI
+      adb: AdbAPIRenderer
       games: {
         getGames: () => Promise<GameInfo[]>
         getNote: (releaseName: string) => Promise<string>

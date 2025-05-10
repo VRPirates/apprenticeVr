@@ -6,26 +6,12 @@ import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
 import dependencyService from './dependencyService'
 import { ServiceStatus } from './service'
+import { GameInfo } from '@shared/types'
 
 interface VrpConfig {
   baseUri: string
   password: string
   lastSync?: Date
-}
-
-export interface GameInfo {
-  id: string
-  name: string
-  packageName: string
-  version: string
-  size: string
-  lastUpdated: string
-  releaseName: string
-  downloads: number
-  thumbnailPath: string
-  isInstalled: boolean
-  deviceVersionCode?: number
-  hasUpdate?: boolean
 }
 
 class GameService {
@@ -497,6 +483,9 @@ class GameService {
 
         const thumbnailExists = existsSync(thumbnailPath)
 
+        // Generate note path based on release name
+        const notePath = releaseName ? join(this.metaPath, 'notes', `${releaseName}.txt`) : ''
+
         const gameInfo: GameInfo = {
           id: packageName || gameName.replace(/\s+/g, '-').toLowerCase(),
           name: gameName,
@@ -507,6 +496,7 @@ class GameService {
           releaseName,
           downloads: parseFloat(downloads) || 0,
           thumbnailPath: thumbnailExists ? thumbnailPath : '',
+          notePath,
           isInstalled: false
         }
 

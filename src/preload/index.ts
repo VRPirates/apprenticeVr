@@ -1,18 +1,13 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { GameInfo } from '../main/services/gameService'
-import { DependencyStatus } from '../renderer/src/types/adb'
-import { DownloadItem } from '../main/services/download/types'
-
-interface DeviceInfo {
-  id: string
-  type: string
-}
-
-interface DownloadProgress {
-  type: string
-  progress: number
-}
+import {
+  GameInfo,
+  DeviceInfo,
+  DependencyStatus,
+  DownloadItem,
+  DownloadProgress,
+  AdbAPIRenderer
+} from '@shared/types'
 
 interface ExtractProgress {
   type: string
@@ -60,7 +55,7 @@ const api = {
       ipcRenderer.on('installation-completed', listener)
       return () => ipcRenderer.removeListener('installation-completed', listener)
     }
-  },
+  } satisfies AdbAPIRenderer,
   games: {
     getGames: (): Promise<GameInfo[]> => ipcRenderer.invoke('get-games'),
     getNote: (releaseName: string): Promise<string> => ipcRenderer.invoke('get-note', releaseName),

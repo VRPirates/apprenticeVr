@@ -1,26 +1,16 @@
-import { Adb, Device as AdbKitDevice, DeviceClient } from '@devicefarmer/adbkit'
+import { Adb, DeviceClient } from '@devicefarmer/adbkit'
 import Tracker from '@devicefarmer/adbkit/dist/src/adb/tracker'
 import { BrowserWindow } from 'electron'
 import { EventEmitter } from 'events'
 import dependencyService from './dependencyService'
 import fs, { Dirent } from 'fs'
 import path from 'path'
+import { AdbAPI, DeviceInfo } from '@shared/types'
 
 interface PackageInfo {
   packageName: string
   // More metadata fields will be added in the future
 }
-
-interface QuestDeviceProperties {
-  model: string | null
-  isQuestDevice: boolean
-  batteryLevel: number | null
-  storageTotal: string | null // e.g., "128G"
-  storageFree: string | null // e.g., "50G"
-  friendlyModelName: string | null
-}
-
-export type ExtendedDevice = AdbKitDevice & QuestDeviceProperties
 
 const QUEST_MODELS = [
   'monterey',
@@ -46,7 +36,7 @@ const QUEST_MODEL_NAMES: Record<QuestModel, string> = {
   quest: 'Meta Quest (Unknown)'
 }
 
-class AdbService extends EventEmitter {
+class AdbService extends EventEmitter implements AdbAPI {
   private client: ReturnType<typeof Adb.createClient> | null
   private deviceTracker: Tracker | null = null
   private isTracking = false
@@ -62,7 +52,7 @@ class AdbService extends EventEmitter {
     })
   }
 
-  private async getDeviceDetails(serial: string): Promise<QuestDeviceProperties | null> {
+  private async getDeviceDetails(serial: string): Promise<DeviceInfo | null> {
     if (!this.client) {
       console.warn('ADB client not initialized, cannot get device details.')
       return null
@@ -125,6 +115,8 @@ class AdbService extends EventEmitter {
       }
 
       return {
+        id: serial,
+        type: 'device',
         model: modelResult,
         isQuestDevice,
         batteryLevel,
@@ -138,13 +130,13 @@ class AdbService extends EventEmitter {
     }
   }
 
-  async listDevices(): Promise<ExtendedDevice[]> {
+  async listDevices(): Promise<DeviceInfo[]> {
     if (!this.client) {
       throw new Error('adb service not initialized!')
     }
     try {
       const devices = await this.client.listDevices()
-      const extendedDevices: ExtendedDevice[] = []
+      const extendedDevices: DeviceInfo[] = []
 
       for (const device of devices) {
         // For 'device' and 'emulator' types, always try to get details.
@@ -185,7 +177,7 @@ class AdbService extends EventEmitter {
     }
   }
 
-  async startTrackingDevices(mainWindow: BrowserWindow): Promise<void> {
+  async startTrackingDevices(mainWindow?: BrowserWindow): Promise<void> {
     if (this.isTracking) {
       return
     }
@@ -197,11 +189,11 @@ class AdbService extends EventEmitter {
 
     this.deviceTracker = await this.client.trackDevices()
 
-    this.deviceTracker.on('add', async (device: AdbKitDevice) => {
+    this.deviceTracker.on('add', async (device: DeviceInfo) => {
       console.log('Device added:', device)
       if (device.type === 'device' || device.type === 'emulator') {
         const details = await this.getDeviceDetails(device.id)
-        const extendedDevice: ExtendedDevice = {
+        const extendedDevice: DeviceInfo = {
           ...device,
           ...(details || {
             model: null,
@@ -212,10 +204,13 @@ class AdbService extends EventEmitter {
             friendlyModelName: null
           })
         }
-        mainWindow.webContents.send('device-added', extendedDevice)
+        // Emit event for our internal listeners
+        this.emit('device-added', extendedDevice)
+        // Send to UI if window exists
+        mainWindow?.webContents.send('device-added', extendedDevice)
       } else {
         // For 'offline', 'unauthorized', 'unknown' devices
-        const extendedDevice: ExtendedDevice = {
+        const extendedDevice: DeviceInfo = {
           ...device,
           model: null,
           isQuestDevice: false,
@@ -224,14 +219,15 @@ class AdbService extends EventEmitter {
           storageFree: null,
           friendlyModelName: null
         }
-        mainWindow.webContents.send('device-added', extendedDevice)
+        this.emit('device-added', extendedDevice)
+        mainWindow?.webContents.send('device-added', extendedDevice)
       }
     })
 
     this.deviceTracker.on('remove', (device) => {
       console.log('Device removed:', device)
       // Send a basic device object, details aren't relevant for removal
-      mainWindow.webContents.send('device-removed', {
+      const deviceInfo = {
         id: device.id,
         type: device.type,
         model: null,
@@ -240,16 +236,19 @@ class AdbService extends EventEmitter {
         storageTotal: null,
         storageFree: null,
         friendlyModelName: null
-      } as ExtendedDevice) // Cast to ensure structure, though frontend mainly uses ID
+      } satisfies DeviceInfo
+
+      this.emit('device-removed', deviceInfo)
+      mainWindow?.webContents.send('device-removed', deviceInfo)
     })
 
-    this.deviceTracker.on('change', async (device: AdbKitDevice) => {
+    this.deviceTracker.on('change', async (device: DeviceInfo) => {
       console.log('Device changed:', device)
       // This event typically signifies a device coming online (e.g., from 'offline' to 'device')
       // or a device's properties changing.
       if (device.type === 'device' || device.type === 'emulator') {
         const details = await this.getDeviceDetails(device.id)
-        const extendedDevice: ExtendedDevice = {
+        const extendedDevice: DeviceInfo = {
           ...device,
           ...(details || {
             model: null,
@@ -260,10 +259,11 @@ class AdbService extends EventEmitter {
             friendlyModelName: null
           })
         }
-        mainWindow.webContents.send('device-changed', extendedDevice)
+        this.emit('device-changed', extendedDevice)
+        mainWindow?.webContents.send('device-changed', extendedDevice)
       } else {
         // Handle changes for devices becoming offline, unauthorized, etc.
-        const extendedDevice: ExtendedDevice = {
+        const extendedDevice: DeviceInfo = {
           ...device,
           model: null,
           isQuestDevice: false,
@@ -272,13 +272,15 @@ class AdbService extends EventEmitter {
           storageFree: null,
           friendlyModelName: null
         }
-        mainWindow.webContents.send('device-changed', extendedDevice)
+        this.emit('device-changed', extendedDevice)
+        mainWindow?.webContents.send('device-changed', extendedDevice)
       }
     })
 
     this.deviceTracker.on('error', (error) => {
       console.error('Device tracker error:', error)
-      mainWindow.webContents.send('device-tracker-error', error.message)
+      this.emit('tracker-error', error.message)
+      mainWindow?.webContents.send('device-tracker-error', error.message)
       this.stopTrackingDevices()
     })
   }
@@ -291,7 +293,7 @@ class AdbService extends EventEmitter {
     this.isTracking = false
   }
 
-  async connectToDevice(serial: string): Promise<boolean> {
+  async connectDevice(serial: string): Promise<boolean> {
     if (!this.client) {
       throw new Error('adb service not initialized!')
     }
