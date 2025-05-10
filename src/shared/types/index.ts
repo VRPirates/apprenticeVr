@@ -4,6 +4,8 @@
 
 import { BrowserWindow } from 'electron'
 
+type Modify<T, R> = Omit<T, keyof R> & R
+
 // Device types
 export interface DeviceInfo {
   id: string
@@ -146,11 +148,30 @@ export interface DownloadAPI {
   cancelUserRequest: (releaseName: string) => void
   retryDownload: (releaseName: string) => void
   deleteDownloadedFiles: (releaseName: string) => Promise<boolean>
+  setDownloadPath: (path: string) => void
 }
 
 export interface DownloadAPIRenderer extends DownloadAPI {
   onQueueUpdated: (callback: (queue: DownloadItem[]) => void) => () => void
   installFromCompleted: (releaseName: string, deviceId: string) => Promise<void>
 }
+
+export interface Settings {
+  downloadPath: string
+}
+
+export interface SettingsAPI {
+  getDownloadPath: () => string
+  setDownloadPath: (path: string) => void
+}
+
+export interface SettingsAPIRenderer
+  extends Modify<
+    SettingsAPI,
+    {
+      getDownloadPath: () => Promise<string>
+      setDownloadPath: (path: string) => Promise<void>
+    }
+  > {}
 
 export type ServiceStatus = 'NOT_INITIALIZED' | 'INITIALIZING' | 'INITIALIZED' | 'ERROR'

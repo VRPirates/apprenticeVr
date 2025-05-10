@@ -8,7 +8,8 @@ import {
   DownloadProgress,
   AdbAPIRenderer,
   GameAPIRenderer,
-  DownloadAPIRenderer
+  DownloadAPIRenderer,
+  SettingsAPIRenderer
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -93,8 +94,15 @@ const api = {
       const listener = (_: IpcRendererEvent, queue: DownloadItem[]): void => callback(queue)
       typedIpcRenderer.on('download:queue-updated', listener)
       return () => typedIpcRenderer.removeListener('download:queue-updated', listener)
-    }
+    },
+    setDownloadPath: (path: string): void =>
+      typedIpcRenderer.send('download:set-download-path', path)
   } satisfies DownloadAPIRenderer,
+  settings: {
+    getDownloadPath: (): Promise<string> => typedIpcRenderer.invoke('settings:get-download-path'),
+    setDownloadPath: (path: string): Promise<void> =>
+      typedIpcRenderer.invoke('settings:set-download-path', path)
+  } satisfies SettingsAPIRenderer,
   // Dependency Status Listeners
   onDependencyProgress: (
     callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void

@@ -7,6 +7,7 @@ import dependencyService, { DependencyStatus } from './services/dependencyServic
 import gameService from './services/gameService'
 import downloadService from './services/downloadService'
 import { typedIpcMain } from '@shared/ipc-utils'
+import settingsService from './services/settingsService'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -212,6 +213,15 @@ app.whenReady().then(async () => {
   )
   typedIpcMain.on('download:retry', (_event, releaseName) =>
     downloadService.retryDownload(releaseName)
+  )
+  typedIpcMain.on('download:set-download-path', (_event, path) =>
+    downloadService.setDownloadPath(path)
+  )
+
+  // --- Settings Handlers ---
+  typedIpcMain.handle('settings:get-download-path', () => settingsService.getDownloadPath())
+  typedIpcMain.handle('settings:set-download-path', (_event, path) =>
+    settingsService.setDownloadPath(path)
   )
 
   // Validate that all IPC channels have handlers registered

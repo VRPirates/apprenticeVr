@@ -1,5 +1,4 @@
-import { app, BrowserWindow } from 'electron'
-import { join } from 'path'
+import { BrowserWindow } from 'electron'
 import { promises as fs, existsSync } from 'fs'
 import { DownloadItem, DownloadStatus } from './download/types'
 import dependencyService from './dependencyService'
@@ -11,6 +10,7 @@ import { DownloadProcessor } from './download/downloadProcessor'
 import { ExtractionProcessor } from './download/extractionProcessor'
 import { InstallationProcessor } from './download/installationProcessor'
 import { DownloadAPI, GameInfo } from '@shared/types'
+import settingsService from './settingsService'
 
 interface VrpConfig {
   baseUri?: string
@@ -18,7 +18,7 @@ interface VrpConfig {
 }
 
 class DownloadService extends EventEmitter implements DownloadAPI {
-  private downloadsDir: string
+  private downloadsPath: string
   private isInitialized = false
   private isProcessing = false
   private debouncedEmitUpdate: () => void
@@ -30,14 +30,19 @@ class DownloadService extends EventEmitter implements DownloadAPI {
 
   constructor() {
     super()
+    const downloadPath = settingsService.getDownloadPath()
+    settingsService.on('download-path-changed', (path) => {
+      this.setDownloadPath(path)
+    })
+    this.downloadsPath = downloadPath
+
     this.queueManager = new QueueManager()
     this.adbService = adbService
-    this.downloadsDir = join(app.getPath('userData'), 'downloads')
     this.debouncedEmitUpdate = debounce(this.emitUpdate.bind(this), 300)
     this.downloadProcessor = new DownloadProcessor(
       this.queueManager,
       dependencyService,
-      this.downloadsDir,
+      this.downloadsPath,
       this.debouncedEmitUpdate
     )
     this.extractionProcessor = new ExtractionProcessor(
@@ -52,13 +57,17 @@ class DownloadService extends EventEmitter implements DownloadAPI {
     )
   }
 
+  setDownloadPath(path: string): void {
+    this.downloadsPath = path
+  }
+
   async initialize(vrpConfig: VrpConfig | null): Promise<void> {
     if (this.isInitialized) return
     console.log('Initializing DownloadService...')
     this.downloadProcessor.setVrpConfig(vrpConfig)
     this.extractionProcessor.setVrpConfig(vrpConfig)
 
-    await fs.mkdir(this.downloadsDir, { recursive: true })
+    await fs.mkdir(this.downloadsPath, { recursive: true })
     await this.queueManager.loadQueue()
 
     const changed = this.queueManager.updateAllItems(

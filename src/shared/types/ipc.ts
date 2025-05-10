@@ -33,6 +33,10 @@ export interface IPCChannels {
   'download:add': DefineChannel<[game: GameInfo], boolean>
   'download:delete-files': DefineChannel<[releaseName: string], boolean>
   'download:install-from-completed': DefineChannel<[releaseName: string, deviceId: string], void>
+
+  // Settings related channels
+  'settings:get-download-path': DefineChannel<[], string>
+  'settings:set-download-path': DefineChannel<[path: string], void>
 }
 
 // Types for send (no response) channels
@@ -43,6 +47,7 @@ export interface IPCSendChannels {
   'download:remove': string
   'download:cancel': string
   'download:retry': string
+  'download:set-download-path': string
 }
 
 // Types for events emitted from main to renderer
