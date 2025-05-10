@@ -1,36 +1,21 @@
 import { IpcRenderer } from 'electron'
-import { GameInfo, AdbAPIRenderer, DependencyStatus, DownloadItem } from './types/adb'
+import {
+  AdbAPIRenderer,
+  DependencyStatus,
+  DownloadAPIRenderer,
+  GameAPIRenderer
+} from '@shared/types'
 
 declare global {
   interface Window {
     ipcRenderer: IpcRenderer
     api: {
       initializeDependencies: () => void
-      initializeGameService: () => Promise<void>
-      initializeADBService: () => Promise<void>
       adb: AdbAPIRenderer
-      games: {
-        getGames: () => Promise<GameInfo[]>
-        getNote: (releaseName: string) => Promise<string>
-        getLastSyncTime: () => Promise<string | null> // Returns ISO string
-        forceSync: () => Promise<GameInfo[]>
-        onDownloadProgress: (
-          callback: (progress: { type: string; progress: number }) => void
-        ) => () => void
-        onExtractProgress: (
-          callback: (progress: { type: string; progress: number }) => void
-        ) => () => void
-      }
-      downloads: {
-        getQueue: () => Promise<DownloadItem[]>
-        add: (game: GameInfo) => Promise<boolean>
-        remove: (releaseName: string) => void
-        cancel: (releaseName: string) => void
-        retry: (releaseName: string) => void
-        onQueueUpdated: (callback: (queue: DownloadItem[]) => void) => () => void
-        deleteFiles(releaseName: string): Promise<boolean>
-        installFromCompleted: (releaseName: string, deviceId: string) => Promise<void>
-      }
+      games: GameAPIRenderer
+      downloads: DownloadAPIRenderer
+      // deleteFiles(releaseName: string): Promise<boolean>
+      // installFromCompleted: (releaseName: string, deviceId: string) => Promise<void>
       onDependencyProgress: (
         callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void
       ) => () => void

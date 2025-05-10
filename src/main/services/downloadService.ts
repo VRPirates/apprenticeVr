@@ -10,14 +10,14 @@ import { QueueManager } from './download/queueManager'
 import { DownloadProcessor } from './download/downloadProcessor'
 import { ExtractionProcessor } from './download/extractionProcessor'
 import { InstallationProcessor } from './download/installationProcessor'
-import { GameInfo } from '@shared/types'
+import { DownloadAPI, GameInfo } from '@shared/types'
 
 interface VrpConfig {
   baseUri?: string
   password?: string
 }
 
-class DownloadService extends EventEmitter {
+class DownloadService extends EventEmitter implements DownloadAPI {
   private downloadsDir: string
   private isInitialized = false
   private isProcessing = false
@@ -86,18 +86,18 @@ class DownloadService extends EventEmitter {
     this.processQueue()
   }
 
-  public getQueue(): DownloadItem[] {
-    return this.queueManager.getQueue()
+  public getQueue(): Promise<DownloadItem[]> {
+    return Promise.resolve(this.queueManager.getQueue())
   }
 
-  public addToQueue(game: GameInfo): boolean {
+  public addToQueue(game: GameInfo): Promise<boolean> {
     if (!this.isInitialized) {
       console.error('DownloadService not initialized. Cannot add to queue.')
-      return false
+      return Promise.resolve(false)
     }
     if (!game.releaseName) {
       console.error(`Cannot add game ${game.name} to queue: Missing releaseName.`)
-      return false
+      return Promise.resolve(false)
     }
 
     const existing = this.queueManager.findItem(game.releaseName)
@@ -105,12 +105,12 @@ class DownloadService extends EventEmitter {
     if (existing) {
       if (existing.status === 'Completed') {
         console.log(`Game ${game.releaseName} already downloaded.`)
-        return false
+        return Promise.resolve(false)
       } else if (existing.status !== 'Error' && existing.status !== 'Cancelled') {
         console.log(
           `Game ${game.releaseName} is already in the queue with status: ${existing.status}.`
         )
-        return false
+        return Promise.resolve(false)
       }
       console.log(`Re-adding game ${game.releaseName} after previous ${existing.status}.`)
       this.queueManager.removeItem(game.releaseName)
@@ -130,7 +130,7 @@ class DownloadService extends EventEmitter {
     console.log(`Added ${game.releaseName} to download queue.`)
     this.emitUpdate()
     this.processQueue()
-    return true
+    return Promise.resolve(true)
   }
 
   public removeFromQueue(releaseName: string): void {
@@ -328,11 +328,11 @@ class DownloadService extends EventEmitter {
     }
   }
 
-  public cancelUserRequest(releaseName: string): void {
+  public cancelUserRequest(releaseName: string): Promise<void> {
     const item = this.queueManager.findItem(releaseName)
     if (!item) {
       console.warn(`[Service cancelUserRequest] Cannot cancel ${releaseName} - not found.`)
-      return
+      return Promise.resolve()
     }
 
     console.log(
@@ -358,9 +358,10 @@ class DownloadService extends EventEmitter {
         `[Service cancelUserRequest] Cannot cancel ${releaseName} - status: ${item.status}`
       )
     }
+    return Promise.resolve()
   }
 
-  public retryDownload(releaseName: string): void {
+  public retryDownload(releaseName: string): Promise<void> {
     const item = this.queueManager.findItem(releaseName)
     if (
       item &&
@@ -399,13 +400,14 @@ class DownloadService extends EventEmitter {
     } else {
       console.warn(`[Service Retry] Cannot retry ${releaseName} - status: ${item?.status}`)
     }
+    return Promise.resolve()
   }
 
   public async deleteDownloadedFiles(releaseName: string): Promise<boolean> {
     const item = this.queueManager.findItem(releaseName)
     if (!item) {
       console.warn(`Cannot delete files for ${releaseName}: Not found.`)
-      return false
+      return Promise.resolve(false)
     }
 
     const downloadPath = item.downloadPath
@@ -414,14 +416,14 @@ class DownloadService extends EventEmitter {
       console.log(`No download path for ${releaseName}, removing item.`)
       const removed = this.queueManager.removeItem(releaseName)
       if (removed) this.emitUpdate()
-      return true
+      return Promise.resolve(true)
     }
 
     if (!existsSync(downloadPath)) {
       console.log(`Path not found for ${releaseName}: ${downloadPath}. Removing item.`)
       const removed = this.queueManager.removeItem(releaseName)
       if (removed) this.emitUpdate()
-      return true
+      return Promise.resolve(true)
     }
 
     console.log(`Deleting directory: ${downloadPath} for ${releaseName}...`)
@@ -441,7 +443,7 @@ class DownloadService extends EventEmitter {
       }
       const updated = this.queueManager.updateItem(releaseName, { error: errorMsg })
       if (updated) this.emitUpdate()
-      return false
+      return Promise.resolve(false)
     }
   }
 

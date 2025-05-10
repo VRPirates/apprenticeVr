@@ -8,6 +8,7 @@
     "src/shared/**/*"
   ],
   "compilerOptions": {
+    "strict": true,
     "composite": true,
     "jsx": "react-jsx",
     "baseUrl": ".",

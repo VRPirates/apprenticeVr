@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useState } from 'react'
 import { DependencyContext, DependencyContextType } from './DependencyContext'
-import { DependencyStatus } from '../types/adb'
+import { DependencyStatus } from '@shared/types'
 
 interface DependencyProviderProps {
   children: ReactNode

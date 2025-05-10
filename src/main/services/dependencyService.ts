@@ -4,7 +4,7 @@ import { promises as fsPromises, existsSync, createWriteStream, chmodSync, copyF
 import axios, { AxiosProgressEvent } from 'axios'
 import { execa } from 'execa'
 import * as yauzl from 'yauzl'
-import { ServiceStatus } from './service'
+import { ServiceStatus } from '@shared/types'
 
 type ProgressCallback = (
   status: DependencyStatus,
@@ -40,8 +40,7 @@ class DependencyService {
   private binDir: string // Directory within userData for downloaded binaries (like rclone)
   private resourcesBinDir: string // Directory within app resources for bundled binaries (like 7zip)
   private status: DependencyStatus
-  private isInitializing: boolean
-  private isInitialized: boolean
+  private serviceStatus: ServiceStatus
 
   constructor() {
     this.binDir = join(app.getPath('userData'), 'bin')
@@ -54,20 +53,19 @@ class DependencyService {
       rclone: { ready: false, path: null, error: null, downloading: false },
       adb: { ready: false, path: null, error: null, downloading: false }
     }
-    this.isInitializing = false
-    this.isInitialized = false
+    this.serviceStatus = 'NOT_INITIALIZED'
   }
 
   async initialize(progressCallback?: ProgressCallback, force?: boolean): Promise<ServiceStatus> {
-    if (this.isInitializing) {
+    if (this.serviceStatus === 'INITIALIZING') {
       console.log('DependencyService already initializing, skipping.')
       return 'INITIALIZING'
     }
-    if (!force && this.isInitialized) {
+    if (!force && this.serviceStatus === 'INITIALIZED') {
       console.log('DependencyService already initialized, skipping.')
       return 'INITIALIZED'
     }
-    this.isInitializing = true
+    this.serviceStatus = 'INITIALIZING'
     console.log('Initializing DependencyService...')
     // Ensure userData bin directory exists for downloads like rclone
     await fsPromises.mkdir(this.binDir, { recursive: true })
@@ -79,8 +77,7 @@ class DependencyService {
     await this.checkOrDownloadAdb(progressCallback)
 
     console.log('DependencyService initialization finished.')
-    this.isInitializing = false
-    this.isInitialized = true
+    this.serviceStatus = 'INITIALIZED'
 
     // Check if all dependencies are ready after initialization
     if (!this.status.sevenZip.ready || !this.status.rclone.ready || !this.status.adb.ready) {
@@ -96,9 +93,10 @@ class DependencyService {
       if (this.status.adb.error) errorMessage += `ADB Error: ${this.status.adb.error}`
 
       console.error(errorMessage)
+      this.serviceStatus = 'ERROR'
       throw new Error(errorMessage) // Propagate error to caller
     }
-    return 'INITIALIZED'
+    return this.serviceStatus
   }
 
   // --- 7zip ---

@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useState, useCallback } from 'react'
 import { DownloadContext, DownloadContextType } from './DownloadContext'
-import { DownloadItem, GameInfo } from '../types/adb'
+import { DownloadItem, GameInfo } from '@shared/types'
 
 interface DownloadProviderProps {
   children: ReactNode
@@ -51,7 +51,7 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
   const addToQueue = useCallback(async (game: GameInfo): Promise<boolean> => {
     console.log(`Context: Adding ${game.releaseName} to queue...`)
     try {
-      const success = await window.api.downloads.add(game)
+      const success = await window.api.downloads.addToQueue(game)
       if (!success) {
         console.warn(
           `Context: Failed to add ${game.releaseName} to queue (likely already present).`
@@ -70,7 +70,7 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
     // Optimistic update? Maybe not necessary as main process handles it
     // setQueue(prev => prev.filter(item => item.releaseName !== releaseName));
     try {
-      window.api.downloads.remove(releaseName)
+      window.api.downloads.removeFromQueue(releaseName)
     } catch (err) {
       console.error('Error removing game from download queue via IPC:', err)
       setError(`Failed to remove item from queue.`)
@@ -81,7 +81,7 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
   const cancelDownload = useCallback((releaseName: string): void => {
     console.log(`Context: Cancelling ${releaseName}...`)
     try {
-      window.api.downloads.cancel(releaseName)
+      window.api.downloads.cancelUserRequest(releaseName)
     } catch (err) {
       console.error('Error cancelling download via IPC:', err)
       setError(`Failed to cancel download.`)
@@ -91,7 +91,7 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
   const retryDownload = useCallback((releaseName: string): void => {
     console.log(`Context: Retrying ${releaseName}...`)
     try {
-      window.api.downloads.retry(releaseName)
+      window.api.downloads.retryDownload(releaseName)
     } catch (err) {
       console.error('Error retrying download via IPC:', err)
       setError(`Failed to retry download.`)
@@ -101,7 +101,7 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
   const deleteFiles = useCallback(async (releaseName: string): Promise<boolean> => {
     console.log(`Context: Deleting downloaded files for ${releaseName}...`)
     try {
-      const success = await window.api.downloads.deleteFiles(releaseName)
+      const success = await window.api.downloads.deleteDownloadedFiles(releaseName)
       if (!success) {
         console.warn(`Context: Failed to delete files for ${releaseName} (backend error).`)
         setError('Failed to delete downloaded files.')

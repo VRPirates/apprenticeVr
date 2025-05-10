@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
+import { contextBridge, IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import {
   GameInfo,
@@ -6,8 +6,11 @@ import {
   DependencyStatus,
   DownloadItem,
   DownloadProgress,
-  AdbAPIRenderer
+  AdbAPIRenderer,
+  GameAPIRenderer,
+  DownloadAPIRenderer
 } from '@shared/types'
+import { typedIpcRenderer } from '@shared/ipc-utils'
 
 interface ExtractProgress {
   type: string
@@ -15,104 +18,109 @@ interface ExtractProgress {
 }
 
 const api = {
-  initializeDependencies: (): void => ipcRenderer.send('initialize-dependencies'),
-  initializeGameService: (): Promise<void> => ipcRenderer.invoke('initialize-game-service'),
-  initializeADBService: (): Promise<void> => ipcRenderer.invoke('initialize-adb-service'),
+  initializeDependencies: (): void => typedIpcRenderer.send('initialize-dependencies'),
   adb: {
-    listDevices: (): Promise<DeviceInfo[]> => ipcRenderer.invoke('list-devices'),
+    listDevices: (): Promise<DeviceInfo[]> => typedIpcRenderer.invoke('adb:list-devices'),
     connectDevice: (serial: string): Promise<boolean> =>
-      ipcRenderer.invoke('connect-device', serial),
+      typedIpcRenderer.invoke('adb:connect-device', serial),
     getInstalledPackages: (serial: string): Promise<Array<{ packageName: string }>> =>
-      ipcRenderer.invoke('get-installed-packages', serial),
+      typedIpcRenderer.invoke('adb:get-installed-packages', serial),
     getPackageVersionCode: (serial: string, packageName: string): Promise<number | null> =>
-      ipcRenderer.invoke('adb:getPackageVersionCode', serial, packageName),
+      typedIpcRenderer.invoke('adb:getPackageVersionCode', serial, packageName),
     uninstallPackage: (serial: string, packageName: string): Promise<boolean> =>
-      ipcRenderer.invoke('adb:uninstallPackage', serial, packageName),
-    startTrackingDevices: (): void => ipcRenderer.send('start-tracking-devices'),
-    stopTrackingDevices: (): void => ipcRenderer.send('stop-tracking-devices'),
+      typedIpcRenderer.invoke('adb:uninstallPackage', serial, packageName),
+    startTrackingDevices: (): void => typedIpcRenderer.send('adb:start-tracking-devices'),
+    stopTrackingDevices: (): void => typedIpcRenderer.send('adb:stop-tracking-devices'),
     onDeviceAdded: (callback: (device: DeviceInfo) => void): (() => void) => {
-      const listener = (_: unknown, device: DeviceInfo): void => callback(device)
-      ipcRenderer.on('device-added', listener)
-      return () => ipcRenderer.removeListener('device-added', listener)
+      const listener = (_: IpcRendererEvent, device: DeviceInfo): void => callback(device)
+      typedIpcRenderer.on('adb:device-added', listener)
+      return () => typedIpcRenderer.removeListener('adb:device-added', listener)
     },
     onDeviceRemoved: (callback: (device: DeviceInfo) => void): (() => void) => {
-      const listener = (_: unknown, device: DeviceInfo): void => callback(device)
-      ipcRenderer.on('device-removed', listener)
-      return () => ipcRenderer.removeListener('device-removed', listener)
+      const listener = (_: IpcRendererEvent, device: DeviceInfo): void => callback(device)
+      typedIpcRenderer.on('adb:device-removed', listener)
+      return () => typedIpcRenderer.removeListener('adb:device-removed', listener)
     },
     onDeviceChanged: (callback: (device: DeviceInfo) => void): (() => void) => {
-      const listener = (_: unknown, device: DeviceInfo): void => callback(device)
-      ipcRenderer.on('device-changed', listener)
-      return () => ipcRenderer.removeListener('device-changed', listener)
+      const listener = (_: IpcRendererEvent, device: DeviceInfo): void => callback(device)
+      typedIpcRenderer.on('adb:device-changed', listener)
+      return () => typedIpcRenderer.removeListener('adb:device-changed', listener)
     },
     onTrackerError: (callback: (error: string) => void): (() => void) => {
-      const listener = (_: unknown, error: string): void => callback(error)
-      ipcRenderer.on('device-tracker-error', listener)
-      return () => ipcRenderer.removeListener('device-tracker-error', listener)
+      const listener = (_: IpcRendererEvent, error: string): void => callback(error)
+      typedIpcRenderer.on('adb:device-tracker-error', listener)
+      return () => typedIpcRenderer.removeListener('adb:device-tracker-error', listener)
     },
     onInstallationCompleted: (callback: (deviceId: string) => void): (() => void) => {
       const listener = (_event: IpcRendererEvent, deviceId: string): void => callback(deviceId)
-      ipcRenderer.on('installation-completed', listener)
-      return () => ipcRenderer.removeListener('installation-completed', listener)
+      typedIpcRenderer.on('adb:installation-completed', listener)
+      return () => typedIpcRenderer.removeListener('adb:installation-completed', listener)
     }
   } satisfies AdbAPIRenderer,
   games: {
-    getGames: (): Promise<GameInfo[]> => ipcRenderer.invoke('get-games'),
-    getNote: (releaseName: string): Promise<string> => ipcRenderer.invoke('get-note', releaseName),
-    getLastSyncTime: (): Promise<Date | null> => ipcRenderer.invoke('get-last-sync-time'),
-    forceSync: (): Promise<GameInfo[]> => ipcRenderer.invoke('force-sync-games'),
+    getGames: (): Promise<GameInfo[]> => typedIpcRenderer.invoke('games:get-games'),
+    getNote: (releaseName: string): Promise<string> =>
+      typedIpcRenderer.invoke('games:get-note', releaseName),
+    getLastSyncTime: (): Promise<Date | null> =>
+      typedIpcRenderer.invoke('games:get-last-sync-time'),
+    forceSync: (): Promise<GameInfo[]> => typedIpcRenderer.invoke('games:force-sync-games'),
     onDownloadProgress: (callback: (progress: DownloadProgress) => void): (() => void) => {
-      const listener = (_: unknown, progress: DownloadProgress): void => callback(progress)
-      ipcRenderer.on('download-progress', listener)
-      return () => ipcRenderer.removeListener('download-progress', listener)
+      const listener = (_: IpcRendererEvent, progress: DownloadProgress): void => callback(progress)
+      typedIpcRenderer.on('games:download-progress', listener)
+      return () => typedIpcRenderer.removeListener('games:download-progress', listener)
     },
     onExtractProgress: (callback: (progress: ExtractProgress) => void): (() => void) => {
-      const listener = (_: unknown, progress: ExtractProgress): void => callback(progress)
-      ipcRenderer.on('extract-progress', listener)
-      return () => ipcRenderer.removeListener('extract-progress', listener)
+      const listener = (_: IpcRendererEvent, progress: ExtractProgress): void => callback(progress)
+      typedIpcRenderer.on('games:extract-progress', listener)
+      return () => typedIpcRenderer.removeListener('games:extract-progress', listener)
     }
-  },
+  } satisfies GameAPIRenderer,
   // Download Queue APIs
   downloads: {
-    getQueue: (): Promise<DownloadItem[]> => ipcRenderer.invoke('download:get-queue'),
-    add: (game: GameInfo): Promise<boolean> => ipcRenderer.invoke('download:add', game),
-    remove: (releaseName: string): void => ipcRenderer.send('download:remove', releaseName),
-    cancel: (releaseName: string): void => ipcRenderer.send('download:cancel', releaseName),
-    retry: (releaseName: string): void => ipcRenderer.send('download:retry', releaseName),
-    deleteFiles: (releaseName: string): Promise<boolean> =>
-      ipcRenderer.invoke('download:delete-files', releaseName),
+    getQueue: (): Promise<DownloadItem[]> => typedIpcRenderer.invoke('download:get-queue'),
+    addToQueue: (game: GameInfo): Promise<boolean> => typedIpcRenderer.invoke('download:add', game),
+    removeFromQueue: (releaseName: string): void =>
+      typedIpcRenderer.send('download:remove', releaseName),
+    cancelUserRequest: (releaseName: string): void =>
+      typedIpcRenderer.send('download:cancel', releaseName),
+    retryDownload: (releaseName: string): void =>
+      typedIpcRenderer.send('download:retry', releaseName),
+    deleteDownloadedFiles: (releaseName: string): Promise<boolean> =>
+      typedIpcRenderer.invoke('download:delete-files', releaseName),
     installFromCompleted: (releaseName: string, deviceId: string): Promise<void> =>
-      ipcRenderer.invoke('download:install-from-completed', releaseName, deviceId),
+      typedIpcRenderer.invoke('download:install-from-completed', releaseName, deviceId),
     onQueueUpdated: (callback: (queue: DownloadItem[]) => void): (() => void) => {
-      const listener = (_: unknown, queue: DownloadItem[]): void => callback(queue)
-      ipcRenderer.on('download:queue-updated', listener)
-      return () => ipcRenderer.removeListener('download:queue-updated', listener)
+      const listener = (_: IpcRendererEvent, queue: DownloadItem[]): void => callback(queue)
+      typedIpcRenderer.on('download:queue-updated', listener)
+      return () => typedIpcRenderer.removeListener('download:queue-updated', listener)
     }
-  },
+  } satisfies DownloadAPIRenderer,
   // Dependency Status Listeners
   onDependencyProgress: (
     callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void
   ): (() => void) => {
     const listener = (
-      _: unknown,
+      _: IpcRendererEvent,
       status: DependencyStatus,
       progress: { name: string; percentage: number }
     ): void => callback(status, progress)
-    ipcRenderer.on('dependency-progress', listener)
-    return () => ipcRenderer.removeListener('dependency-progress', listener)
+    typedIpcRenderer.on('dependency-progress', listener)
+    return () => typedIpcRenderer.removeListener('dependency-progress', listener)
   },
   onDependencySetupComplete: (callback: (status: DependencyStatus) => void): (() => void) => {
-    const listener = (_: unknown, status: DependencyStatus): void => callback(status)
-    ipcRenderer.on('dependency-setup-complete', listener)
-    return () => ipcRenderer.removeListener('dependency-setup-complete', listener)
+    const listener = (_: IpcRendererEvent, status: DependencyStatus): void => callback(status)
+    typedIpcRenderer.on('dependency-setup-complete', listener)
+    return () => typedIpcRenderer.removeListener('dependency-setup-complete', listener)
   },
   onDependencySetupError: (
     callback: (errorInfo: { message: string; status: DependencyStatus }) => void
   ): (() => void) => {
-    const listener = (_: unknown, errorInfo: { message: string; status: DependencyStatus }): void =>
-      callback(errorInfo)
-    ipcRenderer.on('dependency-setup-error', listener)
-    return () => ipcRenderer.removeListener('dependency-setup-error', listener)
+    const listener = (
+      _: IpcRendererEvent,
+      errorInfo: { message: string; status: DependencyStatus }
+    ): void => callback(errorInfo)
+    typedIpcRenderer.on('dependency-setup-error', listener)
+    return () => typedIpcRenderer.removeListener('dependency-setup-error', listener)
   }
 }
 

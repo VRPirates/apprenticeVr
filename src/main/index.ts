@@ -1,12 +1,12 @@
-import { app, shell, BrowserWindow, ipcMain, protocol } from 'electron'
+import { app, shell, BrowserWindow, protocol } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import adbService from './services/adbService'
-import dependencyService from './services/dependencyService'
+import dependencyService, { DependencyStatus } from './services/dependencyService'
 import gameService from './services/gameService'
 import downloadService from './services/downloadService'
-import { DependencyStatus } from '../renderer/src/types/adb'
+import { typedIpcMain } from '@shared/ipc-utils'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -89,7 +89,7 @@ app.whenReady().then(async () => {
   // --------- IPC Handlers --------- //
 
   // --- Dependency Handlers ---
-  ipcMain.on('initialize-dependencies', async () => {
+  typedIpcMain.on('initialize-dependencies', async () => {
     // Use .on, could be requested again?
     console.log('Received initialize-dependencies request.')
     try {
@@ -111,7 +111,7 @@ app.whenReady().then(async () => {
           console.log(`Game Service initialization status: ${gameServiceStatus}`)
           // Initialize Download Service (needs rclone and VRP config from gameService)
           if (gameServiceStatus === 'INITIALIZED') {
-            await downloadService.initialize(gameService.getVrpConfig()) // Pass VRP config
+            await downloadService.initialize(await gameService.getVrpConfig()) // Pass VRP config
             console.log('Download Service initialized.')
           } else {
             console.warn(
@@ -144,89 +144,53 @@ app.whenReady().then(async () => {
     }
   })
 
-  ipcMain.handle('initialize-adb-service', async () => {
-    console.log('Received initialize-adb-service request.')
-    try {
-      await adbService.initialize()
-      console.log('ADB service initialized successfully.')
-      // Optionally return something, or just resolve promise
-      return true
-    } catch (error) {
-      console.error('Error initializing adb service:', error)
-      // Rethrow or handle error appropriately
-      throw error // Let renderer know it failed
-    }
-  })
-
-  // --- Game Service Initializer ---
-  ipcMain.handle('initialize-game-service', async () => {
-    console.log('Received initialize-game-service request.')
-    try {
-      const initialized = await gameService.initialize()
-      if (initialized === 'INITIALIZING') {
-        return
-      }
-      console.log('Game service initialized successfully.')
-      // Optionally return something, or just resolve promise
-      return true
-    } catch (error) {
-      console.error('Error initializing game service:', error)
-      // Rethrow or handle error appropriately
-      throw error // Let renderer know it failed
-    }
-  })
-
   // --- ADB Handlers ---
-  ipcMain.handle('list-devices', async () => await adbService.listDevices())
-  ipcMain.handle('connect-device', async (_event, serial: string) => {
+  typedIpcMain.handle('adb:list-devices', async () => await adbService.listDevices())
+
+  typedIpcMain.handle('adb:connect-device', async (_event, serial) => {
     return await adbService.connectDevice(serial)
   })
-  ipcMain.handle(
-    'get-installed-packages',
-    async (_event, serial: string) => await adbService.getInstalledPackages(serial)
+
+  typedIpcMain.handle(
+    'adb:get-installed-packages',
+    async (_event, serial) => await adbService.getInstalledPackages(serial)
   )
-  ipcMain.handle(
-    'adb:getPackageVersionCode',
-    async (_event, serial: string, packageName: string) => {
-      console.log(`IPC adb:getPackageVersionCode called for ${packageName} on ${serial}`)
-      return await adbService.getPackageVersionCode(serial, packageName)
-    }
-  )
-  ipcMain.on('start-tracking-devices', () => {
-    if (mainWindow) adbService.startTrackingDevices(mainWindow)
-    else console.error('Cannot start tracking devices, mainWindow is not available.')
+
+  typedIpcMain.handle('adb:getPackageVersionCode', async (_event, serial, packageName) => {
+    console.log(`IPC adb:getPackageVersionCode called for ${packageName} on ${serial}`)
+    return await adbService.getPackageVersionCode(serial, packageName)
   })
-  ipcMain.on('stop-tracking-devices', () => adbService.stopTrackingDevices())
-  ipcMain.handle('adb:uninstallPackage', async (_event, serial: string, packageName: string) => {
+
+  typedIpcMain.handle('adb:uninstallPackage', async (_event, serial, packageName) => {
     console.log(`IPC adb:uninstallPackage called for ${packageName} on ${serial}`)
     return await adbService.uninstallPackage(serial, packageName)
   })
 
+  typedIpcMain.on('adb:start-tracking-devices', () => {
+    if (mainWindow) adbService.startTrackingDevices(mainWindow)
+    else console.error('Cannot start tracking devices, mainWindow is not available.')
+  })
+
+  typedIpcMain.on('adb:stop-tracking-devices', () => adbService.stopTrackingDevices())
+
   // --- Game Handlers ---
-  ipcMain.handle('get-games', async () => gameService.getGames())
-  ipcMain.handle('get-last-sync-time', async () => gameService.getLastSyncTime())
-  ipcMain.handle('force-sync-games', async () => {
+  typedIpcMain.handle('games:get-games', async () => gameService.getGames())
+  typedIpcMain.handle('games:get-last-sync-time', async () => gameService.getLastSyncTime())
+  typedIpcMain.handle('games:force-sync-games', async () => {
     await gameService.forceSync()
     return gameService.getGames()
   })
-  ipcMain.handle('get-note', async (_event, releaseName: string) => {
+  typedIpcMain.handle('games:get-note', async (_event, releaseName) => {
     return gameService.getNote(releaseName)
   })
 
   // --- Download Handlers ---
-  ipcMain.handle('download:get-queue', () => downloadService.getQueue())
-  ipcMain.handle('download:add', (_event, game) => downloadService.addToQueue(game))
-  ipcMain.on('download:remove', (_event, releaseName) =>
-    downloadService.removeFromQueue(releaseName)
-  )
-  ipcMain.on('download:cancel', (_event, releaseName) =>
-    downloadService.cancelUserRequest(releaseName)
-  )
-  ipcMain.on('download:retry', (_event, releaseName) => downloadService.retryDownload(releaseName))
-  ipcMain.handle('download:delete-files', (_event, releaseName) =>
+  typedIpcMain.handle('download:get-queue', () => downloadService.getQueue())
+  typedIpcMain.handle('download:add', (_event, game) => downloadService.addToQueue(game))
+  typedIpcMain.handle('download:delete-files', (_event, releaseName) =>
     downloadService.deleteDownloadedFiles(releaseName)
   )
-  ipcMain.handle('download:install-from-completed', (_event, releaseName, deviceId) => {
+  typedIpcMain.handle('download:install-from-completed', (_event, releaseName, deviceId) => {
     console.log(
       `[IPC] Received request to install from completed: ${releaseName} on device ${deviceId}`
     )
@@ -239,6 +203,24 @@ app.whenReady().then(async () => {
       )
     })
   })
+
+  typedIpcMain.on('download:remove', (_event, releaseName) =>
+    downloadService.removeFromQueue(releaseName)
+  )
+  typedIpcMain.on('download:cancel', (_event, releaseName) =>
+    downloadService.cancelUserRequest(releaseName)
+  )
+  typedIpcMain.on('download:retry', (_event, releaseName) =>
+    downloadService.retryDownload(releaseName)
+  )
+
+  // Validate that all IPC channels have handlers registered
+  const allHandled = typedIpcMain.validateAllHandlersRegistered()
+  if (!allHandled) {
+    console.warn('WARNING: Not all IPC channels have registered handlers!')
+  } else {
+    console.log('All IPC channels have registered handlers.')
+  }
 
   // Create window FIRST
   createWindow()

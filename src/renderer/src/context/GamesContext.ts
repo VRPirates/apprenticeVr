@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import { GameInfo } from '../types/adb'
+import { GameInfo } from '@shared/types'
 
 export interface GamesContextType {
   games: GameInfo[]

@@ -1,5 +1,5 @@
 import React, { ReactNode, useEffect, useState, useCallback, useMemo } from 'react'
-import { GameInfo } from '../types/adb'
+import { GameInfo } from '@shared/types'
 import { GamesContext, GamesContextType } from './GamesContext'
 import { useAdb } from '../hooks/useAdb'
 import { useDependency } from '../hooks/useDependency'
@@ -179,7 +179,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
         console.log('Dependencies ready, initializing game service and loading games...')
         try {
           setIsLoading(true)
-          await window.api.initializeGameService()
+          //await window.api.initializeGameService()
           await loadGames()
         } catch (initError) {
           console.error('Failed to initialize game service or load games:', initError)

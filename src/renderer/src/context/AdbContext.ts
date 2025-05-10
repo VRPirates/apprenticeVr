@@ -1,4 +1,4 @@
 import { createContext } from 'react'
-import { AdbContextType } from '../types/adb'
+import { AdbContextType } from '@shared/types'
 
 export const AdbContext = createContext<AdbContextType | undefined>(undefined)

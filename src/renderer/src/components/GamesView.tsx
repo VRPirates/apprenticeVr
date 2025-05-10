@@ -15,7 +15,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAdb } from '../hooks/useAdb'
 import { useGames } from '../hooks/useGames'
 import { useDownload } from '../hooks/useDownload'
-import { GameInfo } from '../types/adb'
+import { GameInfo } from '@shared/types'
 import placeholderImage from '../assets/images/game-placeholder.png'
 import {
   Button,

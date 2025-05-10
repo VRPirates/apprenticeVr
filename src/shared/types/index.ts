@@ -131,6 +131,26 @@ export interface GamesAPI {
   getGames: () => Promise<GameInfo[]>
   getLastSyncTime: () => Promise<Date | null>
   forceSync: () => Promise<GameInfo[]>
+  getNote: (releaseName: string) => Promise<string>
+}
+
+export interface GameAPIRenderer extends GamesAPI {
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
   onExtractProgress: (callback: (progress: DownloadProgress) => void) => () => void
 }
+
+export interface DownloadAPI {
+  getQueue: () => Promise<DownloadItem[]>
+  addToQueue: (game: GameInfo) => Promise<boolean>
+  removeFromQueue: (releaseName: string) => void
+  cancelUserRequest: (releaseName: string) => void
+  retryDownload: (releaseName: string) => void
+  deleteDownloadedFiles: (releaseName: string) => Promise<boolean>
+}
+
+export interface DownloadAPIRenderer extends DownloadAPI {
+  onQueueUpdated: (callback: (queue: DownloadItem[]) => void) => () => void
+  installFromCompleted: (releaseName: string, deviceId: string) => Promise<void>
+}
+
+export type ServiceStatus = 'NOT_INITIALIZED' | 'INITIALIZING' | 'INITIALIZED' | 'ERROR'

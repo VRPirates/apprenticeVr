@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import { DownloadItem, GameInfo } from '../types/adb'
+import { DownloadItem, GameInfo } from '@shared/types'
 
 export interface DownloadContextType {
   queue: DownloadItem[]

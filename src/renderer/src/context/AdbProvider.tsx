@@ -1,7 +1,7 @@
 import React, { useEffect, useState, ReactNode, useCallback } from 'react'
-import { AdbContextType, DeviceInfo, PackageInfo } from '../types/adb'
+import { AdbContextType, DeviceInfo, PackageInfo } from '@shared/types'
 import { AdbContext } from './AdbContext'
-import { useDependency } from '@renderer/hooks/useDependency'
+// import { useDependency } from '@renderer/hooks/useDependency'
 
 interface AdbProviderProps {
   children: ReactNode
@@ -15,33 +15,33 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [packages, setPackages] = useState<PackageInfo[]>([])
   const [loadingPackages, setLoadingPackages] = useState<boolean>(false)
-  const dependencyContext = useDependency()
-  const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
+  // const dependencyContext = useDependency()
+  // const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
   const selectedDeviceDetails = devices.find((device) => device.id === selectedDevice) ?? null
 
-  useEffect(() => {
-    const initializeAndLoad = async (): Promise<void> => {
-      if (dependencyContext.isReady && !isInitialLoadComplete) {
-        console.log('Dependencies ready, initializing adb service...')
-        try {
-          setIsLoading(true)
-          await window.api.initializeADBService()
-          setIsLoading(false)
-          setIsInitialLoadComplete(true)
-        } catch (initError) {
-          console.error('Failed to initialize adb service:', initError)
-          setError(
-            initError instanceof Error ? initError.message : 'Failed to initialize adb service'
-          )
-        }
-      }
-    }
-    initializeAndLoad()
-  }, [dependencyContext.isReady, isInitialLoadComplete])
+  // useEffect(() => {
+  //   const initializeAndLoad = async (): Promise<void> => {
+  //     if (dependencyContext.isReady && !isInitialLoadComplete) {
+  //       console.log('Dependencies ready, initializing adb service...')
+  //       try {
+  //         setIsLoading(true)
+  //         await window.api.initializeADBService()
+  //         setIsLoading(false)
+  //         setIsInitialLoadComplete(true)
+  //       } catch (initError) {
+  //         console.error('Failed to initialize adb service:', initError)
+  //         setError(
+  //           initError instanceof Error ? initError.message : 'Failed to initialize adb service'
+  //         )
+  //       }
+  //     }
+  //   }
+  //   initializeAndLoad()
+  // }, [dependencyContext.isReady, isInitialLoadComplete])
 
   // Initialize device tracking when provider mounts
   useEffect(() => {
-    if (!isInitialLoadComplete) return
+    // if (!isInitialLoadComplete) return
     window.api.adb.startTrackingDevices()
 
     // Device listeners
@@ -95,7 +95,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
       removeDeviceChanged()
       removeTrackerError()
     }
-  }, [selectedDevice, isInitialLoadComplete])
+  }, [selectedDevice])
 
   // Load installed packages from connected device
   const loadPackages = useCallback(async (): Promise<void> => {
@@ -179,9 +179,9 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     selectedDeviceDetails
   } satisfies AdbContextType
 
-  if (!isInitialLoadComplete) {
-    return <div>Loading...</div>
-  }
+  // if (!isInitialLoadComplete) {
+  //   return <div>Loading...</div>
+  // }
 
   return <AdbContext.Provider value={value}>{children}</AdbContext.Provider>
 }

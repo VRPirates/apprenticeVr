@@ -5,7 +5,7 @@ import { EventEmitter } from 'events'
 import dependencyService from './dependencyService'
 import fs, { Dirent } from 'fs'
 import path from 'path'
-import { AdbAPI, DeviceInfo } from '@shared/types'
+import { AdbAPI, DeviceInfo, ServiceStatus } from '@shared/types'
 
 interface PackageInfo {
   packageName: string
@@ -40,16 +40,36 @@ class AdbService extends EventEmitter implements AdbAPI {
   private client: ReturnType<typeof Adb.createClient> | null
   private deviceTracker: Tracker | null = null
   private isTracking = false
+  private status: ServiceStatus = 'NOT_INITIALIZED'
 
   constructor() {
     super()
     this.client = null
   }
 
-  public async initialize(): Promise<void> {
-    this.client = Adb.createClient({
-      bin: dependencyService.getAdbPath()
-    })
+  public async initialize(): Promise<ServiceStatus> {
+    if (this.status === 'INITIALIZING') {
+      console.warn('AdbService is already initializing, skipping.')
+      return 'INITIALIZING'
+    }
+    if (this.status === 'INITIALIZED') {
+      console.warn('AdbService is already initialized, skipping.')
+      return 'INITIALIZED'
+    }
+
+    this.status = 'INITIALIZING'
+    try {
+      this.client = Adb.createClient({
+        bin: dependencyService.getAdbPath()
+      })
+    } catch (error) {
+      console.error('Error initializing AdbService:', error)
+      this.status = 'ERROR'
+      return 'ERROR'
+    }
+
+    this.status = 'INITIALIZED'
+    return 'INITIALIZED'
   }
 
   private async getDeviceDetails(serial: string): Promise<DeviceInfo | null> {

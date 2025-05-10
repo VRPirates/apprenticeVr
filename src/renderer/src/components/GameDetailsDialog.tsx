@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { GameInfo } from '../types/adb'
+import { GameInfo } from '@shared/types'
 import {
   Dialog,
   DialogTrigger,

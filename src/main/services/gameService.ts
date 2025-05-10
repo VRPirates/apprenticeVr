@@ -5,8 +5,8 @@ import { execa } from 'execa'
 import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
 import dependencyService from './dependencyService'
-import { ServiceStatus } from './service'
-import { GameInfo } from '@shared/types'
+import { GameInfo, ServiceStatus, GamesAPI } from '@shared/types'
+import EventEmitter from 'events'
 
 interface VrpConfig {
   baseUri: string
@@ -14,16 +14,16 @@ interface VrpConfig {
   lastSync?: Date
 }
 
-class GameService {
+class GameService extends EventEmitter implements GamesAPI {
   private dataPath: string
   private configPath: string
   private gameListPath: string
   private metaPath: string
   private vrpConfig: VrpConfig | null = null
   private games: GameInfo[] = []
-  private isInitialized: boolean = false
-  private isInitializing: boolean = false
+  private status: ServiceStatus = 'NOT_INITIALIZED'
   constructor() {
+    super()
     this.dataPath = join(app.getPath('userData'), 'vrp-data')
     this.configPath = join(this.dataPath, 'vrp-config.json')
     this.gameListPath = join(this.dataPath, 'VRP-GameList.txt')
@@ -31,15 +31,15 @@ class GameService {
   }
 
   async initialize(force?: boolean): Promise<ServiceStatus> {
-    if (this.isInitializing) {
+    if (this.status === 'INITIALIZING') {
       console.log('GameService already initializing, skipping.')
       return 'INITIALIZING'
     }
-    if (!force && this.isInitialized) {
+    if (!force && this.status === 'INITIALIZED') {
       console.log('GameService already initialized, skipping.')
       return 'INITIALIZED'
     }
-    this.isInitializing = true
+    this.status = 'INITIALIZING'
     console.log('Initializing GameService...')
     await fs.mkdir(this.dataPath, { recursive: true })
     try {
@@ -58,10 +58,10 @@ class GameService {
       }
     } catch (error) {
       console.error('Error initializing game service:', error)
+      this.status = 'ERROR'
       return 'ERROR'
     } finally {
-      this.isInitializing = false
-      this.isInitialized = true
+      this.status = 'INITIALIZED'
     }
     return 'INITIALIZED'
   }
@@ -510,35 +510,36 @@ class GameService {
     console.log(`Loaded ${games.length} games`)
   }
 
-  async forceSync(): Promise<void> {
+  async forceSync(): Promise<GameInfo[]> {
     await this.syncGameData()
-  }
-
-  getGames(): GameInfo[] {
     return this.games
   }
 
-  getLastSyncTime(): Date | null {
-    return this.vrpConfig?.lastSync || null
+  getGames(): Promise<GameInfo[]> {
+    return Promise.resolve(this.games)
+  }
+
+  getLastSyncTime(): Promise<Date | null> {
+    return Promise.resolve(this.vrpConfig?.lastSync || null)
   }
 
   // Added method to expose VRP config needed by DownloadService
-  getVrpConfig(): { baseUri?: string; password?: string } | null {
+  getVrpConfig(): Promise<{ baseUri?: string; password?: string } | null> {
     if (!this.vrpConfig) {
       console.warn('Attempted to get VRP config before it was loaded.')
-      return null
+      return Promise.resolve(null)
     }
     // Return only necessary parts, don't expose lastSync etc.
-    return {
+    return Promise.resolve({
       baseUri: this.vrpConfig.baseUri,
       password: this.vrpConfig.password
-    }
+    })
   }
 
-  getNote(releaseName: string): string {
+  getNote(releaseName: string): Promise<string> {
     const notePath = join(this.metaPath, 'notes', `${releaseName}.txt`)
     const noteExists = existsSync(notePath)
-    return noteExists ? readFileSync(notePath, 'utf-8') : ''
+    return Promise.resolve(noteExists ? readFileSync(notePath, 'utf-8') : '')
   }
 }
 

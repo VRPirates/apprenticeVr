@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import { DependencyStatus } from '../types/adb'
+import { DependencyStatus } from '@shared/types'
 
 export interface DependencyContextType {
   isReady: boolean
