@@ -627,7 +627,7 @@ class DependencyService {
   // --- Public Methods ---
 
   getStatus(): DependencyStatus {
-    return this.status
+    return { ...this.status } // Return a copy to avoid direct modification
   }
 }
 

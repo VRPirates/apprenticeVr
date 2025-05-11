@@ -101,7 +101,15 @@ const api = {
   settings: {
     getDownloadPath: (): Promise<string> => typedIpcRenderer.invoke('settings:get-download-path'),
     setDownloadPath: (path: string): Promise<void> =>
-      typedIpcRenderer.invoke('settings:set-download-path', path)
+      typedIpcRenderer.invoke('settings:set-download-path', path),
+    getDownloadSpeedLimit: (): Promise<number> =>
+      typedIpcRenderer.invoke('settings:get-download-speed-limit'),
+    setDownloadSpeedLimit: (limit: number): Promise<void> =>
+      typedIpcRenderer.invoke('settings:set-download-speed-limit', limit),
+    getUploadSpeedLimit: (): Promise<number> =>
+      typedIpcRenderer.invoke('settings:get-upload-speed-limit'),
+    setUploadSpeedLimit: (limit: number): Promise<void> =>
+      typedIpcRenderer.invoke('settings:set-upload-speed-limit', limit)
   } satisfies SettingsAPIRenderer,
   // Add dialog API
   dialog: {

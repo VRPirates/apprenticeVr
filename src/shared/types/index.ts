@@ -158,11 +158,17 @@ export interface DownloadAPIRenderer extends DownloadAPI {
 
 export interface Settings {
   downloadPath: string
+  downloadSpeedLimit: number
+  uploadSpeedLimit: number
 }
 
 export interface SettingsAPI {
   getDownloadPath: () => string
   setDownloadPath: (path: string) => void
+  getDownloadSpeedLimit: () => number
+  setDownloadSpeedLimit: (limit: number) => void
+  getUploadSpeedLimit: () => number
+  setUploadSpeedLimit: (limit: number) => void
 }
 
 export interface SettingsAPIRenderer
@@ -171,6 +177,10 @@ export interface SettingsAPIRenderer
     {
       getDownloadPath: () => Promise<string>
       setDownloadPath: (path: string) => Promise<void>
+      getDownloadSpeedLimit: () => Promise<number>
+      setDownloadSpeedLimit: (limit: number) => Promise<void>
+      getUploadSpeedLimit: () => Promise<number>
+      setUploadSpeedLimit: (limit: number) => Promise<void>
     }
   > {}
 

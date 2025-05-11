@@ -5,6 +5,7 @@ import crypto from 'crypto'
 import { DownloadItem, DownloadStatus } from './types'
 import { QueueManager } from './queueManager'
 import dependencyService from '../dependencyService'
+import settingsService from '../settingsService'
 
 // Type for VRP config - adjust if needed elsewhere
 interface VrpConfig {
@@ -15,19 +16,16 @@ interface VrpConfig {
 export class DownloadProcessor {
   private activeDownloads: Map<string, ReturnType<typeof execa>> = new Map()
   private queueManager: QueueManager
-  private dependencyService: typeof dependencyService
   private vrpConfig: VrpConfig | null = null
   private downloadsDir: string // Needed to construct download path
   private debouncedEmitUpdate: () => void
 
   constructor(
     queueManager: QueueManager,
-    depService: typeof dependencyService, // Pass dependency service
     downloadsDir: string, // Pass downloads directory
     debouncedEmitUpdate: () => void // Pass the emitter function
   ) {
     this.queueManager = queueManager
-    this.dependencyService = depService
     this.downloadsDir = downloadsDir
     this.debouncedEmitUpdate = debouncedEmitUpdate
   }
@@ -125,7 +123,7 @@ export class DownloadProcessor {
       return { success: false, startExtraction: false }
     }
 
-    const rclonePath = this.dependencyService.getRclonePath()
+    const rclonePath = dependencyService.getRclonePath()
     if (!rclonePath) {
       console.error('[DownProc] Rclone path not found.')
       this.updateItemStatus(item.releaseName, 'Error', 0, 'Rclone dependency not found')
@@ -169,7 +167,13 @@ export class DownloadProcessor {
           '--no-check-certificate',
           '--progress',
           '--stats=1s',
-          '--stats-one-line'
+          '--stats-one-line',
+          ...(settingsService.getDownloadSpeedLimit() > 0
+            ? [`--bwlimit`, `${settingsService.getDownloadSpeedLimit()}K`]
+            : []),
+          ...(settingsService.getUploadSpeedLimit() > 0
+            ? [`--tpslimit`, `${settingsService.getUploadSpeedLimit()}`]
+            : [])
         ],
         { all: true, buffer: false, windowsHide: true }
       )

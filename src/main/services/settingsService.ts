@@ -14,7 +14,9 @@ class SettingsService extends EventEmitter implements SettingsAPI {
 
     // Default settings
     this.settings = {
-      downloadPath: join(app.getPath('userData'), 'downloads')
+      downloadPath: join(app.getPath('userData'), 'downloads'),
+      downloadSpeedLimit: 0,
+      uploadSpeedLimit: 0
     }
 
     // Load settings from disk
@@ -29,6 +31,26 @@ class SettingsService extends EventEmitter implements SettingsAPI {
     this.settings.downloadPath = path
     this.saveSettings()
     this.emit('download-path-changed', path)
+  }
+
+  getDownloadSpeedLimit(): number {
+    return this.settings.downloadSpeedLimit
+  }
+
+  setDownloadSpeedLimit(limit: number): void {
+    this.settings.downloadSpeedLimit = limit
+    this.saveSettings()
+    this.emit('download-speed-limit-changed', limit)
+  }
+
+  getUploadSpeedLimit(): number {
+    return this.settings.uploadSpeedLimit
+  }
+
+  setUploadSpeedLimit(limit: number): void {
+    this.settings.uploadSpeedLimit = limit
+    this.saveSettings()
+    this.emit('upload-speed-limit-changed', limit)
   }
 
   private loadSettings(): void {

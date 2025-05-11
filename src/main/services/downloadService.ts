@@ -1,7 +1,6 @@
 import { BrowserWindow } from 'electron'
 import { promises as fs, existsSync } from 'fs'
 import { DownloadItem, DownloadStatus } from './download/types'
-import dependencyService from './dependencyService'
 import adbService from './adbService'
 import { EventEmitter } from 'events'
 import { debounce } from './download/utils'
@@ -41,15 +40,10 @@ class DownloadService extends EventEmitter implements DownloadAPI {
     this.debouncedEmitUpdate = debounce(this.emitUpdate.bind(this), 300)
     this.downloadProcessor = new DownloadProcessor(
       this.queueManager,
-      dependencyService,
       this.downloadsPath,
       this.debouncedEmitUpdate
     )
-    this.extractionProcessor = new ExtractionProcessor(
-      this.queueManager,
-      dependencyService,
-      this.debouncedEmitUpdate
-    )
+    this.extractionProcessor = new ExtractionProcessor(this.queueManager, this.debouncedEmitUpdate)
     this.installationProcessor = new InstallationProcessor(
       this.queueManager,
       this.adbService,

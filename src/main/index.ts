@@ -223,6 +223,18 @@ app.whenReady().then(async () => {
   typedIpcMain.handle('settings:set-download-path', (_event, path) =>
     settingsService.setDownloadPath(path)
   )
+  typedIpcMain.handle('settings:get-download-speed-limit', () =>
+    settingsService.getDownloadSpeedLimit()
+  )
+  typedIpcMain.handle('settings:set-download-speed-limit', (_event, limit) =>
+    settingsService.setDownloadSpeedLimit(limit)
+  )
+  typedIpcMain.handle('settings:get-upload-speed-limit', () =>
+    settingsService.getUploadSpeedLimit()
+  )
+  typedIpcMain.handle('settings:set-upload-speed-limit', (_event, limit) =>
+    settingsService.setUploadSpeedLimit(limit)
+  )
 
   // --- Dialog Handlers ---
   typedIpcMain.handle('dialog:show-directory-picker', async () => {

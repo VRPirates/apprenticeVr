@@ -37,6 +37,10 @@ export interface IPCChannels {
   // Settings related channels
   'settings:get-download-path': DefineChannel<[], string>
   'settings:set-download-path': DefineChannel<[path: string], void>
+  'settings:get-download-speed-limit': DefineChannel<[], number>
+  'settings:set-download-speed-limit': DefineChannel<[limit: number], void>
+  'settings:get-upload-speed-limit': DefineChannel<[], number>
+  'settings:set-upload-speed-limit': DefineChannel<[limit: number], void>
 
   // Dialog related channels
   'dialog:show-directory-picker': DefineChannel<[], string | null>
@@ -66,4 +70,6 @@ export interface IPCEvents {
   'games:download-progress': [progress: DownloadProgress]
   'games:extract-progress': [progress: { type: string; progress: number }]
   'download:queue-updated': [queue: DownloadItem[]]
+  'settings:download-speed-limit-changed': [limit: number]
+  'settings:upload-speed-limit-changed': [limit: number]
 }

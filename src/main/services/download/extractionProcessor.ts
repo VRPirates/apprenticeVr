@@ -14,20 +14,14 @@ interface VrpConfig {
 export class ExtractionProcessor {
   private activeExtractions: Map<string, ReturnType<typeof execa>> = new Map()
   private queueManager: QueueManager
-  private dependencyService: typeof dependencyService
   private vrpConfig: VrpConfig | null = null
   private debouncedEmitUpdate: () => void
 
   private static isExecaError = (err: unknown): err is ExecaError =>
     typeof err === 'object' && err !== null && 'shortMessage' in err
 
-  constructor(
-    queueManager: QueueManager,
-    depService: typeof dependencyService,
-    debouncedEmitUpdate: () => void
-  ) {
+  constructor(queueManager: QueueManager, debouncedEmitUpdate: () => void) {
     this.queueManager = queueManager
-    this.dependencyService = depService
     this.debouncedEmitUpdate = debouncedEmitUpdate
   }
 
@@ -104,7 +98,7 @@ export class ExtractionProcessor {
       `[ExtractProc] Checking for nested archives in ${baseExtractPath} for ${releaseName}`
     )
 
-    const sevenZipPath = this.dependencyService.get7zPath()
+    const sevenZipPath = dependencyService.get7zPath()
     if (!sevenZipPath) {
       console.error(
         `[ExtractProc] 7zip path not found for nested extraction of ${releaseName}. Skipping nested.`
@@ -231,7 +225,7 @@ export class ExtractionProcessor {
       )
       return false
     }
-    if (!this.dependencyService.getStatus().sevenZip.ready) {
+    if (!dependencyService.getStatus().sevenZip.ready) {
       console.error(`[ExtractProc] 7zip dependency not ready for ${item.releaseName}.`)
       this.updateItemStatus(item.releaseName, 'Error', 100, '7zip not ready')
       return false
@@ -275,7 +269,7 @@ export class ExtractionProcessor {
       return false
     }
 
-    const sevenZipPath = this.dependencyService.get7zPath()
+    const sevenZipPath = dependencyService.get7zPath()
     if (!sevenZipPath) {
       console.error(`[ExtractProc] 7zip path not found for ${item.releaseName}.`)
       this.updateItemStatus(
