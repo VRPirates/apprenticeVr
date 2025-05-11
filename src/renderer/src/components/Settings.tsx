@@ -11,25 +11,52 @@ import {
   Divider,
   Toaster,
   ToastTitle,
-  useToastController
+  useToastController,
+  Title2,
+  Subtitle1
 } from '@fluentui/react-components'
-import { FolderOpenRegular, CheckmarkCircleRegular } from '@fluentui/react-icons'
+import { FolderOpenRegular, CheckmarkCircleRegular, InfoRegular } from '@fluentui/react-icons'
 import { useSettings } from '../hooks/useSettings'
 
 const useStyles = makeStyles({
   root: {
-    padding: tokens.spacingVerticalM,
-    maxWidth: '800px',
-    margin: '0 auto'
+    padding: tokens.spacingVerticalXL,
+    maxWidth: '1200px',
+    margin: '0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalL
+  },
+  headerSection: {
+    marginBottom: tokens.spacingVerticalL
+  },
+  headerTitle: {
+    marginBottom: tokens.spacingVerticalXS
+  },
+  headerSubtitle: {
+    color: tokens.colorNeutralForeground2,
+    display: 'block',
+    marginBottom: tokens.spacingVerticalL
   },
   section: {
-    marginBottom: tokens.spacingVerticalL
+    marginBottom: tokens.spacingVerticalXL
+  },
+  card: {
+    width: '100%',
+    boxShadow: tokens.shadow4,
+    borderRadius: tokens.borderRadiusMedium
+  },
+  cardContent: {
+    padding: tokens.spacingHorizontalL,
+    paddingBottom: tokens.spacingVerticalXL
   },
   formRow: {
     display: 'flex',
     alignItems: 'center',
-    marginTop: tokens.spacingVerticalS,
-    gap: tokens.spacingHorizontalM
+    marginTop: tokens.spacingVerticalM,
+    gap: tokens.spacingHorizontalM,
+    width: '100%',
+    maxWidth: '800px'
   },
   input: {
     flexGrow: 1
@@ -44,6 +71,13 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: tokens.spacingHorizontalXS,
     marginTop: tokens.spacingVerticalXS
+  },
+  hint: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXS,
+    marginTop: tokens.spacingVerticalS,
+    color: tokens.colorNeutralForeground2
   }
 })
 
@@ -109,20 +143,36 @@ const Settings: React.FC = () => {
   if (isLoading) {
     return (
       <div className={styles.root}>
-        <Spinner size="tiny" />
-        <Text>Loading settings...</Text>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '200px'
+          }}
+        >
+          <Spinner size="large" label="Loading settings..." />
+        </div>
       </div>
     )
   }
 
   return (
     <div className={styles.root}>
-      <Card>
-        <CardHeader header={<Text weight="semibold">Application Settings</Text>} />
+      <div className={styles.headerSection}>
+        <Title2 className={styles.headerTitle}>Application Settings</Title2>
+        <Text as="p" className={styles.headerSubtitle}>
+          Configure application preferences and manage your downloads
+        </Text>
+      </div>
 
-        <div className={styles.section}>
-          <Text weight="semibold">Download Settings</Text>
-          <Divider />
+      <Card className={styles.card}>
+        <CardHeader>
+          <Subtitle1 weight="semibold">Download Settings</Subtitle1>
+        </CardHeader>
+        <Divider />
+        <div className={styles.cardContent}>
+          <Text>Set where your games will be downloaded and stored on your device</Text>
 
           <div className={styles.formRow}>
             <Input
@@ -130,9 +180,18 @@ const Settings: React.FC = () => {
               value={editedDownloadPath}
               onChange={(e, data) => setEditedDownloadPath(data.value)}
               placeholder="Download path"
-              contentAfter={<Button icon={<FolderOpenRegular />} onClick={handleSelectFolder} />}
+              contentAfter={
+                <Button
+                  icon={<FolderOpenRegular />}
+                  onClick={handleSelectFolder}
+                  aria-label="Browse folders"
+                />
+              }
+              size="large"
             />
-            <Button onClick={handleSaveDownloadPath}>Save</Button>
+            <Button onClick={handleSaveDownloadPath} appearance="primary" size="large">
+              Save Path
+            </Button>
           </div>
 
           {(error || localError) && <Text className={styles.error}>{error || localError}</Text>}
@@ -144,11 +203,25 @@ const Settings: React.FC = () => {
             </Text>
           )}
 
-          <Text size="small" style={{ marginTop: tokens.spacingVerticalXS }}>
-            This is where downloaded games will be stored
+          <Text className={styles.hint}>
+            <InfoRegular />
+            This is where downloaded games will be stored on your computer
           </Text>
         </div>
       </Card>
+
+      {/* Add more settings sections here as needed */}
+      {/* 
+      <Card className={styles.card}>
+        <CardHeader>
+          <Subtitle1 weight="semibold">Other Settings</Subtitle1>
+        </CardHeader>
+        <Divider />
+        <div className={styles.cardContent}>
+          // Additional settings UI
+        </div>
+      </Card>
+      */}
     </div>
   )
 }
