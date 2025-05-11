@@ -103,6 +103,11 @@ const api = {
     setDownloadPath: (path: string): Promise<void> =>
       typedIpcRenderer.invoke('settings:set-download-path', path)
   } satisfies SettingsAPIRenderer,
+  // Add dialog API
+  dialog: {
+    showDirectoryPicker: (): Promise<string | null> =>
+      typedIpcRenderer.invoke('dialog:show-directory-picker')
+  },
   // Dependency Status Listeners
   onDependencyProgress: (
     callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, protocol } from 'electron'
+import { app, shell, BrowserWindow, protocol, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -223,6 +223,23 @@ app.whenReady().then(async () => {
   typedIpcMain.handle('settings:set-download-path', (_event, path) =>
     settingsService.setDownloadPath(path)
   )
+
+  // --- Dialog Handlers ---
+  typedIpcMain.handle('dialog:show-directory-picker', async () => {
+    if (!mainWindow) return null
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory', 'createDirectory'],
+      title: 'Select Download Folder',
+      defaultPath: settingsService.getDownloadPath()
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return null
+    }
+
+    return filePaths[0]
+  })
 
   // Validate that all IPC channels have handlers registered
   const allHandled = typedIpcMain.validateAllHandlersRegistered()

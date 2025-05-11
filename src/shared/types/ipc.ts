@@ -37,6 +37,9 @@ export interface IPCChannels {
   // Settings related channels
   'settings:get-download-path': DefineChannel<[], string>
   'settings:set-download-path': DefineChannel<[path: string], void>
+
+  // Dialog related channels
+  'dialog:show-directory-picker': DefineChannel<[], string | null>
 }
 
 // Types for send (no response) channels

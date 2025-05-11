@@ -3,7 +3,8 @@ import {
   AdbAPIRenderer,
   DependencyStatus,
   DownloadAPIRenderer,
-  GameAPIRenderer
+  GameAPIRenderer,
+  SettingsAPIRenderer
 } from '@shared/types'
 
 declare global {
@@ -14,8 +15,10 @@ declare global {
       adb: AdbAPIRenderer
       games: GameAPIRenderer
       downloads: DownloadAPIRenderer
-      // deleteFiles(releaseName: string): Promise<boolean>
-      // installFromCompleted: (releaseName: string, deviceId: string) => Promise<void>
+      settings: SettingsAPIRenderer
+      dialog: {
+        showDirectoryPicker: () => Promise<string | null>
+      }
       onDependencyProgress: (
         callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void
       ) => () => void

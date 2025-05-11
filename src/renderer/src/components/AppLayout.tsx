@@ -4,6 +4,7 @@ import { GamesProvider } from '../context/GamesProvider'
 import DeviceList from './DeviceList'
 import GamesView from './GamesView'
 import DownloadsView from './DownloadsView'
+import Settings from './Settings'
 import {
   FluentProvider,
   Title1,
@@ -18,22 +19,30 @@ import {
   Drawer,
   DrawerHeader,
   DrawerHeaderTitle,
-  DrawerBody
+  DrawerBody,
+  TabList,
+  Tab
 } from '@fluentui/react-components'
 import electronLogo from '../assets/icon.svg'
 import { useDependency } from '../hooks/useDependency'
 import { DependencyProvider } from '../context/DependencyProvider'
 import { DownloadProvider } from '../context/DownloadProvider'
+import { SettingsProvider } from '../context/SettingsProvider'
 import { useDownload } from '../hooks/useDownload'
 import {
   ArrowDownloadRegular as DownloadIcon,
-  DismissRegular as CloseIcon
+  DismissRegular as CloseIcon,
+  DesktopRegular,
+  SettingsRegular
 } from '@fluentui/react-icons'
 
 enum AppView {
   DEVICE_LIST,
   GAMES
 }
+
+// Type for app tab navigation
+type ActiveTab = 'games' | 'settings'
 
 const useStyles = makeStyles({
   root: {
@@ -70,11 +79,21 @@ const useStyles = makeStyles({
     alignItems: 'center',
     justifyContent: 'center',
     gap: tokens.spacingVerticalL
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalM
+  },
+  tabs: {
+    marginLeft: tokens.spacingHorizontalM,
+    marginRight: tokens.spacingHorizontalM
   }
 })
 
 interface MainContentProps {
   currentView: AppView
+  activeTab: ActiveTab
   onDeviceConnected: () => void
   onSkipConnection: () => void
   onBackToDeviceList: () => void
@@ -82,6 +101,7 @@ interface MainContentProps {
 
 const MainContent: React.FC<MainContentProps> = ({
   currentView,
+  activeTab,
   onDeviceConnected,
   onSkipConnection,
   onBackToDeviceList
@@ -95,12 +115,15 @@ const MainContent: React.FC<MainContentProps> = ({
   } = useDependency()
 
   const renderCurrentView = (): React.ReactNode => {
-    switch (currentView) {
-      case AppView.GAMES:
-        return <GamesView onBackToDevices={onBackToDeviceList} />
-      case AppView.DEVICE_LIST:
-      default:
-        return <DeviceList onConnected={onDeviceConnected} onSkip={onSkipConnection} />
+    if (currentView === AppView.DEVICE_LIST) {
+      return <DeviceList onConnected={onDeviceConnected} onSkip={onSkipConnection} />
+    }
+
+    // Return the appropriate content based on active tab
+    if (activeTab === 'settings') {
+      return <Settings />
+    } else {
+      return <GamesView onBackToDevices={onBackToDeviceList} />
     }
   }
 
@@ -158,6 +181,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
 const AppLayout: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DEVICE_LIST)
+  const [activeTab, setActiveTab] = useState<ActiveTab>('games')
   const [isDarkMode, setIsDarkMode] = useState(
     window.matchMedia('(prefers-color-scheme: dark)').matches
   )
@@ -272,20 +296,36 @@ const AppLayout: React.FC = () => {
               <img alt="logo" className={styles.logo} src={electronLogo} />
               <Title1>Apprentice VR</Title1>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalL }}>
+            <div className={styles.headerActions}>
               {currentView !== AppView.DEVICE_LIST && (
-                <Button
-                  onClick={() => {
-                    console.log('[AppLayout] Downloads button clicked')
-                    setIsDownloadsOpen(true)
-                  }}
-                  icon={downloadButtonIcon}
-                  style={{
-                    fontFamily: 'monospace'
-                  }}
-                >
-                  {downloadButtonText}
-                </Button>
+                <>
+                  <Button
+                    onClick={() => {
+                      console.log('[AppLayout] Downloads button clicked')
+                      setIsDownloadsOpen(true)
+                    }}
+                    icon={downloadButtonIcon}
+                    style={{
+                      fontFamily: 'monospace'
+                    }}
+                  >
+                    {downloadButtonText}
+                  </Button>
+
+                  <TabList
+                    selectedValue={activeTab}
+                    onTabSelect={(_, data) => setActiveTab(data.value as ActiveTab)}
+                    appearance="subtle"
+                    className={styles.tabs}
+                  >
+                    <Tab value="games" icon={<DesktopRegular />}>
+                      Games
+                    </Tab>
+                    <Tab value="settings" icon={<SettingsRegular />}>
+                      Settings
+                    </Tab>
+                  </TabList>
+                </>
               )}
               <Switch
                 label={isDarkMode ? 'Dark mode' : 'Light mode'}
@@ -294,9 +334,11 @@ const AppLayout: React.FC = () => {
               />
             </div>
           </div>
+
           <div className={styles.mainContent} id="mainContent">
             <MainContent
               currentView={currentView}
+              activeTab={activeTab}
               onDeviceConnected={handleDeviceConnected}
               onSkipConnection={handleSkipConnection}
               onBackToDeviceList={handleBackToDeviceList}
@@ -355,7 +397,9 @@ const AppLayout: React.FC = () => {
 const AppLayoutWithProviders: React.FC = () => {
   return (
     <DownloadProvider>
-      <AppLayout />
+      <SettingsProvider>
+        <AppLayout />
+      </SettingsProvider>
     </DownloadProvider>
   )
 }

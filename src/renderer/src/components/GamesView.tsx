@@ -564,7 +564,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     }, 300)
   }, [])
 
-  const handleInstall = (game: GameInfo | null): void => {
+  const handleInstall = (game: GameInfo): void => {
     if (!game) return
     console.log('Install action triggered for:', game.packageName)
     addDownloadToQueue(game)
@@ -581,7 +581,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     handleCloseDialog()
   }
 
-  const handleReinstall = async (game: GameInfo | null): Promise<void> => {
+  const handleReinstall = async (game: GameInfo): Promise<void> => {
     if (!game || !game.packageName || !game.releaseName || !selectedDevice) {
       console.error(
         'Reinstall Error: Missing game data, package name, release name, or device ID.',
@@ -658,7 +658,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     }
   }
 
-  const handleUpdate = async (game: GameInfo | null): Promise<void> => {
+  const handleUpdate = async (game: GameInfo): Promise<void> => {
     if (!game || !game.releaseName || !selectedDevice) {
       console.error('Update action aborted: Missing game data, releaseName, or selectedDevice.', {
         game,
@@ -709,21 +709,21 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     }
   }
 
-  const handleRetry = (game: GameInfo | null): void => {
+  const handleRetry = (game: GameInfo): void => {
     if (!game || !game.releaseName) return
     console.log('Retry action triggered for:', game.releaseName)
     retryDownload(game.releaseName)
     handleCloseDialog()
   }
 
-  const handleCancelDownload = (game: GameInfo | null): void => {
+  const handleCancelDownload = (game: GameInfo): void => {
     if (!game || !game.releaseName) return
     console.log('Cancel download/extraction action triggered for:', game.releaseName)
     cancelDownload(game.releaseName)
     handleCloseDialog()
   }
 
-  const handleInstallFromCompleted = (game: GameInfo | null): void => {
+  const handleInstallFromCompleted = (game: GameInfo): void => {
     if (!game || !game.releaseName || !selectedDevice) {
       console.error('Missing game, releaseName, or deviceId for install from completed action')
       window.alert('Cannot start installation: Missing required information.')
@@ -796,71 +796,56 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const isBusy = adbLoading || loadingGames || isLoading
 
   return (
-    <div className="games-view">
-      <header className={styles.header}>
+    <div className={styles.root}>
+      <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <Button icon={<ArrowLeftRegular />} onClick={onBackToDevices} appearance="transparent">
-            Back to Devices
+          <Button appearance="subtle" icon={<ArrowLeftRegular />} onClick={onBackToDevices}>
+            Back to devices selection
           </Button>
-          <Title2>Library</Title2>
-        </div>
-        <div className={styles.deviceInfoBar}>
-          {isConnected ? (
-            <>
-              <Text className={styles.connectedDeviceText}>
-                <CheckmarkCircleRegular fontSize={16} color={tokens.colorPaletteGreenForeground1} />
-                Connected:{' '}
-                <strong>{selectedDeviceDetails?.friendlyModelName || selectedDevice}</strong>
-                {selectedDeviceDetails && selectedDeviceDetails.batteryLevel !== null && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      marginLeft: tokens.spacingHorizontalM
-                    }}
-                  >
-                    <BatteryChargeRegular
-                      fontSize={16}
-                      style={{ marginRight: tokens.spacingHorizontalXXS }}
-                    />
-                    {selectedDeviceDetails.batteryLevel}%
-                  </span>
-                )}
-                {selectedDeviceDetails &&
-                  selectedDeviceDetails.storageFree !== null &&
-                  selectedDeviceDetails.storageTotal !== null && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        marginLeft: tokens.spacingHorizontalM
-                      }}
-                    >
-                      <StorageRegular
-                        fontSize={16}
-                        style={{ marginRight: tokens.spacingHorizontalXXS }}
-                      />
-                      {`${selectedDeviceDetails.storageFree} / ${selectedDeviceDetails.storageTotal}`}
-                    </span>
-                  )}
-              </Text>
-              <Button
-                icon={<DismissRegular />}
-                onClick={disconnectDevice}
-                appearance="subtle"
-                size="small"
-                aria-label="Disconnect device"
-              />
-            </>
-          ) : (
-            <Text className={styles.deviceWarningText}>
-              <PlugDisconnectedRegular fontSize={16} /> No device connected
-            </Text>
+          <Title2>{selectedDeviceDetails?.friendlyModelName || 'Games'}</Title2>
+          {selectedDeviceDetails && (
+            <div className={styles.deviceInfoBar}>
+              {selectedDeviceDetails?.batteryLevel !== null && (
+                <Badge
+                  appearance="outline"
+                  color={selectedDeviceDetails.batteryLevel > 20 ? 'success' : 'danger'}
+                  icon={<BatteryChargeRegular />}
+                >
+                  {selectedDeviceDetails.batteryLevel}%
+                </Badge>
+              )}
+              {selectedDeviceDetails?.storageFree && (
+                <Badge appearance="outline" icon={<StorageRegular />}>
+                  {selectedDeviceDetails.storageFree} free
+                </Badge>
+              )}
+            </div>
           )}
         </div>
-      </header>
+        {isConnected ? (
+          <div className={styles.toolbarRight}>
+            <Text className={styles.connectedDeviceText}>
+              <CheckmarkCircleRegular />
+              Connected to: {selectedDevice}
+            </Text>
+            <Button
+              appearance="subtle"
+              icon={<PlugDisconnectedRegular />}
+              onClick={disconnectDevice}
+              title="Disconnect from device"
+            />
+          </div>
+        ) : (
+          <div className={styles.toolbarRight}>
+            <Text className={styles.deviceWarningText}>
+              <DismissRegular />
+              Not connected to a device
+            </Text>
+          </div>
+        )}
+      </div>
 
-      <div className="games-container-table">
+      <div className={styles.tableContainer}>
         <div className="games-toolbar">
           <div className="games-toolbar-left">
             <Button icon={<ArrowClockwiseRegular />} onClick={refreshGames} disabled={isBusy}>
