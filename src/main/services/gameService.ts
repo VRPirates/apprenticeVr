@@ -14,13 +14,49 @@ interface VrpConfig {
   lastSync?: Date
 }
 
+// New interfaces for additional game data
+interface UncrackableGame {
+  packagename: string
+  gamename: string
+  appid: string
+  uncrackable: boolean
+}
+
+interface OutdatedGame {
+  gameName: string
+  packageName: string
+  cost: string
+  storeUrl: string
+  currentVersionCode: string
+  latestVersionCode: string
+  versionName: string
+  reason: string
+}
+
+interface MissingGame {
+  gameName: string
+  packageName: string
+  cost: string
+  storeUrl: string
+  currentVersionCode: string
+  latestVersionCode: string
+  versionName: string
+  reason: string
+}
+
 class GameService extends EventEmitter implements GamesAPI {
   private dataPath: string
   private configPath: string
   private gameListPath: string
   private metaPath: string
+  private uncrackableGamesPath: string
+  private outdatedGamesPath: string
+  private missingGamesPath: string
   private vrpConfig: VrpConfig | null = null
   private games: GameInfo[] = []
+  private uncrackableGames: UncrackableGame[] = []
+  private outdatedGames: OutdatedGame[] = []
+  private missingGames: MissingGame[] = []
   private status: ServiceStatus = 'NOT_INITIALIZED'
   constructor() {
     super()
@@ -28,6 +64,9 @@ class GameService extends EventEmitter implements GamesAPI {
     this.configPath = join(this.dataPath, 'vrp-config.json')
     this.gameListPath = join(this.dataPath, 'VRP-GameList.txt')
     this.metaPath = join(this.dataPath, '.meta')
+    this.uncrackableGamesPath = join(this.dataPath, 'uncrackable-games.json')
+    this.outdatedGamesPath = join(this.dataPath, 'outdated-games.json')
+    this.missingGamesPath = join(this.dataPath, 'missing-games.json')
   }
 
   async initialize(force?: boolean): Promise<ServiceStatus> {
@@ -55,6 +94,9 @@ class GameService extends EventEmitter implements GamesAPI {
       } else {
         console.log('Using cached game data...')
         await this.loadGameList()
+        await this.loadUncrackableGames()
+        await this.loadOutdatedGames()
+        await this.loadMissingGames()
       }
     } catch (error) {
       console.error('Error initializing game service:', error)
@@ -159,6 +201,20 @@ class GameService extends EventEmitter implements GamesAPI {
 
       // Load the game list
       await this.loadGameList()
+
+      // Fetch and parse additional game data
+      await Promise.all([
+        this.fetchUncrackableGames(),
+        this.fetchOutdatedGames(),
+        this.fetchMissingGames()
+      ])
+
+      // Cache the data to filesystem
+      await Promise.all([
+        this.saveUncrackableGames(),
+        this.saveOutdatedGames(),
+        this.saveMissingGames()
+      ])
 
       // Update last sync time
       if (this.vrpConfig) {
@@ -540,6 +596,187 @@ class GameService extends EventEmitter implements GamesAPI {
     const notePath = join(this.metaPath, 'notes', `${releaseName}.txt`)
     const noteExists = existsSync(notePath)
     return Promise.resolve(noteExists ? readFileSync(notePath, 'utf-8') : '')
+  }
+
+  // New methods to fetch and parse additional game data
+  private async fetchUncrackableGames(): Promise<void> {
+    try {
+      console.log('Fetching uncrackable games list...')
+      const response = await axios.get('https://uncrackable.vrpirates.wiki/uncrackable.json', {
+        timeout: 10000
+      })
+      this.uncrackableGames = response.data as UncrackableGame[]
+      console.log(`Loaded ${this.uncrackableGames.length} uncrackable games`)
+    } catch (error) {
+      console.error('Error fetching uncrackable games:', error)
+    }
+  }
+
+  private async saveUncrackableGames(): Promise<void> {
+    try {
+      console.log(`Saving ${this.uncrackableGames.length} uncrackable games to disk`)
+      await fs.writeFile(this.uncrackableGamesPath, JSON.stringify(this.uncrackableGames), 'utf-8')
+    } catch (error) {
+      console.error('Error saving uncrackable games:', error)
+    }
+  }
+
+  private async loadUncrackableGames(): Promise<void> {
+    try {
+      const exists = await fileExists(this.uncrackableGamesPath)
+      if (!exists) {
+        console.log('No cached uncrackable games found')
+        return
+      }
+
+      const data = await fs.readFile(this.uncrackableGamesPath, 'utf-8')
+      this.uncrackableGames = JSON.parse(data) as UncrackableGame[]
+      console.log(`Loaded ${this.uncrackableGames.length} uncrackable games from cache`)
+    } catch (error) {
+      console.error('Error loading uncrackable games from cache:', error)
+    }
+  }
+
+  private async fetchOutdatedGames(): Promise<void> {
+    try {
+      console.log('Fetching outdated games list...')
+      const response = await axios.get(
+        'https://docs.google.com/spreadsheets/d/e/2PACX-1vQW_5jn_Iy3Ykab5BO5gtqP4CVxu6YGsovZlwQIOc2AzdfncpSXMwfqo4rK71xtHAUAYOz65pQtOToH/pub?gid=1758218295&single=true&output=csv',
+        {
+          timeout: 10000
+        }
+      )
+      this.outdatedGames = this.parseCSV<OutdatedGame>(response.data)
+      console.log(`Loaded ${this.outdatedGames.length} outdated games`)
+    } catch (error) {
+      console.error('Error fetching outdated games:', error)
+    }
+  }
+
+  private async saveOutdatedGames(): Promise<void> {
+    try {
+      console.log(`Saving ${this.outdatedGames.length} outdated games to disk`)
+      await fs.writeFile(this.outdatedGamesPath, JSON.stringify(this.outdatedGames), 'utf-8')
+    } catch (error) {
+      console.error('Error saving outdated games:', error)
+    }
+  }
+
+  private async loadOutdatedGames(): Promise<void> {
+    try {
+      const exists = await fileExists(this.outdatedGamesPath)
+      if (!exists) {
+        console.log('No cached outdated games found')
+        return
+      }
+
+      const data = await fs.readFile(this.outdatedGamesPath, 'utf-8')
+      this.outdatedGames = JSON.parse(data) as OutdatedGame[]
+      console.log(`Loaded ${this.outdatedGames.length} outdated games from cache`)
+    } catch (error) {
+      console.error('Error loading outdated games from cache:', error)
+    }
+  }
+
+  private async fetchMissingGames(): Promise<void> {
+    try {
+      console.log('Fetching missing games list...')
+      const response = await axios.get(
+        'https://docs.google.com/spreadsheets/d/e/2PACX-1vQW_5jn_Iy3Ykab5BO5gtqP4CVxu6YGsovZlwQIOc2AzdfncpSXMwfqo4rK71xtHAUAYOz65pQtOToH/pub?gid=1216563963&single=true&output=csv',
+        {
+          timeout: 10000
+        }
+      )
+      this.missingGames = this.parseCSV<MissingGame>(response.data)
+      console.log(`Loaded ${this.missingGames.length} missing games`)
+    } catch (error) {
+      console.error('Error fetching missing games:', error)
+    }
+  }
+
+  private async saveMissingGames(): Promise<void> {
+    try {
+      console.log(`Saving ${this.missingGames.length} missing games to disk`)
+      await fs.writeFile(this.missingGamesPath, JSON.stringify(this.missingGames), 'utf-8')
+    } catch (error) {
+      console.error('Error saving missing games:', error)
+    }
+  }
+
+  private async loadMissingGames(): Promise<void> {
+    try {
+      const exists = await fileExists(this.missingGamesPath)
+      if (!exists) {
+        console.log('No cached missing games found')
+        return
+      }
+
+      const data = await fs.readFile(this.missingGamesPath, 'utf-8')
+      this.missingGames = JSON.parse(data) as MissingGame[]
+      console.log(`Loaded ${this.missingGames.length} missing games from cache`)
+    } catch (error) {
+      console.error('Error loading missing games from cache:', error)
+    }
+  }
+
+  private parseCSV<T>(csvData: string): T[] {
+    const lines = csvData.split('\n')
+    const result: T[] = []
+
+    // Skip if empty
+    if (lines.length <= 1) return result
+
+    // Extract header
+    const header = lines[0].split(',').map((h) => h.trim())
+
+    // Process data rows
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
+
+      const values = line.split(',')
+      if (values.length < header.length) continue
+
+      const obj = {} as Record<string, string>
+      header.forEach((key, index) => {
+        // Convert header to camelCase for consistency
+        const camelKey = key.charAt(0).toLowerCase() + key.slice(1)
+        obj[camelKey] = values[index]?.trim() || ''
+      })
+
+      result.push(obj as unknown as T)
+    }
+
+    return result
+  }
+
+  // Additional public methods to access data
+  getUncrackableGames(): Promise<UncrackableGame[]> {
+    return Promise.resolve(this.uncrackableGames)
+  }
+
+  getOutdatedGames(): Promise<OutdatedGame[]> {
+    return Promise.resolve(this.outdatedGames)
+  }
+
+  getMissingGames(): Promise<MissingGame[]> {
+    return Promise.resolve(this.missingGames)
+  }
+
+  // Check if a specific game is uncrackable
+  isGameUncrackable(packageName: string): Promise<boolean> {
+    const game = this.uncrackableGames.find((g) => g.packagename === packageName)
+    return Promise.resolve(!!game && game.uncrackable)
+  }
+
+  // Check if a specific game is outdated
+  isGameOutdated(packageName: string): Promise<boolean> {
+    return Promise.resolve(!!this.outdatedGames.find((g) => g.packageName === packageName))
+  }
+
+  // Check if a specific game is in the missing list
+  isGameMissing(packageName: string): Promise<boolean> {
+    return Promise.resolve(!!this.missingGames.find((g) => g.packageName === packageName))
   }
 }
 
