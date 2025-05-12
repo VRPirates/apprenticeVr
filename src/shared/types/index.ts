@@ -60,7 +60,7 @@ export interface DownloadItem {
   status: DownloadStatus
   progress: number
   error?: string
-  downloadPath?: string
+  downloadPath: string
   pid?: number
   addedDate: number
   thumbnailPath?: string

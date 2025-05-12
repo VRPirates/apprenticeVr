@@ -17,16 +17,10 @@ export class DownloadProcessor {
   private activeDownloads: Map<string, ReturnType<typeof execa>> = new Map()
   private queueManager: QueueManager
   private vrpConfig: VrpConfig | null = null
-  private downloadsDir: string // Needed to construct download path
   private debouncedEmitUpdate: () => void
 
-  constructor(
-    queueManager: QueueManager,
-    downloadsDir: string, // Pass downloads directory
-    debouncedEmitUpdate: () => void // Pass the emitter function
-  ) {
+  constructor(queueManager: QueueManager, debouncedEmitUpdate: () => void) {
     this.queueManager = queueManager
-    this.downloadsDir = downloadsDir
     this.debouncedEmitUpdate = debouncedEmitUpdate
   }
 
@@ -130,7 +124,7 @@ export class DownloadProcessor {
       return { success: false, startExtraction: false }
     }
 
-    const downloadPath = join(this.downloadsDir, item.releaseName)
+    const downloadPath = join(item.downloadPath, item.releaseName)
     this.queueManager.updateItem(item.releaseName, { downloadPath: downloadPath })
 
     try {
