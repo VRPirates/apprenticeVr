@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useState, useCallback, useMemo } from 'react'
-import { GameInfo } from '@shared/types'
-import { GamesContext, GamesContextType } from './GamesContext'
+import { GameInfo, MissingGame, OutdatedGame, UploadCandidate } from '@shared/types'
+import { GamesContext } from './GamesContext'
 import { useAdb } from '../hooks/useAdb'
 import { useDependency } from '../hooks/useDependency'
 
@@ -33,6 +33,9 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     {}
   )
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
+  const [outdatedGames, setOutdatedGames] = useState<OutdatedGame[]>([])
+  const [missingGames, setMissingGames] = useState<MissingGame[]>([])
+  const [uploadCandidates, setUploadCandidates] = useState<UploadCandidate[]>([])
 
   const { packages: installedPackages, isConnected: isDeviceConnected, selectedDevice } = useAdb()
   const dependencyContext = useDependency()
@@ -51,10 +54,13 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       )
       .map((game) => game.packageName)
 
+    // Add all installed packages, not just those that match games in rawGames
+    const allInstalledPackages = installedPackages.map((pkg) => pkg.packageName)
+
     console.log(`Checking versions for ${installedGamePackages.length} installed packages...`)
 
     const results = await Promise.allSettled(
-      installedGamePackages.map(async (pkgName) => {
+      allInstalledPackages.map(async (pkgName) => {
         try {
           const versionCode = await window.api.adb.getPackageVersionCode(selectedDevice!, pkgName)
           if (versionCode !== null) {
@@ -77,12 +83,104 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     setDeviceVersionCodes(versions)
   }, [isDeviceConnected, selectedDevice, installedPackages, rawGames])
 
+  // Check for installed games that are missing from the database or newer than outdated games
+  const checkForUploadCandidates = useCallback(() => {
+    if (!isDeviceConnected || Object.keys(deviceVersionCodes).length === 0) {
+      return
+    }
+
+    const candidates: UploadCandidate[] = []
+
+    // Check for missing games
+    const allGamePackages = new Set(rawGames.map((game) => game.packageName))
+
+    // Get app names for installed packages
+    const getAppName = async (packageName: string): Promise<string> => {
+      try {
+        // @ts-ignore: Method exists in implementation but not in type definitions
+        const label = await window.api.adb.getPackageLabel(selectedDevice!, packageName)
+        return label || packageName
+      } catch (err) {
+        console.error(`Error getting label for ${packageName}:`, err)
+        return packageName
+      }
+    }
+
+    // Process installed packages that are missing from our game list
+    const processMissingPackages = async (): Promise<void> => {
+      for (const pkg of installedPackages) {
+        if (
+          !allGamePackages.has(pkg.packageName) &&
+          deviceVersionCodes[pkg.packageName] &&
+          // Filter out obvious system packages and common apps
+          !pkg.packageName.startsWith('com.android.') &&
+          !pkg.packageName.startsWith('com.google.') &&
+          !pkg.packageName.startsWith('com.oculus.') &&
+          !pkg.packageName.startsWith('com.meta.') &&
+          !pkg.packageName.includes('launcher') &&
+          // Check if this package is in our missing games list
+          missingGames.some((g) => g.packageName === pkg.packageName)
+        ) {
+          const gameName = await getAppName(pkg.packageName)
+          candidates.push({
+            packageName: pkg.packageName,
+            gameName,
+            versionCode: deviceVersionCodes[pkg.packageName],
+            reason: 'missing'
+          })
+        }
+      }
+
+      // Check for outdated games where we have newer versions installed
+      for (const outdatedGame of outdatedGames) {
+        if (deviceVersionCodes[outdatedGame.packageName]) {
+          const storeVersion = parseInt(outdatedGame.latestVersionCode, 10)
+          const deviceVersion = deviceVersionCodes[outdatedGame.packageName]
+
+          if (!isNaN(storeVersion) && deviceVersion > storeVersion) {
+            const gameName = outdatedGame.gameName || (await getAppName(outdatedGame.packageName))
+            candidates.push({
+              packageName: outdatedGame.packageName,
+              gameName,
+              versionCode: deviceVersion,
+              reason: 'newer',
+              storeVersion: outdatedGame.versionName || outdatedGame.latestVersionCode
+            })
+          }
+        }
+      }
+
+      if (candidates.length > 0) {
+        console.log('Found upload candidates:', candidates)
+        setUploadCandidates(candidates)
+      }
+    }
+
+    processMissingPackages()
+  }, [
+    isDeviceConnected,
+    deviceVersionCodes,
+    installedPackages,
+    rawGames,
+    missingGames,
+    outdatedGames,
+    selectedDevice
+  ])
+
   useEffect(() => {
     if (isDeviceConnected) {
       fetchDeviceVersionCodes()
     }
   }, [fetchDeviceVersionCodes, isDeviceConnected])
 
+  // Check for upload candidates whenever device version codes or missing/outdated games change
+  useEffect(() => {
+    if (missingGames.length > 0 || outdatedGames.length > 0) {
+      checkForUploadCandidates()
+    }
+  }, [deviceVersionCodes, missingGames, outdatedGames, checkForUploadCandidates])
+
+  // enrich the games with the installed packages and the device version codes
   const games = useMemo((): GameInfo[] => {
     const installedSet = new Set(installedPackages.map((pkg) => pkg.packageName))
 
@@ -110,6 +208,23 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     })
   }, [rawGames, installedPackages, deviceVersionCodes])
 
+  const localGames = useMemo((): GameInfo[] => {
+    return installedPackages.map((game) => ({
+      id: game.packageName,
+      packageName: game.packageName,
+      name: game.packageName,
+      version: String(deviceVersionCodes[game.packageName]),
+      size: '0',
+      lastUpdated: new Date().toISOString(),
+      releaseName: game.packageName,
+      downloads: 0,
+      downloadsUpdated: new Date().toISOString(),
+      isInstalled: true,
+      thumbnailPath: '',
+      notePath: ''
+    }))
+  }, [installedPackages, deviceVersionCodes])
+
   const loadGames = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true)
@@ -120,6 +235,14 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
       const syncTime = await window.api.games.getLastSyncTime()
       setLastSyncTime(syncTime ? new Date(syncTime) : null)
+
+      // Fetch missing and outdated games
+      // @ts-ignore: Method exists in implementation but not in type definitions
+      const missingGamesList = await window.api.games.getMissingGames()
+      // @ts-ignore: Method exists in implementation but not in type definitions
+      const outdatedGamesList = await window.api.games.getOutdatedGames()
+      setMissingGames(missingGamesList)
+      setOutdatedGames(outdatedGamesList)
     } catch (err) {
       console.error('Error loading games:', err)
       setError('Failed to load games')
@@ -144,6 +267,14 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
       setRawGames(gamesList)
       setLastSyncTime(syncTime ? new Date(syncTime) : null)
+
+      // Refresh missing and outdated games
+      // @ts-ignore: Method exists in implementation but not in type definitions
+      const missingGamesList = await window.api.games.getMissingGames()
+      // @ts-ignore: Method exists in implementation but not in type definitions
+      const outdatedGamesList = await window.api.games.getOutdatedGames()
+      setMissingGames(missingGamesList)
+      setOutdatedGames(outdatedGamesList)
     } catch (err) {
       console.error('Error refreshing games:', err)
       setError('Failed to refresh games')
@@ -195,8 +326,9 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     return await window.api.games.getNote(releaseName)
   }, [])
 
-  const value: GamesContextType = {
+  const value = {
     games,
+    localGames,
     isLoading,
     error,
     lastSyncTime,
@@ -205,7 +337,10 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     refreshGames,
     loadGames,
     getNote,
-    isInitialLoadComplete
+    isInitialLoadComplete,
+    outdatedGames,
+    missingGames,
+    uploadCandidates
   }
 
   return <GamesContext.Provider value={value}>{children}</GamesContext.Provider>

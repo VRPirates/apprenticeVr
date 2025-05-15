@@ -176,6 +176,8 @@ app.whenReady().then(async () => {
 
   // --- Game Handlers ---
   typedIpcMain.handle('games:get-games', async () => gameService.getGames())
+  typedIpcMain.handle('games:get-missing-games', async () => gameService.getMissingGames())
+  typedIpcMain.handle('games:get-outdated-games', async () => gameService.getOutdatedGames())
   typedIpcMain.handle('games:get-last-sync-time', async () => gameService.getLastSyncTime())
   typedIpcMain.handle('games:force-sync-games', async () => {
     await gameService.forceSync()

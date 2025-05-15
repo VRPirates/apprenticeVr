@@ -5,7 +5,7 @@ import { execa } from 'execa'
 import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
 import dependencyService from './dependencyService'
-import { GameInfo, ServiceStatus, GamesAPI } from '@shared/types'
+import { GameInfo, ServiceStatus, GamesAPI, OutdatedGame, MissingGame } from '@shared/types'
 import EventEmitter from 'events'
 
 interface VrpConfig {
@@ -20,28 +20,6 @@ interface UncrackableGame {
   gamename: string
   appid: string
   uncrackable: boolean
-}
-
-interface OutdatedGame {
-  gameName: string
-  packageName: string
-  cost: string
-  storeUrl: string
-  currentVersionCode: string
-  latestVersionCode: string
-  versionName: string
-  reason: string
-}
-
-interface MissingGame {
-  gameName: string
-  packageName: string
-  cost: string
-  storeUrl: string
-  currentVersionCode: string
-  latestVersionCode: string
-  versionName: string
-  reason: string
 }
 
 class GameService extends EventEmitter implements GamesAPI {
@@ -174,6 +152,20 @@ class GameService extends EventEmitter implements GamesAPI {
 
   async syncGameData(): Promise<void> {
     try {
+      // Fetch and parse additional game data
+      await Promise.all([
+        this.fetchUncrackableGames(),
+        this.fetchOutdatedGames(),
+        this.fetchMissingGames()
+      ])
+
+      // Cache the data to filesystem
+      await Promise.all([
+        this.saveUncrackableGames(),
+        this.saveOutdatedGames(),
+        this.saveMissingGames()
+      ])
+
       // First fetch the VRP public info
       await this.fetchVrpPublicInfo()
 
@@ -201,20 +193,6 @@ class GameService extends EventEmitter implements GamesAPI {
 
       // Load the game list
       await this.loadGameList()
-
-      // Fetch and parse additional game data
-      await Promise.all([
-        this.fetchUncrackableGames(),
-        this.fetchOutdatedGames(),
-        this.fetchMissingGames()
-      ])
-
-      // Cache the data to filesystem
-      await Promise.all([
-        this.saveUncrackableGames(),
-        this.saveOutdatedGames(),
-        this.saveMissingGames()
-      ])
 
       // Update last sync time
       if (this.vrpConfig) {

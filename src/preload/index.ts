@@ -9,7 +9,9 @@ import {
   AdbAPIRenderer,
   GameAPIRenderer,
   DownloadAPIRenderer,
-  SettingsAPIRenderer
+  SettingsAPIRenderer,
+  MissingGame,
+  OutdatedGame
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -60,6 +62,10 @@ const api = {
   } satisfies AdbAPIRenderer,
   games: {
     getGames: (): Promise<GameInfo[]> => typedIpcRenderer.invoke('games:get-games'),
+    getMissingGames: (): Promise<MissingGame[]> =>
+      typedIpcRenderer.invoke('games:get-missing-games'),
+    getOutdatedGames: (): Promise<OutdatedGame[]> =>
+      typedIpcRenderer.invoke('games:get-outdated-games'),
     getNote: (releaseName: string): Promise<string> =>
       typedIpcRenderer.invoke('games:get-note', releaseName),
     getLastSyncTime: (): Promise<Date | null> =>

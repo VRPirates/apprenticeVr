@@ -3,6 +3,7 @@ import { GameInfo } from '@shared/types'
 
 export interface GamesContextType {
   games: GameInfo[]
+  localGames: GameInfo[]
   isLoading: boolean
   error: string | null
   lastSyncTime: Date | null

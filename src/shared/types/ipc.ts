@@ -1,4 +1,12 @@
-import { DeviceInfo, GameInfo, DownloadItem, DownloadProgress, DependencyStatus } from './index'
+import {
+  DeviceInfo,
+  GameInfo,
+  DownloadItem,
+  DownloadProgress,
+  DependencyStatus,
+  OutdatedGame,
+  MissingGame
+} from './index'
 
 // Define types for all IPC channels between renderer and main
 
@@ -24,6 +32,8 @@ export interface IPCChannels {
 
   // Game related channels
   'games:get-games': DefineChannel<[], GameInfo[]>
+  'games:get-missing-games': DefineChannel<[], MissingGame[]>
+  'games:get-outdated-games': DefineChannel<[], OutdatedGame[]>
   'games:get-last-sync-time': DefineChannel<[], Date | null>
   'games:force-sync-games': DefineChannel<[], GameInfo[]>
   'games:get-note': DefineChannel<[releaseName: string], string>
