@@ -5,7 +5,8 @@ import {
   DownloadProgress,
   DependencyStatus,
   OutdatedGame,
-  MissingGame
+  MissingGame,
+  PackageInfo
 } from './index'
 
 // Define types for all IPC channels between renderer and main
@@ -26,8 +27,7 @@ export interface IPCChannels {
   // ADB related channels
   'adb:list-devices': DefineChannel<[], DeviceInfo[]>
   'adb:connect-device': DefineChannel<[serial: string], boolean>
-  'adb:get-installed-packages': DefineChannel<[serial: string], Array<{ packageName: string }>>
-  'adb:getPackageVersionCode': DefineChannel<[serial: string, packageName: string], number | null>
+  'adb:get-installed-packages': DefineChannel<[serial: string], PackageInfo[]>
   'adb:uninstallPackage': DefineChannel<[serial: string, packageName: string], boolean>
 
   // Game related channels

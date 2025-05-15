@@ -21,6 +21,7 @@ export interface DeviceInfo {
 
 export interface PackageInfo {
   packageName: string
+  versionCode: number
   // More metadata fields will be added in the future
 }
 
@@ -145,7 +146,7 @@ export interface AdbAPI {
   listDevices: () => Promise<DeviceInfo[]>
   connectDevice: (serial: string) => Promise<boolean>
   getInstalledPackages: (serial: string) => Promise<PackageInfo[]>
-  getPackageVersionCode: (serial: string, packageName: string) => Promise<number | null>
+  // getPackageVersionCode: (serial: string, packageName: string) => Promise<number | null>
   uninstallPackage: (serial: string, packageName: string) => Promise<boolean>
   startTrackingDevices: (mainWindow?: BrowserWindow) => void
   stopTrackingDevices: () => void

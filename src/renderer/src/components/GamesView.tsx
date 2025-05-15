@@ -196,7 +196,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     loadPackages
   } = useAdb()
   const {
-    localGames: games,
+    games,
     isLoading: loadingGames,
     error: gamesError,
     lastSyncTime,

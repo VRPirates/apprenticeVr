@@ -157,11 +157,6 @@ app.whenReady().then(async () => {
     async (_event, serial) => await adbService.getInstalledPackages(serial)
   )
 
-  typedIpcMain.handle('adb:getPackageVersionCode', async (_event, serial, packageName) => {
-    console.log(`IPC adb:getPackageVersionCode called for ${packageName} on ${serial}`)
-    return await adbService.getPackageVersionCode(serial, packageName)
-  })
-
   typedIpcMain.handle('adb:uninstallPackage', async (_event, serial, packageName) => {
     console.log(`IPC adb:uninstallPackage called for ${packageName} on ${serial}`)
     return await adbService.uninstallPackage(serial, packageName)

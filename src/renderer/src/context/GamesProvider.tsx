@@ -29,9 +29,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
   const [downloadProgress, setDownloadProgress] = useState<number>(0)
   const [extractProgress, setExtractProgress] = useState<number>(0)
-  const [deviceVersionCodes, setDeviceVersionCodes] = useState<{ [packageName: string]: number }>(
-    {}
-  )
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
   const [outdatedGames, setOutdatedGames] = useState<OutdatedGame[]>([])
   const [missingGames, setMissingGames] = useState<MissingGame[]>([])
@@ -40,52 +37,9 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const { packages: installedPackages, isConnected: isDeviceConnected, selectedDevice } = useAdb()
   const dependencyContext = useDependency()
 
-  const fetchDeviceVersionCodes = useCallback(async () => {
-    if (!isDeviceConnected || !selectedDevice || installedPackages.length === 0) {
-      setDeviceVersionCodes({})
-      return
-    }
-
-    const versions: { [packageName: string]: number } = {}
-    const installedGamePackages = rawGames
-      .filter(
-        (game) =>
-          game.packageName && installedPackages.some((p) => p.packageName === game.packageName)
-      )
-      .map((game) => game.packageName)
-
-    // Add all installed packages, not just those that match games in rawGames
-    const allInstalledPackages = installedPackages.map((pkg) => pkg.packageName)
-
-    console.log(`Checking versions for ${installedGamePackages.length} installed packages...`)
-
-    const results = await Promise.allSettled(
-      allInstalledPackages.map(async (pkgName) => {
-        try {
-          const versionCode = await window.api.adb.getPackageVersionCode(selectedDevice!, pkgName)
-          if (versionCode !== null) {
-            return { packageName: pkgName, versionCode }
-          }
-        } catch (err) {
-          console.error(`Error fetching version code for ${pkgName}:`, err)
-        }
-        return null
-      })
-    )
-
-    results.forEach((result) => {
-      if (result.status === 'fulfilled' && result.value) {
-        versions[result.value.packageName] = result.value.versionCode
-      }
-    })
-
-    console.log('Fetched device versions:', versions)
-    setDeviceVersionCodes(versions)
-  }, [isDeviceConnected, selectedDevice, installedPackages, rawGames])
-
   // Check for installed games that are missing from the database or newer than outdated games
   const checkForUploadCandidates = useCallback(() => {
-    if (!isDeviceConnected || Object.keys(deviceVersionCodes).length === 0) {
+    if (!isDeviceConnected || installedPackages.length === 0) {
       return
     }
 
@@ -111,13 +65,13 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       for (const pkg of installedPackages) {
         if (
           !allGamePackages.has(pkg.packageName) &&
-          deviceVersionCodes[pkg.packageName] &&
           // Filter out obvious system packages and common apps
-          !pkg.packageName.startsWith('com.android.') &&
-          !pkg.packageName.startsWith('com.google.') &&
-          !pkg.packageName.startsWith('com.oculus.') &&
-          !pkg.packageName.startsWith('com.meta.') &&
-          !pkg.packageName.includes('launcher') &&
+          // !pkg.packageName.startsWith('com.android.') &&
+          // !pkg.packageName.startsWith('com.google.') &&
+          // !pkg.packageName.startsWith('com.oculus.') &&
+          // !pkg.packageName.startsWith('com.meta.') &&
+          // !pkg.packageName.includes('launcher') &&
+
           // Check if this package is in our missing games list
           missingGames.some((g) => g.packageName === pkg.packageName)
         ) {
@@ -125,7 +79,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
           candidates.push({
             packageName: pkg.packageName,
             gameName,
-            versionCode: deviceVersionCodes[pkg.packageName],
+            versionCode: pkg.versionCode,
             reason: 'missing'
           })
         }
@@ -133,11 +87,13 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
       // Check for outdated games where we have newer versions installed
       for (const outdatedGame of outdatedGames) {
-        if (deviceVersionCodes[outdatedGame.packageName]) {
+        if (installedPackages.find((pkg) => pkg.packageName === outdatedGame.packageName)) {
           const storeVersion = parseInt(outdatedGame.latestVersionCode, 10)
-          const deviceVersion = deviceVersionCodes[outdatedGame.packageName]
+          const deviceVersion = installedPackages.find(
+            (pkg) => pkg.packageName === outdatedGame.packageName
+          )?.versionCode
 
-          if (!isNaN(storeVersion) && deviceVersion > storeVersion) {
+          if (!isNaN(storeVersion) && deviceVersion && deviceVersion > storeVersion) {
             const gameName = outdatedGame.gameName || (await getAppName(outdatedGame.packageName))
             candidates.push({
               packageName: outdatedGame.packageName,
@@ -157,28 +113,14 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     }
 
     processMissingPackages()
-  }, [
-    isDeviceConnected,
-    deviceVersionCodes,
-    installedPackages,
-    rawGames,
-    missingGames,
-    outdatedGames,
-    selectedDevice
-  ])
-
-  useEffect(() => {
-    if (isDeviceConnected) {
-      fetchDeviceVersionCodes()
-    }
-  }, [fetchDeviceVersionCodes, isDeviceConnected])
+  }, [isDeviceConnected, installedPackages, rawGames, missingGames, outdatedGames, selectedDevice])
 
   // Check for upload candidates whenever device version codes or missing/outdated games change
   useEffect(() => {
     if (missingGames.length > 0 || outdatedGames.length > 0) {
       checkForUploadCandidates()
     }
-  }, [deviceVersionCodes, missingGames, outdatedGames, checkForUploadCandidates])
+  }, [installedPackages, missingGames, outdatedGames, checkForUploadCandidates])
 
   // enrich the games with the installed packages and the device version codes
   const games = useMemo((): GameInfo[] => {
@@ -189,13 +131,18 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       let deviceVersionCode: number | undefined = undefined
       let hasUpdate = false
 
-      if (isInstalled && game.packageName && deviceVersionCodes[game.packageName] !== undefined) {
-        deviceVersionCode = deviceVersionCodes[game.packageName]
+      if (
+        isInstalled &&
+        game.packageName &&
+        installedPackages.find((pkg) => pkg.packageName === game.packageName)
+      ) {
+        deviceVersionCode = installedPackages.find(
+          (pkg) => pkg.packageName === game.packageName
+        )?.versionCode
         const listVersionNumeric = parseVersion(game.version)
-        const deviceVersionNumeric = deviceVersionCode // Already a number
 
-        if (listVersionNumeric !== null && deviceVersionNumeric !== null) {
-          hasUpdate = listVersionNumeric > deviceVersionNumeric
+        if (listVersionNumeric !== null && deviceVersionCode !== undefined) {
+          hasUpdate = listVersionNumeric > deviceVersionCode
         }
       }
 
@@ -206,14 +153,14 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
         hasUpdate
       }
     })
-  }, [rawGames, installedPackages, deviceVersionCodes])
+  }, [rawGames, installedPackages])
 
   const localGames = useMemo((): GameInfo[] => {
     return installedPackages.map((game) => ({
       id: game.packageName,
       packageName: game.packageName,
       name: game.packageName,
-      version: String(deviceVersionCodes[game.packageName]),
+      version: String(game.versionCode),
       size: '0',
       lastUpdated: new Date().toISOString(),
       releaseName: game.packageName,
@@ -223,7 +170,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       thumbnailPath: '',
       notePath: ''
     }))
-  }, [installedPackages, deviceVersionCodes])
+  }, [installedPackages])
 
   const loadGames = useCallback(async (): Promise<void> => {
     try {
@@ -260,7 +207,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       setError(null)
       setDownloadProgress(0)
       setExtractProgress(0)
-      setDeviceVersionCodes({})
 
       const gamesList = await window.api.games.forceSync()
       const syncTime = await window.api.games.getLastSyncTime()

@@ -11,7 +11,8 @@ import {
   DownloadAPIRenderer,
   SettingsAPIRenderer,
   MissingGame,
-  OutdatedGame
+  OutdatedGame,
+  PackageInfo
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -26,10 +27,8 @@ const api = {
     listDevices: (): Promise<DeviceInfo[]> => typedIpcRenderer.invoke('adb:list-devices'),
     connectDevice: (serial: string): Promise<boolean> =>
       typedIpcRenderer.invoke('adb:connect-device', serial),
-    getInstalledPackages: (serial: string): Promise<Array<{ packageName: string }>> =>
+    getInstalledPackages: (serial: string): Promise<PackageInfo[]> =>
       typedIpcRenderer.invoke('adb:get-installed-packages', serial),
-    getPackageVersionCode: (serial: string, packageName: string): Promise<number | null> =>
-      typedIpcRenderer.invoke('adb:getPackageVersionCode', serial, packageName),
     uninstallPackage: (serial: string, packageName: string): Promise<boolean> =>
       typedIpcRenderer.invoke('adb:uninstallPackage', serial, packageName),
     startTrackingDevices: (): void => typedIpcRenderer.send('adb:start-tracking-devices'),

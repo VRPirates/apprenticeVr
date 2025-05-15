@@ -5,12 +5,7 @@ import { EventEmitter } from 'events'
 import dependencyService from './dependencyService'
 import fs, { Dirent } from 'fs'
 import path from 'path'
-import { AdbAPI, DeviceInfo, ServiceStatus } from '@shared/types'
-
-interface PackageInfo {
-  packageName: string
-  // More metadata fields will be added in the future
-}
+import { AdbAPI, DeviceInfo, PackageInfo, ServiceStatus } from '@shared/types'
 
 const QUEST_MODELS = [
   'monterey',
@@ -246,6 +241,7 @@ class AdbService extends EventEmitter implements AdbAPI {
 
     this.deviceTracker.on('remove', (device) => {
       console.log('Device removed:', device)
+
       // Send a basic device object, details aren't relevant for removal
       const deviceInfo = {
         id: device.id,
@@ -337,66 +333,88 @@ class AdbService extends EventEmitter implements AdbAPI {
     try {
       const deviceClient = this.client.getDevice(serial)
 
-      // Execute the shell command to list third-party packages
-      const output = await deviceClient.shell('pm list packages -3')
+      // Execute the shell command to list third-party packages with version codes
+      const output = await deviceClient.shell('pm list packages --show-versioncode -3')
       const result = await Adb.util.readAll(output)
 
       // Convert the buffer to string and parse the packages
       const packages = result.toString().trim().split('\n')
 
-      // Extract package names (format is "package:com.example.package")
-      return packages
+      // Extract package names and version codes (format is "package:com.example.package versionCode:123")
+      const packageInfoList = packages
         .filter((line) => line.startsWith('package:'))
         .map((line) => {
-          const packageName = line.substring(8).trim() // Remove "package:" prefix
-          return { packageName }
+          const packageMatch = line.match(/package:([^\s]+)/)
+          const versionMatch = line.match(/versionCode:(\d+)/)
+
+          const packageName = packageMatch ? packageMatch[1].trim() : ''
+          const versionCode = versionMatch ? parseInt(versionMatch[1], 10) : 0
+
+          return { packageName, versionCode }
         })
+
+      return packageInfoList
     } catch (error) {
       console.error(`Error getting installed packages for device ${serial}:`, error)
       return []
     }
   }
 
-  async getPackageVersionCode(serial: string, packageName: string): Promise<number | null> {
-    if (!this.client) {
-      throw new Error('adb service not initialized!')
-    }
-    try {
-      const deviceClient = this.client.getDevice(serial)
-      const command = `dumpsys package ${packageName} | grep versionCode`
-      const output = await deviceClient.shell(command)
-      const result = await Adb.util.readAll(output)
-      const resultString = result.toString().trim()
+  // async getPackageVersionCode(serial: string, packageName: string): Promise<number | null> {
+  //   // First, check if we have this package info in the cache
+  //   const deviceCache = this.packageCache.get(serial)
+  //   if (deviceCache && deviceCache.has(packageName)) {
+  //     return deviceCache.get(packageName)!.versionCode
+  //   }
 
-      // Extract the versionCode number (e.g., "    versionCode=723 minSdk=23 targetSdk=23")
-      const match = resultString.match(/versionCode=(\d+)/)
+  //   // If not in cache, fall back to the original method
+  //   if (!this.client) {
+  //     throw new Error('adb service not initialized!')
+  //   }
+  //   try {
+  //     const deviceClient = this.client.getDevice(serial)
+  //     const command = `dumpsys package ${packageName} | grep versionCode`
+  //     const output = await deviceClient.shell(command)
+  //     const result = await Adb.util.readAll(output)
+  //     const resultString = result.toString().trim()
 
-      if (match && match[1]) {
-        return parseInt(match[1], 10)
-      }
+  //     // Extract the versionCode number (e.g., "    versionCode=723 minSdk=23 targetSdk=23")
+  //     const match = resultString.match(/versionCode=(\d+)/)
 
-      console.warn(`Could not find versionCode for ${packageName} in output: "${resultString}"`)
-      // Check if the package was found at all
-      if (resultString.includes('Unable to find package')) {
-        console.warn(`Package ${packageName} not found on device ${serial} during version check.`)
-      }
-      return null
-    } catch (error) {
-      console.error(
-        `Error getting version code for package ${packageName} on device ${serial}:`,
-        error
-      )
-      // Handle specific errors like package not found if ADB command itself fails
-      if (
-        error instanceof Error &&
-        (error.message.includes('closed') || error.message.includes('Failure'))
-      ) {
-        // Could indicate device disconnected or adb issue
-        console.warn(`ADB command failed for ${packageName}, possibly disconnected?`)
-      }
-      return null
-    }
-  }
+  //     if (match && match[1]) {
+  //       const versionCode = parseInt(match[1], 10)
+
+  //       // Update the cache if we have an entry for this device
+  //       if (deviceCache) {
+  //         deviceCache.set(packageName, { packageName, versionCode })
+  //         this.packageCache.set(serial, deviceCache)
+  //       }
+
+  //       return versionCode
+  //     }
+
+  //     console.warn(`Could not find versionCode for ${packageName} in output: "${resultString}"`)
+  //     // Check if the package was found at all
+  //     if (resultString.includes('Unable to find package')) {
+  //       console.warn(`Package ${packageName} not found on device ${serial} during version check.`)
+  //     }
+  //     return null
+  //   } catch (error) {
+  //     console.error(
+  //       `Error getting version code for package ${packageName} on device ${serial}:`,
+  //       error
+  //     )
+  //     // Handle specific errors like package not found if ADB command itself fails
+  //     if (
+  //       error instanceof Error &&
+  //       (error.message.includes('closed') || error.message.includes('Failure'))
+  //     ) {
+  //       // Could indicate device disconnected or adb issue
+  //       console.warn(`ADB command failed for ${packageName}, possibly disconnected?`)
+  //     }
+  //     return null
+  //   }
+  // }
 
   async installPackage(
     serial: string,
@@ -800,6 +818,7 @@ class AdbService extends EventEmitter implements AdbAPI {
       }
 
       console.log(`Uninstall process completed for ${packageName}.`)
+
       return true
     } catch (error) {
       console.error(`Error uninstalling package ${packageName} on device ${serial}:`, error)
