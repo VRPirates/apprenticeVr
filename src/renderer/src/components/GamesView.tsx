@@ -51,7 +51,12 @@ const filterGameNameAndPackage: FilterFn<GameInfo> = (row, _columnId, filterValu
   const searchStr = String(filterValue).toLowerCase()
   const gameName = String(row.original.name ?? '').toLowerCase()
   const packageName = String(row.original.packageName ?? '').toLowerCase()
-  return gameName.includes(searchStr) || packageName.includes(searchStr)
+  const releaseName = String(row.original.releaseName ?? '').toLowerCase()
+  return (
+    gameName.includes(searchStr) ||
+    packageName.includes(searchStr) ||
+    releaseName.includes(searchStr)
+  )
 }
 
 declare module '@tanstack/react-table' {

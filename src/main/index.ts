@@ -19,7 +19,7 @@ downloadService.on('installation:success', (deviceId) => {
     `[Main] Detected successful installation for device: ${deviceId}. Notifying renderer.`
   )
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('installation-completed', deviceId)
+    mainWindow.webContents.send('adb:installation-completed', deviceId)
   }
 })
 

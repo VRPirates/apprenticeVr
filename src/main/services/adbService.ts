@@ -220,9 +220,9 @@ class AdbService extends EventEmitter implements AdbAPI {
           })
         }
         // Emit event for our internal listeners
-        this.emit('device-added', extendedDevice)
+        this.emit('adb:device-added', extendedDevice)
         // Send to UI if window exists
-        mainWindow?.webContents.send('device-added', extendedDevice)
+        mainWindow?.webContents.send('adb:device-added', extendedDevice)
       } else {
         // For 'offline', 'unauthorized', 'unknown' devices
         const extendedDevice: DeviceInfo = {
@@ -234,8 +234,8 @@ class AdbService extends EventEmitter implements AdbAPI {
           storageFree: null,
           friendlyModelName: null
         }
-        this.emit('device-added', extendedDevice)
-        mainWindow?.webContents.send('device-added', extendedDevice)
+        this.emit('adb:device-added', extendedDevice)
+        mainWindow?.webContents.send('adb:device-added', extendedDevice)
       }
     })
 
@@ -254,8 +254,8 @@ class AdbService extends EventEmitter implements AdbAPI {
         friendlyModelName: null
       } satisfies DeviceInfo
 
-      this.emit('device-removed', deviceInfo)
-      mainWindow?.webContents.send('device-removed', deviceInfo)
+      this.emit('adb:device-removed', deviceInfo)
+      mainWindow?.webContents.send('adb:device-removed', deviceInfo)
     })
 
     this.deviceTracker.on('change', async (device: DeviceInfo) => {
@@ -275,8 +275,8 @@ class AdbService extends EventEmitter implements AdbAPI {
             friendlyModelName: null
           })
         }
-        this.emit('device-changed', extendedDevice)
-        mainWindow?.webContents.send('device-changed', extendedDevice)
+        this.emit('adb:device-changed', extendedDevice)
+        mainWindow?.webContents.send('adb:device-changed', extendedDevice)
       } else {
         // Handle changes for devices becoming offline, unauthorized, etc.
         const extendedDevice: DeviceInfo = {
@@ -288,8 +288,8 @@ class AdbService extends EventEmitter implements AdbAPI {
           storageFree: null,
           friendlyModelName: null
         }
-        this.emit('device-changed', extendedDevice)
-        mainWindow?.webContents.send('device-changed', extendedDevice)
+        this.emit('adb:device-changed', extendedDevice)
+        mainWindow?.webContents.send('adb:device-changed', extendedDevice)
       }
     })
 
