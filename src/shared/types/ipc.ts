@@ -44,6 +44,14 @@ export interface IPCChannels {
   'download:delete-files': DefineChannel<[releaseName: string], boolean>
   'download:install-from-completed': DefineChannel<[releaseName: string, deviceId: string], void>
 
+  // Upload related channels
+  'upload:prepare': DefineChannel<
+    [packageName: string, gameName: string, versionCode: number, deviceId: string],
+    string | null
+  >
+  'upload:get-path': DefineChannel<[], string>
+  'upload:set-path': DefineChannel<[path: string], void>
+
   // Settings related channels
   'settings:get-download-path': DefineChannel<[], string>
   'settings:set-download-path': DefineChannel<[path: string], void>
@@ -80,6 +88,7 @@ export interface IPCEvents {
   'games:download-progress': [progress: DownloadProgress]
   'games:extract-progress': [progress: { type: string; progress: number }]
   'download:queue-updated': [queue: DownloadItem[]]
+  'upload:progress': [progress: { stage: string; progress: number }]
   'settings:download-speed-limit-changed': [limit: number]
   'settings:upload-speed-limit-changed': [limit: number]
 }

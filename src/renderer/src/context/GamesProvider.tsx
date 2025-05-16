@@ -82,7 +82,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
             (pkg) => pkg.packageName === outdatedGame.packageName
           )?.versionCode
 
-          if (!isNaN(storeVersion) && deviceVersion && deviceVersion > storeVersion) {
+          if (!isNaN(storeVersion) && deviceVersion && deviceVersion < storeVersion) {
             candidates.push({
               packageName: outdatedGame.packageName,
               gameName: outdatedGame.gameName,

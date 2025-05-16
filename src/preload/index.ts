@@ -12,7 +12,9 @@ import {
   SettingsAPIRenderer,
   MissingGame,
   OutdatedGame,
-  PackageInfo
+  PackageInfo,
+  UploadPreparationProgress,
+  UploadAPIRenderer
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -103,6 +105,22 @@ const api = {
     setDownloadPath: (path: string): void =>
       typedIpcRenderer.send('download:set-download-path', path)
   } satisfies DownloadAPIRenderer,
+  // Upload APIs
+  uploads: {
+    prepareUpload: (
+      packageName: string,
+      gameName: string,
+      versionCode: number,
+      deviceId: string
+    ): Promise<string | null> =>
+      typedIpcRenderer.invoke('upload:prepare', packageName, gameName, versionCode, deviceId),
+    onUploadProgress: (callback: (progress: UploadPreparationProgress) => void): (() => void) => {
+      const listener = (_: IpcRendererEvent, progress: UploadPreparationProgress): void =>
+        callback(progress)
+      typedIpcRenderer.on('upload:progress', listener)
+      return () => typedIpcRenderer.removeListener('upload:progress', listener)
+    }
+  } satisfies UploadAPIRenderer,
   settings: {
     getDownloadPath: (): Promise<string> => typedIpcRenderer.invoke('settings:get-download-path'),
     setDownloadPath: (path: string): Promise<void> =>

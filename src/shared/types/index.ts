@@ -72,6 +72,12 @@ export interface UploadCandidate {
   storeVersion?: string
 }
 
+// Upload types
+export interface UploadPreparationProgress {
+  stage: string
+  progress: number
+}
+
 // Download types
 export type DownloadStatus =
   | 'Queued'
@@ -187,6 +193,19 @@ export interface DownloadAPI {
 export interface DownloadAPIRenderer extends DownloadAPI {
   onQueueUpdated: (callback: (queue: DownloadItem[]) => void) => () => void
   installFromCompleted: (releaseName: string, deviceId: string) => Promise<void>
+}
+
+export interface UploadAPI {
+  prepareUpload: (
+    packageName: string,
+    gameName: string,
+    versionCode: number,
+    deviceId: string
+  ) => Promise<string | null>
+}
+
+export interface UploadAPIRenderer extends UploadAPI {
+  onUploadProgress: (callback: (progress: UploadPreparationProgress) => void) => () => void
 }
 
 export interface Settings {

@@ -6,6 +6,7 @@ import adbService from './services/adbService'
 import dependencyService, { DependencyStatus } from './services/dependencyService'
 import gameService from './services/gameService'
 import downloadService from './services/downloadService'
+import uploadService from './services/uploadService'
 import { typedIpcMain } from '@shared/ipc-utils'
 import settingsService from './services/settingsService'
 
@@ -100,7 +101,7 @@ app.whenReady().then(async () => {
       }
       console.log('Dependency initialization complete. Sending status.')
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
+        //mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
         // --- Initialize other services that depend on dependencies ---
         try {
           console.log('Dependencies ready, initializing dependent services...')
@@ -119,6 +120,11 @@ app.whenReady().then(async () => {
               'Game service did not initialize correctly, skipping download service initialization.'
             )
           }
+          // Initialize Upload Service
+          await uploadService.initialize()
+          console.log('Upload Service initialized.')
+
+          mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
         } catch (serviceInitError) {
           console.error('Error initializing dependent services:', serviceInitError)
           // Optionally notify the renderer about this failure
@@ -201,6 +207,22 @@ app.whenReady().then(async () => {
       )
     })
   })
+
+  // --- Upload Handlers ---
+  typedIpcMain.handle(
+    'upload:prepare',
+    async (_event, packageName, gameName, versionCode, deviceId) => {
+      console.log(
+        `[IPC] Received request to prepare upload for: ${packageName} (${gameName}) version ${versionCode} from device ${deviceId}`
+      )
+      try {
+        return await uploadService.prepareUpload(packageName, gameName, versionCode, deviceId)
+      } catch (err) {
+        console.error(`[IPC Handler Error] Upload preparation failed for ${packageName}:`, err)
+        return null
+      }
+    }
+  )
 
   typedIpcMain.on('download:remove', (_event, releaseName) =>
     downloadService.removeFromQueue(releaseName)
