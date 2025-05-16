@@ -14,7 +14,8 @@ import {
   OutdatedGame,
   PackageInfo,
   UploadPreparationProgress,
-  UploadAPIRenderer
+  UploadAPIRenderer,
+  UploadItem
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -114,11 +115,28 @@ const api = {
       deviceId: string
     ): Promise<string | null> =>
       typedIpcRenderer.invoke('upload:prepare', packageName, gameName, versionCode, deviceId),
+    getQueue: (): Promise<UploadItem[]> => typedIpcRenderer.invoke('upload:get-queue'),
+    addToQueue: (
+      packageName: string,
+      gameName: string,
+      versionCode: number,
+      deviceId: string
+    ): Promise<boolean> =>
+      typedIpcRenderer.invoke('upload:add-to-queue', packageName, gameName, versionCode, deviceId),
+    removeFromQueue: (packageName: string): void =>
+      typedIpcRenderer.send('upload:remove', packageName),
+    cancelUpload: (packageName: string): void =>
+      typedIpcRenderer.send('upload:cancel', packageName),
     onUploadProgress: (callback: (progress: UploadPreparationProgress) => void): (() => void) => {
       const listener = (_: IpcRendererEvent, progress: UploadPreparationProgress): void =>
         callback(progress)
       typedIpcRenderer.on('upload:progress', listener)
       return () => typedIpcRenderer.removeListener('upload:progress', listener)
+    },
+    onQueueUpdated: (callback: (queue: UploadItem[]) => void): (() => void) => {
+      const listener = (_: IpcRendererEvent, queue: UploadItem[]): void => callback(queue)
+      typedIpcRenderer.on('upload:queue-updated', listener)
+      return () => typedIpcRenderer.removeListener('upload:queue-updated', listener)
     }
   } satisfies UploadAPIRenderer,
   settings: {

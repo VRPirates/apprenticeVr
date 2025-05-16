@@ -1,6 +1,6 @@
 import React, { ReactNode, useEffect, useState, useCallback } from 'react'
 import { UploadContext, UploadContextType } from './UploadContext'
-import { UploadPreparationProgress } from '@shared/types'
+import { UploadItem, UploadPreparationProgress } from '@shared/types'
 
 interface UploadProviderProps {
   children: ReactNode
@@ -10,6 +10,7 @@ export const UploadProvider: React.FC<UploadProviderProps> = ({ children }) => {
   const [isUploading, setIsUploading] = useState<boolean>(false)
   const [progress, setProgress] = useState<UploadPreparationProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [queue, setQueue] = useState<UploadItem[]>([])
 
   useEffect(() => {
     let isMounted = true
@@ -30,9 +31,30 @@ export const UploadProvider: React.FC<UploadProviderProps> = ({ children }) => {
       }
     })
 
+    // Set up queue listener
+    const removeQueueListener = window.api.uploads.onQueueUpdated((updatedQueue) => {
+      if (isMounted) {
+        setQueue(updatedQueue)
+        console.log('Upload queue updated:', updatedQueue)
+      }
+    })
+
+    // Fetch initial queue
+    window.api.uploads
+      .getQueue()
+      .then((initialQueue) => {
+        if (isMounted) {
+          setQueue(initialQueue)
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching initial upload queue:', err)
+      })
+
     return () => {
       isMounted = false
       removeProgressListener()
+      removeQueueListener()
     }
   }, [])
 
@@ -70,10 +92,48 @@ export const UploadProvider: React.FC<UploadProviderProps> = ({ children }) => {
     []
   )
 
+  const addToQueue = useCallback(
+    async (
+      packageName: string,
+      gameName: string,
+      versionCode: number,
+      deviceId: string
+    ): Promise<boolean> => {
+      try {
+        return await window.api.uploads.addToQueue(packageName, gameName, versionCode, deviceId)
+      } catch (err) {
+        console.error('Error adding to upload queue:', err)
+        setError(err instanceof Error ? err.message : 'Unknown error adding to upload queue')
+        return false
+      }
+    },
+    []
+  )
+
+  const removeFromQueue = useCallback((packageName: string) => {
+    try {
+      window.api.uploads.removeFromQueue(packageName)
+    } catch (err) {
+      console.error('Error removing from upload queue:', err)
+    }
+  }, [])
+
+  const cancelUpload = useCallback((packageName: string) => {
+    try {
+      window.api.uploads.cancelUpload(packageName)
+    } catch (err) {
+      console.error('Error cancelling upload:', err)
+    }
+  }, [])
+
   const value: UploadContextType = {
     isUploading,
     progress,
     error,
+    queue,
+    addToQueue,
+    removeFromQueue,
+    cancelUpload,
     prepareUpload
   }
 

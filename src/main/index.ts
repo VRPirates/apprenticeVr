@@ -224,15 +224,40 @@ app.whenReady().then(async () => {
     }
   )
 
+  typedIpcMain.handle('upload:get-queue', () => uploadService.getQueue())
+
+  typedIpcMain.handle(
+    'upload:add-to-queue',
+    async (_event, packageName, gameName, versionCode, deviceId) => {
+      console.log(
+        `[IPC] Adding to upload queue: ${packageName} (${gameName}) version ${versionCode} from device ${deviceId}`
+      )
+      return uploadService.addToQueue(packageName, gameName, versionCode, deviceId)
+    }
+  )
+
+  typedIpcMain.on('upload:remove', (_event, packageName) => {
+    console.log(`[IPC] Removing from upload queue: ${packageName}`)
+    uploadService.removeFromQueue(packageName)
+  })
+
+  typedIpcMain.on('upload:cancel', (_event, packageName) => {
+    console.log(`[IPC] Cancelling upload: ${packageName}`)
+    uploadService.cancelUpload(packageName)
+  })
+
   typedIpcMain.on('download:remove', (_event, releaseName) =>
     downloadService.removeFromQueue(releaseName)
   )
+
   typedIpcMain.on('download:cancel', (_event, releaseName) =>
     downloadService.cancelUserRequest(releaseName)
   )
+
   typedIpcMain.on('download:retry', (_event, releaseName) =>
     downloadService.retryDownload(releaseName)
   )
+
   typedIpcMain.on('download:set-download-path', (_event, path) =>
     downloadService.setDownloadPath(path)
   )

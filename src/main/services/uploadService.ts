@@ -6,8 +6,7 @@ import crypto from 'crypto'
 import { execa } from 'execa'
 import adbService from './adbService'
 import dependencyService from './dependencyService'
-import { ServiceStatus, UploadPreparationProgress } from '@shared/types'
-import fetch from 'node-fetch'
+import { ServiceStatus, UploadPreparationProgress, UploadStatus, UploadItem } from '@shared/types'
 
 // Enum for stages to track overall progress
 enum UploadStage {
@@ -26,6 +25,8 @@ class UploadService extends EventEmitter {
   private uploadsBasePath: string
   private configFilePath: string
   private activeUpload: ReturnType<typeof execa> | null = null
+  private isProcessing = false
+  private uploadQueue: UploadItem[] = []
 
   constructor() {
     super()
@@ -39,7 +40,6 @@ class UploadService extends EventEmitter {
     console.log('Initializing UploadService...')
 
     try {
-      // Ensure upload directory exists
       await fs.mkdir(this.uploadsBasePath, { recursive: true })
 
       // Fetch and save rclone config for uploads
@@ -55,9 +55,6 @@ class UploadService extends EventEmitter {
     }
   }
 
-  /**
-   * Fetch and save the VRPirates upload rclone config file
-   */
   private async fetchRcloneConfig(): Promise<void> {
     const configUrl = 'https://vrpirates.wiki/downloads/vrp.upload.config'
 
@@ -100,13 +97,12 @@ class UploadService extends EventEmitter {
         progress
       }
       mainWindow.webContents.send('upload:progress', progressData)
+
+      // Update queue item with progress info
+      this.updateItemStatus(packageName, undefined, progress, stage)
     }
   }
 
-  /**
-   * Calculate and emit the overall progress
-   * Each stage has its own 0-100 progress which we scale to the overall process
-   */
   private updateProgress(packageName: string, stage: UploadStage, stageProgress: number): void {
     // Map stage to a descriptive name
     let stageName = 'Preparing upload'
@@ -138,6 +134,165 @@ class UploadService extends EventEmitter {
     }
 
     this.emitProgress(packageName, stageName, stageProgress)
+  }
+
+  public getQueue(): UploadItem[] {
+    return [...this.uploadQueue]
+  }
+
+  private findItemIndex(packageName: string): number {
+    return this.uploadQueue.findIndex((item) => item.packageName === packageName)
+  }
+
+  private findItem(packageName: string): UploadItem | undefined {
+    return this.uploadQueue.find((item) => item.packageName === packageName)
+  }
+
+  private updateItemStatus(
+    packageName: string,
+    status?: UploadStatus,
+    progress?: number,
+    stage?: string,
+    error?: string,
+    zipPath?: string
+  ): void {
+    const index = this.findItemIndex(packageName)
+    if (index === -1) {
+      console.warn(`[UploadService] Cannot update status for non-existent item: ${packageName}`)
+      return
+    }
+
+    const updates: Partial<UploadItem> = {}
+    if (status !== undefined) updates.status = status
+    if (progress !== undefined) updates.progress = progress
+    if (stage !== undefined) updates.stage = stage
+    if (error !== undefined) updates.error = error
+    if (zipPath !== undefined) updates.zipPath = zipPath
+
+    this.uploadQueue[index] = { ...this.uploadQueue[index], ...updates }
+
+    // Emit queue update
+    this.emitQueueUpdated()
+  }
+
+  private emitQueueUpdated(): void {
+    const mainWindow = BrowserWindow.getAllWindows()[0]
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('upload:queue-updated', this.uploadQueue)
+    }
+  }
+
+  public addToQueue(
+    packageName: string,
+    gameName: string,
+    versionCode: number,
+    deviceId: string
+  ): boolean {
+    // Check if item already exists in queue
+    const existingItem = this.findItem(packageName)
+    if (existingItem) {
+      if (existingItem.status === 'Completed') {
+        console.log(`[UploadService] ${packageName} already uploaded successfully.`)
+        return false
+      } else if (existingItem.status !== 'Error' && existingItem.status !== 'Cancelled') {
+        console.log(
+          `[UploadService] ${packageName} is already in the queue with status: ${existingItem.status}`
+        )
+        return false
+      }
+
+      // Remove previous item if it was in error or cancelled
+      this.uploadQueue = this.uploadQueue.filter((item) => item.packageName !== packageName)
+    }
+
+    // Add new item to queue
+    const newItem: UploadItem = {
+      packageName,
+      gameName,
+      versionCode,
+      deviceId,
+      status: 'Queued',
+      progress: 0,
+      addedDate: Date.now()
+    }
+
+    this.uploadQueue.push(newItem)
+    console.log(`[UploadService] Added ${packageName} to upload queue.`)
+    this.emitQueueUpdated()
+
+    // Start processing the queue if we're not already
+    if (!this.isProcessing) {
+      this.processQueue()
+    }
+
+    return true
+  }
+
+  public removeFromQueue(packageName: string): void {
+    const item = this.findItem(packageName)
+    if (!item) return
+
+    if (item.status === 'Preparing' || item.status === 'Uploading') {
+      // Item is active, cancel it first
+      this.cancelUpload(packageName)
+    }
+
+    this.uploadQueue = this.uploadQueue.filter((item) => item.packageName !== packageName)
+    this.emitQueueUpdated()
+  }
+
+  private async processQueue(): Promise<void> {
+    if (this.isProcessing) return
+
+    // Find next queued item
+    const nextItem = this.uploadQueue.find((item) => item.status === 'Queued')
+    if (!nextItem) {
+      this.isProcessing = false
+      return
+    }
+
+    this.isProcessing = true
+    console.log(`[UploadService] Processing next upload: ${nextItem.packageName}`)
+
+    try {
+      // Update status to Preparing
+      this.updateItemStatus(nextItem.packageName, 'Preparing')
+
+      // Start the upload process
+      const zipPath = await this.prepareUpload(
+        nextItem.packageName,
+        nextItem.gameName,
+        nextItem.versionCode,
+        nextItem.deviceId
+      )
+
+      if (zipPath) {
+        console.log(`[UploadService] Upload completed successfully for ${nextItem.packageName}`)
+        this.updateItemStatus(
+          nextItem.packageName,
+          'Completed',
+          100,
+          'Complete',
+          undefined,
+          zipPath
+        )
+      } else {
+        console.error(`[UploadService] Upload failed for ${nextItem.packageName}`)
+        this.updateItemStatus(nextItem.packageName, 'Error', 0, 'Error', 'Upload failed')
+      }
+    } catch (error) {
+      console.error(`[UploadService] Error processing upload for ${nextItem.packageName}:`, error)
+      this.updateItemStatus(
+        nextItem.packageName,
+        'Error',
+        0,
+        'Error',
+        error instanceof Error ? error.message : 'Unknown error'
+      )
+    } finally {
+      this.isProcessing = false
+      this.processQueue() // Process next item in queue
+    }
   }
 
   public async prepareUpload(
@@ -377,6 +532,9 @@ class UploadService extends EventEmitter {
       }
 
       try {
+        // Update item status for upload stage
+        this.updateItemStatus(packageName, 'Uploading', 0, 'Uploading to VRPirates')
+
         // Upload the zip file to VRPirates
         const uploadSuccess = await this.uploadToVRPirates(packageName, gameName, zipFilePath)
 
@@ -404,6 +562,8 @@ class UploadService extends EventEmitter {
 
   /**
    * Uploads the zip file to VRPirates using rclone
+   * @param packageName The package name
+   * @param gameName The game name
    * @param zipFilePath Path to the zip file to upload
    * @returns true if upload was successful, false otherwise
    */
@@ -511,12 +671,16 @@ class UploadService extends EventEmitter {
 
       console.log(`[UploadService] Zip file uploaded successfully`)
 
-      // Clean up the size file
+      // Clean up
       try {
         await fs.unlink(sizeFilePath)
       } catch (error) {
         console.warn(`[UploadService] Failed to delete size file: ${sizeFilePath}`, error)
-        // Non-critical error, continue
+      }
+      try {
+        await fs.unlink(zipFilePath)
+      } catch (error) {
+        console.warn(`[UploadService] Failed to delete zip file: ${zipFilePath}`, error)
       }
 
       this.activeUpload = null
@@ -535,9 +699,6 @@ class UploadService extends EventEmitter {
     }
   }
 
-  /**
-   * Cancel the active upload if one is in progress
-   */
   public cancelUpload(packageName: string): void {
     if (this.activeUpload) {
       console.log(`[UploadService] Cancelling active upload`)
@@ -545,6 +706,7 @@ class UploadService extends EventEmitter {
         this.activeUpload.kill('SIGTERM')
         this.activeUpload = null
         this.emitProgress(packageName, 'Cancelled', 0)
+        this.updateItemStatus(packageName, 'Cancelled', 0, 'Cancelled')
       } catch (error) {
         console.error(`[UploadService] Error cancelling upload:`, error)
       }

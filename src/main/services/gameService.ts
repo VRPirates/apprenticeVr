@@ -650,6 +650,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
       const data = await fs.readFile(this.outdatedGamesPath, 'utf-8')
       this.outdatedGames = JSON.parse(data) as OutdatedGame[]
+
       console.log(`Loaded ${this.outdatedGames.length} outdated games from cache`)
     } catch (error) {
       console.error('Error loading outdated games from cache:', error)

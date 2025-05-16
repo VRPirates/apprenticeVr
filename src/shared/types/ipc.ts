@@ -6,7 +6,9 @@ import {
   DependencyStatus,
   OutdatedGame,
   MissingGame,
-  PackageInfo
+  PackageInfo,
+  UploadItem,
+  UploadPreparationProgress
 } from './index'
 
 // Define types for all IPC channels between renderer and main
@@ -49,8 +51,11 @@ export interface IPCChannels {
     [packageName: string, gameName: string, versionCode: number, deviceId: string],
     string | null
   >
-  'upload:get-path': DefineChannel<[], string>
-  'upload:set-path': DefineChannel<[path: string], void>
+  'upload:get-queue': DefineChannel<[], UploadItem[]>
+  'upload:add-to-queue': DefineChannel<
+    [packageName: string, gameName: string, versionCode: number, deviceId: string],
+    boolean
+  >
 
   // Settings related channels
   'settings:get-download-path': DefineChannel<[], string>
@@ -73,6 +78,8 @@ export interface IPCSendChannels {
   'download:cancel': string
   'download:retry': string
   'download:set-download-path': string
+  'upload:remove': string
+  'upload:cancel': string
 }
 
 // Types for events emitted from main to renderer
@@ -88,7 +95,8 @@ export interface IPCEvents {
   'games:download-progress': [progress: DownloadProgress]
   'games:extract-progress': [progress: { type: string; progress: number }]
   'download:queue-updated': [queue: DownloadItem[]]
-  'upload:progress': [progress: { stage: string; progress: number }]
+  'upload:progress': [progress: UploadPreparationProgress]
+  'upload:queue-updated': [queue: UploadItem[]]
   'settings:download-speed-limit-changed': [limit: number]
   'settings:upload-speed-limit-changed': [limit: number]
 }

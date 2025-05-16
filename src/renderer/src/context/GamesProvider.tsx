@@ -77,18 +77,18 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       // Check for outdated games where we have newer versions installed
       for (const outdatedGame of outdatedGames) {
         if (installedPackages.find((pkg) => pkg.packageName === outdatedGame.packageName)) {
-          const storeVersion = parseInt(outdatedGame.latestVersionCode, 10)
+          const storeVersion = parseInt(outdatedGame.currentVersionCode, 10)
           const deviceVersion = installedPackages.find(
             (pkg) => pkg.packageName === outdatedGame.packageName
           )?.versionCode
 
-          if (!isNaN(storeVersion) && deviceVersion && deviceVersion < storeVersion) {
+          if (!isNaN(storeVersion) && deviceVersion && deviceVersion > storeVersion) {
             candidates.push({
               packageName: outdatedGame.packageName,
               gameName: outdatedGame.gameName,
               versionCode: deviceVersion,
               reason: 'newer',
-              storeVersion: outdatedGame.versionName || outdatedGame.latestVersionCode
+              storeVersion: outdatedGame.versionName || outdatedGame.currentVersionCode
             })
           }
         }

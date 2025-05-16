@@ -4,6 +4,7 @@ import { GamesProvider } from '../context/GamesProvider'
 import DeviceList from './DeviceList'
 import GamesView from './GamesView'
 import DownloadsView from './DownloadsView'
+import UploadsView from './UploadsView'
 import Settings from './Settings'
 import {
   FluentProvider,
@@ -48,7 +49,8 @@ import {
   ArrowDownloadRegular as DownloadIcon,
   DismissRegular as CloseIcon,
   DesktopRegular,
-  SettingsRegular
+  SettingsRegular,
+  ArrowUploadRegular as UploadIcon
 } from '@fluentui/react-icons'
 import { UploadProvider } from '@renderer/context/UploadProvider'
 import { useUpload } from '@renderer/hooks/useUpload'
@@ -121,7 +123,7 @@ const UploadGamesDialog: React.FC = () => {
   // @ts-ignore: Properties exist in implementation but not in type definitions
   const { uploadCandidates } = useGames()
   const { selectedDevice } = useAdb()
-  const { prepareUpload } = useUpload()
+  const { addToQueue } = useUpload()
   const [showUploadDialog, setShowUploadDialog] = useState<boolean>(false)
   const [selectedCandidates, setSelectedCandidates] = useState<{ [key: string]: boolean }>({})
 
@@ -157,14 +159,13 @@ const UploadGamesDialog: React.FC = () => {
     setShowUploadDialog(false)
 
     for (const candidate of selectedForUpload) {
-      await prepareUpload(
+      await addToQueue(
         candidate.packageName,
         candidate.gameName,
         candidate.versionCode,
         selectedDevice!
       )
     }
-    // TODO: Implement the actual upload functionality in the future
   }
 
   return (
@@ -325,9 +326,11 @@ const AppLayout: React.FC = () => {
     window.matchMedia('(prefers-color-scheme: dark)').matches
   )
   const [isDownloadsOpen, setIsDownloadsOpen] = useState(false)
+  const [isUploadsOpen, setIsUploadsOpen] = useState(false)
   const mountNodeRef = useRef<HTMLDivElement>(null)
   const styles = useStyles()
   const { queue: downloadQueue } = useDownload()
+  const { queue: uploadQueue } = useUpload()
 
   const handleDeviceConnected = (): void => {
     setCurrentView(AppView.GAMES)
@@ -374,6 +377,17 @@ const AppLayout: React.FC = () => {
       queuedDownloads
     }
   }, [downloadQueue])
+
+  const uploadQueueProgress = useMemo(() => {
+    const preparingUploads = uploadQueue.filter((item) => item.status === 'Preparing')
+    const activeUploads = uploadQueue.filter((item) => item.status === 'Uploading')
+    const queuedUploads = uploadQueue.filter((item) => item.status === 'Queued')
+    return {
+      preparingUploads,
+      activeUploads,
+      queuedUploads
+    }
+  }, [uploadQueue])
 
   const getDownloadButtonContent = (): { icon: React.ReactNode; text: string } => {
     const { activeDownloads, extractingDownloads, installingDownloads, queuedDownloads } =
@@ -424,7 +438,49 @@ const AppLayout: React.FC = () => {
     }
   }
 
+  const getUploadButtonContent = (): { icon: React.ReactNode; text: string } => {
+    const { preparingUploads, activeUploads, queuedUploads } = uploadQueueProgress
+
+    if (activeUploads.length > 0) {
+      const activeUpload = activeUploads[0]
+      const activeUploadName = activeUpload.gameName
+      const activeUploadProgress = activeUpload.progress
+      let text = `Uploading ${activeUploadName} (${activeUploadProgress}%)`
+      if (queuedUploads.length > 0) {
+        text += ` (+${queuedUploads.length})`
+      }
+      return {
+        icon: <Spinner size="tiny" style={{ animationDuration: '1s' }} />,
+        text
+      }
+    } else if (preparingUploads.length > 0) {
+      const preparingUpload = preparingUploads[0]
+      const preparingUploadName = preparingUpload.gameName
+      const preparingUploadProgress = preparingUpload.progress
+      const preparingUploadStage = preparingUpload.stage || 'Preparing'
+      let text = `${preparingUploadStage} ${preparingUploadName} (${preparingUploadProgress}%)`
+      if (queuedUploads.length > 0) {
+        text += ` (+${queuedUploads.length})`
+      }
+      return {
+        icon: <Spinner size="tiny" style={{ animationDuration: '1s' }} />,
+        text
+      }
+    } else if (queuedUploads.length > 0) {
+      return {
+        icon: <UploadIcon />,
+        text: `Uploads (${queuedUploads.length})`
+      }
+    } else {
+      return {
+        icon: <UploadIcon />,
+        text: 'Uploads'
+      }
+    }
+  }
+
   const { icon: downloadButtonIcon, text: downloadButtonText } = getDownloadButtonContent()
+  const { icon: uploadButtonIcon, text: uploadButtonText } = getUploadButtonContent()
 
   return (
     <FluentProvider theme={currentTheme}>
@@ -448,6 +504,19 @@ const AppLayout: React.FC = () => {
                   }}
                 >
                   {downloadButtonText}
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    console.log('[AppLayout] Uploads button clicked')
+                    setIsUploadsOpen(true)
+                  }}
+                  icon={uploadButtonIcon}
+                  style={{
+                    fontFamily: 'monospace'
+                  }}
+                >
+                  {uploadButtonText}
                 </Button>
 
                 <TabList
@@ -509,6 +578,36 @@ const AppLayout: React.FC = () => {
           <DrawerBody>
             <div>
               <DownloadsView />
+            </div>
+          </DrawerBody>
+        </Drawer>
+
+        <Drawer
+          type="overlay"
+          separator
+          open={isUploadsOpen}
+          onOpenChange={(_, { open }) => setIsUploadsOpen(open)}
+          position="end"
+          style={{ width: '700px' }}
+          mountNode={mountNodeRef.current}
+        >
+          <DrawerHeader>
+            <DrawerHeaderTitle
+              action={
+                <Button
+                  appearance="subtle"
+                  aria-label="Close"
+                  icon={<CloseIcon />}
+                  onClick={() => setIsUploadsOpen(false)}
+                />
+              }
+            >
+              Uploads
+            </DrawerHeaderTitle>
+          </DrawerHeader>
+          <DrawerBody>
+            <div>
+              <UploadsView />
             </div>
           </DrawerBody>
         </Drawer>

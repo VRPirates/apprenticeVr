@@ -79,6 +79,27 @@ export interface UploadPreparationProgress {
   progress: number
 }
 
+export type UploadStatus =
+  | 'Queued'
+  | 'Preparing'
+  | 'Uploading'
+  | 'Completed'
+  | 'Error'
+  | 'Cancelled'
+
+export interface UploadItem {
+  packageName: string
+  gameName: string
+  versionCode: number
+  deviceId: string
+  status: UploadStatus
+  progress: number
+  stage?: string
+  error?: string
+  addedDate: number
+  zipPath?: string
+}
+
 // Download types
 export type DownloadStatus =
   | 'Queued'
@@ -203,10 +224,20 @@ export interface UploadAPI {
     versionCode: number,
     deviceId: string
   ) => Promise<string | null>
+  getQueue: () => Promise<UploadItem[]>
+  addToQueue: (
+    packageName: string,
+    gameName: string,
+    versionCode: number,
+    deviceId: string
+  ) => Promise<boolean>
+  removeFromQueue: (packageName: string) => void
+  cancelUpload: (packageName: string) => void
 }
 
 export interface UploadAPIRenderer extends UploadAPI {
   onUploadProgress: (callback: (progress: UploadPreparationProgress) => void) => () => void
+  onQueueUpdated: (callback: (queue: UploadItem[]) => void) => () => void
 }
 
 export interface Settings {
