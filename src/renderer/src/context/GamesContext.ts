@@ -1,9 +1,10 @@
 import { createContext } from 'react'
-import { GameInfo } from '@shared/types'
+import { GameInfo, UploadCandidate } from '@shared/types'
 
 export interface GamesContextType {
   games: GameInfo[]
   localGames: GameInfo[]
+  uploadCandidates: UploadCandidate[]
   isLoading: boolean
   error: string | null
   lastSyncTime: Date | null

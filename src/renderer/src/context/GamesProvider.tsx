@@ -34,7 +34,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const [missingGames, setMissingGames] = useState<MissingGame[]>([])
   const [uploadCandidates, setUploadCandidates] = useState<UploadCandidate[]>([])
 
-  const { packages: installedPackages, isConnected: isDeviceConnected, selectedDevice } = useAdb()
+  const { packages: installedPackages, isConnected: isDeviceConnected } = useAdb()
   const dependencyContext = useDependency()
 
   // Check for installed games that are missing from the database or newer than outdated games
@@ -47,18 +47,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
     // Check for missing games
     const allGamePackages = new Set(rawGames.map((game) => game.packageName))
-
-    // Get app names for installed packages
-    const getAppName = async (packageName: string): Promise<string> => {
-      try {
-        // @ts-ignore: Method exists in implementation but not in type definitions
-        const label = await window.api.adb.getPackageLabel(selectedDevice!, packageName)
-        return label || packageName
-      } catch (err) {
-        console.error(`Error getting label for ${packageName}:`, err)
-        return packageName
-      }
-    }
 
     // Process installed packages that are missing from our game list
     const processMissingPackages = async (): Promise<void> => {
@@ -75,10 +63,11 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
           // Check if this package is in our missing games list
           missingGames.some((g) => g.packageName === pkg.packageName)
         ) {
-          const gameName = await getAppName(pkg.packageName)
           candidates.push({
             packageName: pkg.packageName,
-            gameName,
+            gameName:
+              missingGames.find((g) => g.packageName === pkg.packageName)?.gameName ||
+              pkg.packageName,
             versionCode: pkg.versionCode,
             reason: 'missing'
           })
@@ -94,10 +83,9 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
           )?.versionCode
 
           if (!isNaN(storeVersion) && deviceVersion && deviceVersion > storeVersion) {
-            const gameName = outdatedGame.gameName || (await getAppName(outdatedGame.packageName))
             candidates.push({
               packageName: outdatedGame.packageName,
-              gameName,
+              gameName: outdatedGame.gameName,
               versionCode: deviceVersion,
               reason: 'newer',
               storeVersion: outdatedGame.versionName || outdatedGame.latestVersionCode
@@ -113,7 +101,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     }
 
     processMissingPackages()
-  }, [isDeviceConnected, installedPackages, rawGames, missingGames, outdatedGames, selectedDevice])
+  }, [isDeviceConnected, installedPackages, rawGames, missingGames, outdatedGames])
 
   // Check for upload candidates whenever device version codes or missing/outdated games change
   useEffect(() => {
