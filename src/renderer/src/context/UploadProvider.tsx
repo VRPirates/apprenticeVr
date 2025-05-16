@@ -45,7 +45,6 @@ export const UploadProvider: React.FC<UploadProviderProps> = ({ children }) => {
     ): Promise<string | null> => {
       setError(null)
       setIsUploading(true)
-      setProgress({ stage: 'Starting', progress: 0 })
 
       try {
         const result = await window.api.uploads.prepareUpload(

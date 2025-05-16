@@ -74,6 +74,7 @@ export interface UploadCandidate {
 
 // Upload types
 export interface UploadPreparationProgress {
+  packageName: string
   stage: string
   progress: number
 }
