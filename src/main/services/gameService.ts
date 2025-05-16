@@ -26,7 +26,7 @@ class GameService extends EventEmitter implements GamesAPI {
   private configPath: string
   private gameListPath: string
   private metaPath: string
-  private uncrackableGamesPath: string
+  //private uncrackableGamesPath: string
   private outdatedGamesPath: string
   private missingGamesPath: string
   private vrpConfig: VrpConfig | null = null
@@ -41,7 +41,7 @@ class GameService extends EventEmitter implements GamesAPI {
     this.configPath = join(this.dataPath, 'vrp-config.json')
     this.gameListPath = join(this.dataPath, 'VRP-GameList.txt')
     this.metaPath = join(this.dataPath, '.meta')
-    this.uncrackableGamesPath = join(this.dataPath, 'uncrackable-games.json')
+    //this.uncrackableGamesPath = join(this.dataPath, 'uncrackable-games.json')
     this.outdatedGamesPath = join(this.dataPath, 'outdated-games.json')
     this.missingGamesPath = join(this.dataPath, 'missing-games.json')
   }
@@ -71,7 +71,7 @@ class GameService extends EventEmitter implements GamesAPI {
       // } else {
       console.log('Using cached game data...')
       await this.loadGameList()
-      await this.loadUncrackableGames()
+      // await this.loadUncrackableGames()
       await this.loadOutdatedGames()
       await this.loadMissingGames()
       //}
@@ -153,14 +153,14 @@ class GameService extends EventEmitter implements GamesAPI {
     try {
       // Fetch and parse additional game data
       await Promise.all([
-        this.fetchUncrackableGames(),
+        // this.fetchUncrackableGames(),
         this.fetchOutdatedGames(),
         this.fetchMissingGames()
       ])
 
       // Cache the data to filesystem
       await Promise.all([
-        this.saveUncrackableGames(),
+        // this.saveUncrackableGames(),
         this.saveOutdatedGames(),
         this.saveMissingGames()
       ])
@@ -576,43 +576,43 @@ class GameService extends EventEmitter implements GamesAPI {
   }
 
   // New methods to fetch and parse additional game data
-  private async fetchUncrackableGames(): Promise<void> {
-    try {
-      console.log('Fetching uncrackable games list...')
-      const response = await axios.get('https://uncrackable.vrpirates.wiki/uncrackable.json', {
-        timeout: 10000
-      })
-      this.uncrackableGames = response.data as UncrackableGame[]
-      console.log(`Loaded ${this.uncrackableGames.length} uncrackable games`)
-    } catch (error) {
-      console.error('Error fetching uncrackable games:', error)
-    }
-  }
+  // private async fetchUncrackableGames(): Promise<void> {
+  //   try {
+  //     console.log('Fetching uncrackable games list...')
+  //     const response = await axios.get('https://uncrackable.vrpirates.wiki/uncrackable.json', {
+  //       timeout: 10000
+  //     })
+  //     this.uncrackableGames = response.data as UncrackableGame[]
+  //     console.log(`Loaded ${this.uncrackableGames.length} uncrackable games`)
+  //   } catch (error) {
+  //     console.error('Error fetching uncrackable games:', error)
+  //   }
+  // }
 
-  private async saveUncrackableGames(): Promise<void> {
-    try {
-      console.log(`Saving ${this.uncrackableGames.length} uncrackable games to disk`)
-      await fs.writeFile(this.uncrackableGamesPath, JSON.stringify(this.uncrackableGames), 'utf-8')
-    } catch (error) {
-      console.error('Error saving uncrackable games:', error)
-    }
-  }
+  // private async saveUncrackableGames(): Promise<void> {
+  //   try {
+  //     console.log(`Saving ${this.uncrackableGames.length} uncrackable games to disk`)
+  //     await fs.writeFile(this.uncrackableGamesPath, JSON.stringify(this.uncrackableGames), 'utf-8')
+  //   } catch (error) {
+  //     console.error('Error saving uncrackable games:', error)
+  //   }
+  // }
 
-  private async loadUncrackableGames(): Promise<void> {
-    try {
-      const exists = await fileExists(this.uncrackableGamesPath)
-      if (!exists) {
-        console.log('No cached uncrackable games found')
-        return
-      }
+  // private async loadUncrackableGames(): Promise<void> {
+  //   try {
+  //     const exists = await fileExists(this.uncrackableGamesPath)
+  //     if (!exists) {
+  //       console.log('No cached uncrackable games found')
+  //       return
+  //     }
 
-      const data = await fs.readFile(this.uncrackableGamesPath, 'utf-8')
-      this.uncrackableGames = JSON.parse(data) as UncrackableGame[]
-      console.log(`Loaded ${this.uncrackableGames.length} uncrackable games from cache`)
-    } catch (error) {
-      console.error('Error loading uncrackable games from cache:', error)
-    }
-  }
+  //     const data = await fs.readFile(this.uncrackableGamesPath, 'utf-8')
+  //     this.uncrackableGames = JSON.parse(data) as UncrackableGame[]
+  //     console.log(`Loaded ${this.uncrackableGames.length} uncrackable games from cache`)
+  //   } catch (error) {
+  //     console.error('Error loading uncrackable games from cache:', error)
+  //   }
+  // }
 
   private async fetchOutdatedGames(): Promise<void> {
     try {
