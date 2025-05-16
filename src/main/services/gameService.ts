@@ -128,27 +128,27 @@ class GameService extends EventEmitter implements GamesAPI {
     }
   }
 
-  private async needsSync(): Promise<boolean> {
-    try {
-      // Check if game list file exists
-      const gameListExists = await fileExists(this.gameListPath)
-      if (!gameListExists) {
-        return true
-      }
+  // private async needsSync(): Promise<boolean> {
+  //   try {
+  //     // Check if game list file exists
+  //     const gameListExists = await fileExists(this.gameListPath)
+  //     if (!gameListExists) {
+  //       return true
+  //     }
 
-      // If no last sync time or it's been more than 24 hours, sync again
-      if (!this.vrpConfig?.lastSync) {
-        return true
-      }
+  //     // If no last sync time or it's been more than 24 hours, sync again
+  //     if (!this.vrpConfig?.lastSync) {
+  //       return true
+  //     }
 
-      const lastSync = this.vrpConfig.lastSync
-      const ONE_DAY = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
-      return Date.now() - lastSync.getTime() > ONE_DAY
-    } catch (error) {
-      console.error('Error checking if sync is needed:', error)
-      return true // Default to sync on error
-    }
-  }
+  //     const lastSync = this.vrpConfig.lastSync
+  //     const ONE_DAY = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
+  //     return Date.now() - lastSync.getTime() > ONE_DAY
+  //   } catch (error) {
+  //     console.error('Error checking if sync is needed:', error)
+  //     return true // Default to sync on error
+  //   }
+  // }
 
   async syncGameData(): Promise<void> {
     try {
