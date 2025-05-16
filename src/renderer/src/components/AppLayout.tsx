@@ -156,22 +156,27 @@ const UploadGamesDialog: React.FC = () => {
 
   return (
     <Dialog open={showUploadDialog} onOpenChange={(_, data) => setShowUploadDialog(data.open)}>
-      <DialogSurface mountNode={document.getElementById('portal')}>
+      <DialogSurface
+        mountNode={document.getElementById('portal')}
+        style={{
+          maxWidth: '820px'
+        }}
+      >
         <DialogBody>
-          <DialogTitle>Upload Games to VR Pirates</DialogTitle>
+          <DialogTitle>Upload Games to VRPirates</DialogTitle>
           <DialogContent>
             <Text>
-              We found games on your device that could benefit the VR Pirates community. These games
+              We found games on your device that could benefit the VRPirates community. These games
               are either missing in our database or newer than the versions we have.
             </Text>
 
-            <Table size="small" style={{ marginTop: '16px' }}>
+            <Table style={{ marginTop: '16px' }}>
               <TableHeader>
                 <TableRow>
-                  <TableHeaderCell>Upload</TableHeaderCell>
+                  <TableHeaderCell style={{ width: '60px' }}>Upload</TableHeaderCell>
                   <TableHeaderCell>Game</TableHeaderCell>
                   <TableHeaderCell>Package</TableHeaderCell>
-                  <TableHeaderCell>Version</TableHeaderCell>
+                  <TableHeaderCell style={{ width: '100px' }}>Version</TableHeaderCell>
                   <TableHeaderCell>Status</TableHeaderCell>
                 </TableRow>
               </TableHeader>
@@ -201,7 +206,11 @@ const UploadGamesDialog: React.FC = () => {
             <DialogTrigger disableButtonEnhancement>
               <Button appearance="secondary">Cancel</Button>
             </DialogTrigger>
-            <Button appearance="primary" onClick={handleUpload}>
+            <Button
+              appearance="primary"
+              onClick={handleUpload}
+              disabled={Object.values(selectedCandidates).every((value) => value === false)}
+            >
               Upload Selected Games
             </Button>
           </DialogActions>

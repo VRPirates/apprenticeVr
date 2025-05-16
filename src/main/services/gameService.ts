@@ -64,18 +64,18 @@ class GameService extends EventEmitter implements GamesAPI {
       await this.loadConfig()
 
       // Check if we need to sync data
-      const needsSync = await this.needsSync()
+      // const needsSync = await this.needsSync()
 
-      if (needsSync) {
-        console.log('Syncing game data...')
-        await this.syncGameData()
-      } else {
-        console.log('Using cached game data...')
-        await this.loadGameList()
-        await this.loadUncrackableGames()
-        await this.loadOutdatedGames()
-        await this.loadMissingGames()
-      }
+      // if (needsSync) {
+      //   console.log('Syncing game data...')
+      //   await this.syncGameData()
+      // } else {
+      console.log('Using cached game data...')
+      await this.loadGameList()
+      await this.loadUncrackableGames()
+      await this.loadOutdatedGames()
+      await this.loadMissingGames()
+      //}
     } catch (error) {
       console.error('Error initializing game service:', error)
       this.status = 'ERROR'
@@ -274,7 +274,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
             // Send progress to renderer process if we have a valid window
             if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('download-progress', {
+              mainWindow.webContents.send('games:download-progress', {
                 type: 'meta',
                 progress: progressPercentage
               })
@@ -301,7 +301,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
       // Send 100% progress on completion
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('download-progress', {
+        mainWindow.webContents.send('games:download-progress', {
           type: 'meta',
           progress: 100
         })
@@ -378,7 +378,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
                 // Send progress to renderer process if we have a valid window
                 if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('extract-progress', {
+                  mainWindow.webContents.send('games:extract-progress', {
                     type: 'meta',
                     progress: progressPercentage
                   })
@@ -415,7 +415,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
         // Send 100% progress on completion
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('extract-progress', {
+          mainWindow.webContents.send('games:extract-progress', {
             type: 'meta',
             progress: 100
           })
