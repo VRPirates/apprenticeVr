@@ -51,7 +51,7 @@ class DownloadService extends EventEmitter implements DownloadAPI {
     this.downloadsPath = path
   }
 
-  async initialize(vrpConfig: VrpConfig | null): Promise<void> {
+  async initialize(vrpConfig: VrpConfig): Promise<void> {
     if (this.isInitialized) return
     console.log('Initializing DownloadService...')
     this.downloadProcessor.setVrpConfig(vrpConfig)

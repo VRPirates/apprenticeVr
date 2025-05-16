@@ -112,13 +112,14 @@ app.whenReady().then(async () => {
           // Initialize Game Service (needs 7z and rclone from dependencyService)
           const gameServiceStatus = await gameService.initialize()
           console.log(`Game Service initialization status: ${gameServiceStatus}`)
-          // Initialize Download Service (needs rclone and VRP config from gameService)
-          if (gameServiceStatus === 'INITIALIZED') {
-            await downloadService.initialize(await gameService.getVrpConfig()) // Pass VRP config
+          const vrpConfig = await gameService.getVrpConfig()
+          // Initialize Download Service (needs VRP config from gameService)
+          if (vrpConfig) {
+            await downloadService.initialize(vrpConfig) // Pass VRP config
             console.log('Download Service initialized.')
           } else {
             console.warn(
-              'Game service did not initialize correctly, skipping download service initialization.'
+              'vrpConfig did not initialize correctly, skipping download service initialization.'
             )
           }
           // Initialize Upload Service

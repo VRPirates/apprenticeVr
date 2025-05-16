@@ -105,6 +105,7 @@ class GameService extends EventEmitter implements GamesAPI {
         )
       } else {
         console.log('No config file found at', this.configPath)
+        await this.fetchVrpPublicInfo()
       }
     } catch (error) {
       console.error('Error loading configuration:', error)
