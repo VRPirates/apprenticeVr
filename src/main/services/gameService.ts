@@ -14,7 +14,6 @@ interface VrpConfig {
   lastSync?: Date
 }
 
-// New interfaces for additional game data
 interface UncrackableGame {
   packagename: string
   gamename: string
