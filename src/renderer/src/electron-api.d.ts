@@ -5,7 +5,8 @@ import {
   DownloadAPIRenderer,
   GameAPIRenderer,
   SettingsAPIRenderer,
-  UploadAPIRenderer
+  UploadAPIRenderer,
+  UpdateAPIRenderer
 } from '@shared/types'
 
 declare global {
@@ -18,6 +19,7 @@ declare global {
       downloads: DownloadAPIRenderer
       settings: SettingsAPIRenderer
       uploads: UploadAPIRenderer
+      updates: UpdateAPIRenderer
       dialog: {
         showDirectoryPicker: () => Promise<string | null>
       }

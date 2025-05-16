@@ -15,7 +15,9 @@ import {
   PackageInfo,
   UploadPreparationProgress,
   UploadAPIRenderer,
-  UploadItem
+  UploadItem,
+  UpdateInfo,
+  UpdateAPIRenderer
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -139,6 +141,26 @@ const api = {
       return () => typedIpcRenderer.removeListener('upload:queue-updated', listener)
     }
   } satisfies UploadAPIRenderer,
+  // Update APIs
+  updates: {
+    checkForUpdates: (): Promise<void> => typedIpcRenderer.invoke('update:check-for-updates'),
+    openDownloadPage: (url: string): void => typedIpcRenderer.send('update:download', url),
+    onCheckingForUpdate: (callback: () => void): (() => void) => {
+      const listener = (): void => callback()
+      typedIpcRenderer.on('update:checking-for-update', listener)
+      return () => typedIpcRenderer.removeListener('update:checking-for-update', listener)
+    },
+    onUpdateAvailable: (callback: (info: UpdateInfo) => void): (() => void) => {
+      const listener = (_: IpcRendererEvent, info: UpdateInfo): void => callback(info)
+      typedIpcRenderer.on('update:update-available', listener)
+      return () => typedIpcRenderer.removeListener('update:update-available', listener)
+    },
+    onUpdateError: (callback: (error: Error) => void): (() => void) => {
+      const listener = (_: IpcRendererEvent, error: Error): void => callback(error)
+      typedIpcRenderer.on('update:error', listener)
+      return () => typedIpcRenderer.removeListener('update:error', listener)
+    }
+  } satisfies UpdateAPIRenderer,
   settings: {
     getDownloadPath: (): Promise<string> => typedIpcRenderer.invoke('settings:get-download-path'),
     setDownloadPath: (path: string): Promise<void> =>

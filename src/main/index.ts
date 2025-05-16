@@ -7,6 +7,7 @@ import dependencyService, { DependencyStatus } from './services/dependencyServic
 import gameService from './services/gameService'
 import downloadService from './services/downloadService'
 import uploadService from './services/uploadService'
+import updateService from './services/updateService'
 import { typedIpcMain } from '@shared/ipc-utils'
 import settingsService from './services/settingsService'
 
@@ -123,6 +124,19 @@ app.whenReady().then(async () => {
           // Initialize Upload Service
           await uploadService.initialize()
           console.log('Upload Service initialized.')
+
+          // Initialize Update Service
+          if (mainWindow) {
+            updateService.initialize()
+            console.log('Update Service initialized.')
+
+            // Check for updates on startup
+            setTimeout(() => {
+              updateService.checkForUpdates().catch((err) => {
+                console.error('Failed to check for updates on startup:', err)
+              })
+            }, 1000) // Delay update check to avoid slowing down startup
+          }
 
           mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
         } catch (serviceInitError) {
@@ -261,6 +275,36 @@ app.whenReady().then(async () => {
   typedIpcMain.on('download:set-download-path', (_event, path) =>
     downloadService.setDownloadPath(path)
   )
+
+  // --- Update Handlers ---
+  typedIpcMain.handle('update:check-for-updates', async () => {
+    console.log('[IPC] Check for updates requested')
+    return updateService.checkForUpdates()
+  })
+
+  typedIpcMain.on('update:download', (_event, url) => {
+    console.log('[IPC] Open download page requested for:', url)
+    updateService.openDownloadPage(url)
+  })
+
+  // Set up update service event forwarding to renderer
+  updateService.on('checking-for-update', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:checking-for-update')
+    }
+  })
+
+  updateService.on('update-available', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:update-available', info)
+    }
+  })
+
+  updateService.on('error', (err) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:error', err)
+    }
+  })
 
   // --- Settings Handlers ---
   typedIpcMain.handle('settings:get-download-path', () => settingsService.getDownloadPath())

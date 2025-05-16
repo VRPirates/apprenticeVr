@@ -8,7 +8,9 @@ import {
   MissingGame,
   PackageInfo,
   UploadItem,
-  UploadPreparationProgress
+  UploadPreparationProgress,
+  UpdateInfo,
+  UpdateProgressInfo
 } from './index'
 
 // Define types for all IPC channels between renderer and main
@@ -57,6 +59,9 @@ export interface IPCChannels {
     boolean
   >
 
+  // Update related channels
+  'update:check-for-updates': DefineChannel<[], void>
+
   // Settings related channels
   'settings:get-download-path': DefineChannel<[], string>
   'settings:set-download-path': DefineChannel<[path: string], void>
@@ -80,6 +85,7 @@ export interface IPCSendChannels {
   'download:set-download-path': string
   'upload:remove': string
   'upload:cancel': string
+  'update:download': string
 }
 
 // Types for events emitted from main to renderer
@@ -99,4 +105,9 @@ export interface IPCEvents {
   'upload:queue-updated': [queue: UploadItem[]]
   'settings:download-speed-limit-changed': [limit: number]
   'settings:upload-speed-limit-changed': [limit: number]
+  'update:checking-for-update': []
+  'update:update-available': [updateInfo: UpdateInfo]
+  'update:error': [error: Error]
+  'update:download-progress': [progressInfo: UpdateProgressInfo]
+  'update:update-downloaded': [updateInfo: UpdateInfo]
 }

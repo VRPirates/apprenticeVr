@@ -6,6 +6,7 @@ import GamesView from './GamesView'
 import DownloadsView from './DownloadsView'
 import UploadsView from './UploadsView'
 import Settings from './Settings'
+import { UpdateNotification } from './UpdateNotification'
 import {
   FluentProvider,
   Title1,
@@ -551,6 +552,9 @@ const AppLayout: React.FC = () => {
             onBackToDeviceList={handleBackToDeviceList}
           />
         </div>
+
+        {/* Add UpdateNotification component here - it manages its own visibility */}
+        <UpdateNotification />
 
         <Drawer
           type="overlay"

@@ -133,6 +133,21 @@ export interface DownloadProgress {
   progress: number
 }
 
+// Update types
+export interface UpdateInfo {
+  version: string
+  releaseNotes?: string
+  releaseDate?: string
+  downloadUrl?: string
+}
+
+export interface UpdateProgressInfo {
+  bytesPerSecond: number
+  percent: number
+  transferred: number
+  total: number
+}
+
 // Dependency types
 export interface DependencyStatus {
   sevenZip: {
@@ -238,6 +253,18 @@ export interface UploadAPI {
 export interface UploadAPIRenderer extends UploadAPI {
   onUploadProgress: (callback: (progress: UploadPreparationProgress) => void) => () => void
   onQueueUpdated: (callback: (queue: UploadItem[]) => void) => () => void
+}
+
+// Update API
+export interface UpdateAPI {
+  checkForUpdates: () => Promise<void>
+  openDownloadPage: (url: string) => void
+}
+
+export interface UpdateAPIRenderer extends UpdateAPI {
+  onCheckingForUpdate: (callback: () => void) => () => void
+  onUpdateAvailable: (callback: (info: UpdateInfo) => void) => () => void
+  onUpdateError: (callback: (error: Error) => void) => () => void
 }
 
 export interface Settings {
