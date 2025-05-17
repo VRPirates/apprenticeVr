@@ -8,28 +8,17 @@ import path from 'path'
 import { AdbAPI, DeviceInfo, PackageInfo, ServiceStatus } from '@shared/types'
 import { typedWebContentsSend } from '@shared/ipc-utils'
 
-const QUEST_MODELS = [
-  'monterey',
-  'hollywood',
-  'seacliff',
-  'eureka',
-  'panther',
-  'quest',
-  'pacific',
-  'sekiu'
-] as const
+const QUEST_MODELS = ['monterey', 'hollywood', 'seacliff', 'eureka', 'panther', 'sekiu'] as const
 type QuestModel = (typeof QUEST_MODELS)[number]
 
 // Mapping from codename (ro.product.device) to friendly name
 const QUEST_MODEL_NAMES: Record<QuestModel, string> = {
-  pacific: 'Oculus Go',
   monterey: 'Oculus Quest',
   hollywood: 'Meta Quest 2',
   seacliff: 'Meta Quest Pro',
   eureka: 'Meta Quest 3',
   panther: 'Meta Quest 3S / Lite',
-  sekiu: 'Meta XR Simulator',
-  quest: 'Meta Quest (Unknown)'
+  sekiu: 'Meta XR Simulator'
 }
 
 class AdbService extends EventEmitter implements AdbAPI {
