@@ -167,6 +167,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
       // Load the game list
       await this.loadGameList()
+      await this.loadBlacklistGames()
 
       // Update last sync time
       if (this.vrpConfig) {
