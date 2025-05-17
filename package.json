@@ -33,6 +33,7 @@
     "@tanstack/react-virtual": "^3.13.8",
     "axios": "^1.9.0",
     "bluebird": "^3.7.2",
+    "compare-versions": "^6.1.1",
     "date-fns": "^4.1.0",
     "electron-updater": "^6.6.2",
     "execa": "^9.5.3",

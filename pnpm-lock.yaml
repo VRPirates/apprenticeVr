@@ -38,6 +38,9 @@ importers:
       bluebird:
         specifier: ^3.7.2
         version: 3.7.2
+      compare-versions:
+        specifier: ^6.1.1
+        version: 6.1.1
       date-fns:
         specifier: ^4.1.0
         version: 4.1.0
@@ -1705,6 +1708,9 @@ packages:
   compare-version@0.1.2:
     resolution: {integrity: sha512-pJDh5/4wrEnXX/VWRZvruAGHkzKdr46z11OlTPN+VrATlWWhSKewNCJ1futCO5C7eJB3nPMFZA1LeYtcFboZ2A==}
     engines: {node: '>=0.10.0'}
+
+  compare-versions@6.1.1:
+    resolution: {integrity: sha512-4hm4VPpIecmlg59CHXnRDnqGplJFrbLG4aFEl5vl6cK1u76ws3LLvX7ikFnTDl5vo39sjWD6AaDPYodJp/NNHg==}
 
   compress-commons@4.1.2:
     resolution: {integrity: sha512-D3uMHtGc/fcO1Gt1/L7i1e33VOvD4A9hfQLP+6ewd+BvG/gQ84Yh4oftEhAdjSMgBgwGL+jsppT7JYNpo6MHHg==}
@@ -5980,6 +5986,8 @@ snapshots:
   commander@9.5.0: {}
 
   compare-version@0.1.2: {}
+
+  compare-versions@6.1.1: {}
 
   compress-commons@4.1.2:
     dependencies:

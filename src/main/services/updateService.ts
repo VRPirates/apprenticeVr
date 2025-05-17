@@ -2,6 +2,7 @@ import { app, shell } from 'electron'
 import { EventEmitter } from 'events'
 import axios from 'axios'
 import { UpdateInfo } from '@shared/types'
+import { compareVersions } from 'compare-versions'
 
 class UpdateService extends EventEmitter {
   private currentVersion: string = app.getVersion()
@@ -36,8 +37,7 @@ class UpdateService extends EventEmitter {
 
         console.log(`Current version: ${this.currentVersion}, Latest version: ${latestVersion}`)
 
-        // Check if versions are different (needs improvement for semantic versioning)
-        if (latestVersion !== this.currentVersion) {
+        if (compareVersions(latestVersion, this.currentVersion) > 0) {
           // Prepare update info object
           const updateInfo: UpdateInfo = {
             version: latestVersion,

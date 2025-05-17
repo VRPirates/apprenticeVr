@@ -16,6 +16,10 @@ extraResources:
     to: bin
     filter:
       - '**/*'
+  - from: resources/bin
+    to: bin
+    filter:
+      - '*'
 win:
   executableName: apprenticevr
 nsis:
