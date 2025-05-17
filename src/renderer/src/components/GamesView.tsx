@@ -9,7 +9,8 @@ import {
   SortingState,
   FilterFn,
   ColumnFiltersState,
-  Row
+  Row,
+  ColumnSizingState
 } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useAdb } from '../hooks/useAdb'
@@ -41,9 +42,25 @@ import {
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import GameDetailsDialog from './GameDetailsDialog'
 
-interface GamesViewProps {
-  onBackToDevices: () => void
+// Column width constants
+const COLUMN_WIDTHS = {
+  STATUS: 60,
+  THUMBNAIL: 90,
+  VERSION: 180,
+  POPULARITY: 120,
+  SIZE: 90,
+  LAST_UPDATED: 180,
+  MIN_NAME_PACKAGE: 300 // Minimum width for name/package column
 }
+
+// Calculate fixed columns total width
+const FIXED_COLUMNS_WIDTH =
+  COLUMN_WIDTHS.STATUS +
+  COLUMN_WIDTHS.THUMBNAIL +
+  COLUMN_WIDTHS.VERSION +
+  COLUMN_WIDTHS.POPULARITY +
+  COLUMN_WIDTHS.SIZE +
+  COLUMN_WIDTHS.LAST_UPDATED
 
 type FilterType = 'all' | 'installed' | 'update'
 
@@ -191,6 +208,10 @@ const useStyles = makeStyles({
   }
 })
 
+interface GamesViewProps {
+  onBackToDevices: () => void
+}
+
 const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const {
     selectedDevice,
@@ -227,7 +248,9 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false)
   const [dialogGame, setDialogGame] = useState<GameInfo | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false)
+  const [tableWidth, setTableWidth] = useState<number>(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
 
   const counts = useMemo(() => {
     const total = games.length
@@ -291,12 +314,55 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     return map
   }, [downloadQueue])
 
-  const columns = useMemo<ColumnDef<GameInfo>[]>(
-    () => [
+  useEffect(() => {
+    if (!tableContainerRef.current) return
+
+    // Capture current value of ref to use in cleanup
+    const currentRef = tableContainerRef.current
+
+    const updateTableWidth = (): void => {
+      if (tableContainerRef.current) {
+        const newWidth = tableContainerRef.current.clientWidth
+        setTableWidth(newWidth)
+        // Reset all column sizing to force recalculation
+        setColumnSizing({})
+      }
+    }
+
+    // Initial width calculation
+    updateTableWidth()
+
+    // Set up resize observer
+    const resizeObserver = new ResizeObserver(() => {
+      // Use requestAnimationFrame to avoid too many updates
+      window.requestAnimationFrame(updateTableWidth)
+    })
+    resizeObserver.observe(currentRef)
+
+    // Also listen for window resize as a fallback
+    const handleResize = (): void => {
+      window.requestAnimationFrame(updateTableWidth)
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      resizeObserver.unobserve(currentRef)
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  const columns = useMemo<ColumnDef<GameInfo>[]>(() => {
+    // Calculate dynamic width for name column, with a minimum width
+    const nameColumnWidth = Math.max(
+      COLUMN_WIDTHS.MIN_NAME_PACKAGE,
+      tableWidth - FIXED_COLUMNS_WIDTH - 5 // 5px buffer
+    )
+
+    return [
       {
         id: 'downloadStatus',
         header: '',
-        size: 60,
+        size: COLUMN_WIDTHS.STATUS,
         enableResizing: false,
         enableSorting: false,
         cell: ({ row }) => {
@@ -340,14 +406,15 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'thumbnailPath',
         header: ' ',
-        size: 90,
+        size: COLUMN_WIDTHS.THUMBNAIL,
         enableResizing: false,
         cell: ({ getValue }) => {
-          const path = getValue<string>()
+          const pathValue = getValue()
+          const imagePath = typeof pathValue === 'string' ? pathValue : ''
           return (
             <div className="game-thumbnail-cell">
               <img
-                src={path ? `file://${path}` : placeholderImage}
+                src={imagePath ? `file://${imagePath}` : placeholderImage}
                 alt="Thumbnail"
                 className="game-thumbnail-img"
               />
@@ -359,7 +426,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'name',
         header: 'Name / Package',
-        size: 430,
+        size: nameColumnWidth > 0 ? nameColumnWidth : COLUMN_WIDTHS.MIN_NAME_PACKAGE,
         cell: ({ row }) => {
           const game = row.original
           const downloadInfo = game.releaseName
@@ -434,7 +501,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'version',
         header: 'Version',
-        size: 180,
+        size: COLUMN_WIDTHS.VERSION,
         cell: ({ row }) => {
           const listVersion = row.original.version
           const isInstalled = row.original.isInstalled
@@ -456,9 +523,9 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'downloads',
         header: 'Popularity',
-        size: 120,
+        size: COLUMN_WIDTHS.POPULARITY,
         cell: (info) => {
-          const count = info.getValue<number>()
+          const count = info.getValue()
           return typeof count === 'number' ? count.toLocaleString() : '-'
         },
         enableResizing: true
@@ -466,15 +533,14 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       {
         accessorKey: 'size',
         header: 'Size',
-        size: 90,
+        size: COLUMN_WIDTHS.SIZE,
         cell: (info) => info.getValue() || '-',
         enableResizing: true
       },
-
       {
         accessorKey: 'lastUpdated',
         header: 'Last Updated',
-        size: 180,
+        size: COLUMN_WIDTHS.LAST_UPDATED,
         cell: (info) => info.getValue() || '-',
         enableResizing: true
       },
@@ -488,9 +554,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         header: 'Update Status',
         enableResizing: false
       }
-    ],
-    [downloadStatusMap, styles]
-  )
+    ]
+  }, [downloadStatusMap, styles, tableWidth])
 
   const table = useReactTable({
     data: games,
@@ -503,11 +568,13 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       sorting,
       globalFilter,
       columnFilters,
-      columnVisibility: { isInstalled: false, hasUpdate: false }
+      columnVisibility: { isInstalled: false, hasUpdate: false },
+      columnSizing
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
+    onColumnSizingChange: setColumnSizing,
     globalFilterFn: 'gameNameAndPackageFilter',
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

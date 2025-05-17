@@ -39,6 +39,7 @@ function createWindow(): void {
   // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1200,
+    minWidth: 1200,
     height: 720,
     show: false,
     autoHideMenuBar: true,
@@ -49,6 +50,9 @@ function createWindow(): void {
       webSecurity: false // Allow loading local resources (thumbnails)
     }
   })
+
+  // Explicitly set minimum size to ensure constraint is enforced
+  mainWindow.setMinimumSize(1200, 720)
 
   mainWindow.on('ready-to-show', async () => {
     if (mainWindow) {
