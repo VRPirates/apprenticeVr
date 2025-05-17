@@ -336,7 +336,7 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
         onClick={() => onInstall(currentGame)}
         disabled={isBusy}
       >
-        Install
+        {isConnected ? 'Install' : 'Download'}
       </Button>
     )
   }
