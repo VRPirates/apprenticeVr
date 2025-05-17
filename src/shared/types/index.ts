@@ -42,28 +42,6 @@ export interface GameInfo {
   hasUpdate?: boolean
 }
 
-export interface OutdatedGame {
-  gameName: string
-  packageName: string
-  cost: string
-  storeUrl: string
-  currentVersionCode: string
-  latestVersionCode: string
-  versionName: string
-  reason: string
-}
-
-export interface MissingGame {
-  gameName: string
-  packageName: string
-  cost: string
-  storeUrl: string
-  currentVersionCode: string
-  latestVersionCode: string
-  versionName: string
-  reason: string
-}
-
 export interface UploadCandidate {
   packageName: string
   gameName: string
@@ -209,8 +187,7 @@ export interface GamesAPI {
   getLastSyncTime: () => Promise<Date | null>
   forceSync: () => Promise<GameInfo[]>
   getNote: (releaseName: string) => Promise<string>
-  getMissingGames: () => Promise<MissingGame[]>
-  getOutdatedGames: () => Promise<OutdatedGame[]>
+  getBlacklistGames: () => Promise<string[]>
 }
 
 export interface GameAPIRenderer extends GamesAPI {

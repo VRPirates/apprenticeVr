@@ -4,8 +4,6 @@ import {
   DownloadItem,
   DownloadProgress,
   DependencyStatus,
-  OutdatedGame,
-  MissingGame,
   PackageInfo,
   UploadItem,
   UploadPreparationProgress,
@@ -36,8 +34,7 @@ export interface IPCChannels {
 
   // Game related channels
   'games:get-games': DefineChannel<[], GameInfo[]>
-  'games:get-missing-games': DefineChannel<[], MissingGame[]>
-  'games:get-outdated-games': DefineChannel<[], OutdatedGame[]>
+  'games:get-blacklist-games': DefineChannel<[], string[]>
   'games:get-last-sync-time': DefineChannel<[], Date | null>
   'games:force-sync-games': DefineChannel<[], GameInfo[]>
   'games:get-note': DefineChannel<[releaseName: string], string>

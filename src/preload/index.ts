@@ -10,8 +10,6 @@ import {
   GameAPIRenderer,
   DownloadAPIRenderer,
   SettingsAPIRenderer,
-  MissingGame,
-  OutdatedGame,
   PackageInfo,
   UploadPreparationProgress,
   UploadAPIRenderer,
@@ -61,10 +59,8 @@ const api = {
   } satisfies AdbAPIRenderer,
   games: {
     getGames: (): Promise<GameInfo[]> => typedIpcRenderer.invoke('games:get-games'),
-    getMissingGames: (): Promise<MissingGame[]> =>
-      typedIpcRenderer.invoke('games:get-missing-games'),
-    getOutdatedGames: (): Promise<OutdatedGame[]> =>
-      typedIpcRenderer.invoke('games:get-outdated-games'),
+    getBlacklistGames: (): Promise<string[]> =>
+      typedIpcRenderer.invoke('games:get-blacklist-games'),
     getNote: (releaseName: string): Promise<string> =>
       typedIpcRenderer.invoke('games:get-note', releaseName),
     getLastSyncTime: (): Promise<Date | null> =>
