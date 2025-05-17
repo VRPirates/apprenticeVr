@@ -577,7 +577,7 @@ class GameService extends EventEmitter implements GamesAPI {
       return this.videoIdCache.get(gameName) || null
     }
 
-    const searchQuery = `${gameName} vr trailer`
+    const searchQuery = `${gameName} quest vr trailer`
     const searchResults = await yts({
       query: searchQuery,
       pages: 1
