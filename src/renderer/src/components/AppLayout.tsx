@@ -501,7 +501,8 @@ const AppLayout: React.FC = () => {
                   }}
                   icon={downloadButtonIcon}
                   style={{
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
+                    fontSize: '12px'
                   }}
                 >
                   {downloadButtonText}
@@ -514,7 +515,8 @@ const AppLayout: React.FC = () => {
                   }}
                   icon={uploadButtonIcon}
                   style={{
-                    fontFamily: 'monospace'
+                    fontFamily: 'monospace',
+                    fontSize: '12px'
                   }}
                 >
                   {uploadButtonText}

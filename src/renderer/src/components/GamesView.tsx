@@ -396,7 +396,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                     Queued
                   </Badge>
                 )}
-                {isInstalling && (
+                {(isDownloading || isExtracting || isInstalling) && (
                   <div
                     style={{
                       display: 'flex',
@@ -406,7 +406,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                   >
                     <Spinner size="tiny" aria-label="Installing" />
                     <Badge shape="rounded" color="brand" appearance="outline">
-                      Installing
+                      {downloadInfo?.status}
                     </Badge>
                   </div>
                 )}
@@ -416,7 +416,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                   </Badge>
                 )}
               </div>
-              {(isDownloading || isExtracting) && !isInstalling && downloadInfo && (
+              {(isDownloading || isExtracting || isInstalling) && downloadInfo && (
                 <ProgressBar
                   value={downloadInfo.progress}
                   max={100}
@@ -518,7 +518,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 90,
+    estimateSize: () => 115,
     overscan: 10
   })
 

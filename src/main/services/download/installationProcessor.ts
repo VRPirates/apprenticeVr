@@ -301,6 +301,7 @@ export class InstallationProcessor {
         return false
       }
       console.log(`[InstallProc Standard] Found ${apks.length} APK(s): ${apks.join(', ')}`)
+      this.updateItemStatus(item.releaseName, 'Installing', 0)
       for (const apk of apks) {
         const apkPath = join(item.downloadPath, apk)
         console.log(`[InstallProc Standard] Installing ${apkPath}...`)
@@ -322,6 +323,7 @@ export class InstallationProcessor {
           return false
         }
       }
+      this.updateItemStatus(item.releaseName, 'Installing', obbPath ? 50 : 100)
       if (obbPath) {
         const deviceObbBasePath = '/sdcard/Android/obb'
         const deviceObbTargetPath = `${deviceObbBasePath}/${obbDirName}`
@@ -337,7 +339,49 @@ export class InstallationProcessor {
               mkdirError
             )
           }
-          await this.adbService.pushFileOrFolder(deviceId, obbPath, deviceObbTargetPath)
+
+          // Calculate total size of OBB files and track progress
+          const filesInfo = await this.getDirectoryFilesInfo(obbPath)
+          if (filesInfo.length === 0) {
+            console.log(`[InstallProc Standard] No files found in OBB directory ${obbPath}`)
+          } else {
+            const totalSize = filesInfo.reduce((sum, entry) => sum + entry.size, 0)
+            console.log(
+              `[InstallProc Standard] Found ${filesInfo.length} files in OBB folder, total size: ${totalSize} bytes`
+            )
+
+            // Create remote OBB directory
+            await this.adbService.runShellCommand(deviceId, `mkdir -p "${deviceObbTargetPath}"`)
+
+            let transferredSize = 0
+            // Push each file individually to track progress
+            for (let i = 0; i < filesInfo.length; i++) {
+              const { path: filePath, size } = filesInfo[i]
+              const relativePath = filePath.substring(obbPath.length + 1) // +1 for the slash
+              const remoteFilePath = `${deviceObbTargetPath}/${relativePath}`
+
+              // Create parent directory if needed
+              const remoteDir = remoteFilePath.substring(0, remoteFilePath.lastIndexOf('/'))
+              await this.adbService.runShellCommand(deviceId, `mkdir -p "${remoteDir}"`)
+
+              console.log(
+                `[InstallProc Standard] Pushing file ${i + 1}/${filesInfo.length}: ${filePath} (${size} bytes)`
+              )
+
+              // Push the file
+              await this.adbService.pushFileOrFolder(deviceId, filePath, remoteFilePath)
+
+              // Update progress
+              transferredSize += size
+              const progressPercentage = Math.min(
+                Math.floor((transferredSize / totalSize) * 100),
+                100
+              )
+              this.updateItemStatus(item.releaseName, 'Installing', 50 + progressPercentage / 2)
+            }
+            console.log(`[InstallProc Standard] Successfully pushed all OBB files.`)
+          }
+
           console.log(`[InstallProc Standard] Successfully pushed OBB folder.`)
         } catch (obbError: unknown) {
           const errorMsg = obbError instanceof Error ? obbError.message : String(obbError)
@@ -371,5 +415,37 @@ export class InstallationProcessor {
       )
       return false
     }
+  }
+
+  /**
+   * Get all files in a directory recursively with their sizes
+   * @param dirPath Directory path to scan
+   * @returns Array of {path, size} objects for each file
+   */
+  private async getDirectoryFilesInfo(
+    dirPath: string
+  ): Promise<Array<{ path: string; size: number }>> {
+    const result: Array<{ path: string; size: number }> = []
+
+    async function scanDirectory(currentPath: string): Promise<void> {
+      const entries = await fs.readdir(currentPath, { withFileTypes: true })
+
+      for (const entry of entries) {
+        const entryPath = join(currentPath, entry.name)
+
+        if (entry.isDirectory()) {
+          await scanDirectory(entryPath)
+        } else if (entry.isFile()) {
+          const stats = await fs.stat(entryPath)
+          result.push({
+            path: entryPath,
+            size: stats.size
+          })
+        }
+      }
+    }
+
+    await scanDirectory(dirPath)
+    return result
   }
 }

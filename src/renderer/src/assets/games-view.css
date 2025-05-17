@@ -97,21 +97,6 @@
   flex-grow: 1; /* Allow list to grow */
 }
 
-.game-thumbnail {
-  width: 80px;
-  height: 80px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  overflow: hidden;
-  background-color: #f1f3f4;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-}
-
-.game-thumbnail img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
 
 .game-info {
   display: flex;
@@ -253,8 +238,8 @@
 
 /* Ensure thumbnail cell aligns correctly */
 .game-thumbnail-cell {
-  width: 60px;
-  height: 60px;
+  width: 70px;
+  height: 70px;
   padding: 5px; /* Adjust padding as needed */
   display: flex; /* Use flex to center content vertically */
   align-items: center;
