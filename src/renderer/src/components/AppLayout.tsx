@@ -7,6 +7,7 @@ import DownloadsView from './DownloadsView'
 import UploadsView from './UploadsView'
 import Settings from './Settings'
 import { UpdateNotification } from './UpdateNotification'
+import UploadGamesDialog from './UploadGamesDialog'
 import {
   FluentProvider,
   Title1,
@@ -23,21 +24,7 @@ import {
   DrawerHeaderTitle,
   DrawerBody,
   TabList,
-  Tab,
-  Dialog,
-  DialogSurface,
-  DialogBody,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  DialogTrigger,
-  Table,
-  TableHeader,
-  TableBody,
-  TableHeaderCell,
-  TableRow,
-  TableCell,
-  Checkbox
+  Tab
 } from '@fluentui/react-components'
 import electronLogo from '../assets/icon.svg'
 import { useDependency } from '../hooks/useDependency'
@@ -45,7 +32,6 @@ import { DependencyProvider } from '../context/DependencyProvider'
 import { DownloadProvider } from '../context/DownloadProvider'
 import { SettingsProvider } from '../context/SettingsProvider'
 import { useDownload } from '../hooks/useDownload'
-import { useGames } from '../hooks/useGames'
 import {
   ArrowDownloadRegular as DownloadIcon,
   DismissRegular as CloseIcon,
@@ -55,7 +41,6 @@ import {
 } from '@fluentui/react-icons'
 import { UploadProvider } from '@renderer/context/UploadProvider'
 import { useUpload } from '@renderer/hooks/useUpload'
-import { useAdb } from '@renderer/hooks/useAdb'
 
 enum AppView {
   DEVICE_LIST,
@@ -118,121 +103,6 @@ interface MainContentProps {
   onDeviceConnected: () => void
   onSkipConnection: () => void
   onBackToDeviceList: () => void
-}
-
-const UploadGamesDialog: React.FC = () => {
-  // @ts-ignore: Properties exist in implementation but not in type definitions
-  const { uploadCandidates } = useGames()
-  const { selectedDevice } = useAdb()
-  const { addToQueue } = useUpload()
-  const [showUploadDialog, setShowUploadDialog] = useState<boolean>(false)
-  const [selectedCandidates, setSelectedCandidates] = useState<{ [key: string]: boolean }>({})
-
-  useEffect(() => {
-    if (uploadCandidates && uploadCandidates.length > 0) {
-      // Initialize all candidates as selected
-      const initialSelected = uploadCandidates.reduce(
-        (acc, candidate) => {
-          acc[candidate.packageName] = true
-          return acc
-        },
-        {} as Record<string, boolean>
-      )
-
-      setSelectedCandidates(initialSelected)
-      setShowUploadDialog(true)
-    }
-  }, [uploadCandidates])
-
-  const handleCandidateToggle = (packageName: string): void => {
-    setSelectedCandidates((prev) => ({
-      ...prev,
-      [packageName]: !prev[packageName]
-    }))
-  }
-
-  const handleUpload = async (): Promise<void> => {
-    const selectedForUpload = uploadCandidates.filter(
-      (candidate) => selectedCandidates[candidate.packageName]
-    )
-    console.log('Games selected for upload:', selectedForUpload)
-
-    setShowUploadDialog(false)
-
-    for (const candidate of selectedForUpload) {
-      await addToQueue(
-        candidate.packageName,
-        candidate.gameName,
-        candidate.versionCode,
-        selectedDevice!
-      )
-    }
-  }
-
-  return (
-    <Dialog open={showUploadDialog} onOpenChange={(_, data) => setShowUploadDialog(data.open)}>
-      <DialogSurface
-        mountNode={document.getElementById('portal')}
-        style={{
-          maxWidth: '820px'
-        }}
-      >
-        <DialogBody>
-          <DialogTitle>Upload Games to VRPirates</DialogTitle>
-          <DialogContent>
-            <Text>
-              We found games on your device that could benefit the VRPirates community. These games
-              are either missing in our database or newer than the versions we have.
-            </Text>
-
-            <Table style={{ marginTop: '16px' }}>
-              <TableHeader>
-                <TableRow>
-                  <TableHeaderCell style={{ width: '60px' }}>Upload</TableHeaderCell>
-                  <TableHeaderCell>Game</TableHeaderCell>
-                  <TableHeaderCell>Package</TableHeaderCell>
-                  <TableHeaderCell style={{ width: '100px' }}>Version</TableHeaderCell>
-                  <TableHeaderCell>Status</TableHeaderCell>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {uploadCandidates.map((candidate) => (
-                  <TableRow key={candidate.packageName}>
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedCandidates[candidate.packageName] || false}
-                        onChange={() => handleCandidateToggle(candidate.packageName)}
-                      />
-                    </TableCell>
-                    <TableCell>{candidate.gameName}</TableCell>
-                    <TableCell>{candidate.packageName}</TableCell>
-                    <TableCell>{candidate.versionCode}</TableCell>
-                    <TableCell>
-                      {candidate.reason === 'missing'
-                        ? 'Missing from database'
-                        : `Newer than database (${candidate.storeVersion})`}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </DialogContent>
-          <DialogActions>
-            <DialogTrigger disableButtonEnhancement>
-              <Button appearance="secondary">Cancel</Button>
-            </DialogTrigger>
-            <Button
-              appearance="primary"
-              onClick={handleUpload}
-              disabled={Object.values(selectedCandidates).every((value) => value === false)}
-            >
-              Upload Selected Games
-            </Button>
-          </DialogActions>
-        </DialogBody>
-      </DialogSurface>
-    </Dialog>
-  )
 }
 
 const MainContent: React.FC<MainContentProps> = ({

@@ -50,9 +50,82 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => {
+  mainWindow.on('ready-to-show', async () => {
     if (mainWindow) {
       mainWindow.show()
+
+      // Use .on, could be requested again?
+      console.log('Received initialize-dependencies request.')
+      try {
+        const initialized = await dependencyService.initialize(sendDependencyProgress)
+        if (initialized === 'INITIALIZING') {
+          return
+        }
+        console.log('Dependency initialization complete. Sending status.')
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          // --- Initialize other services that depend on dependencies ---
+          try {
+            console.log('Dependencies ready, initializing dependent services...')
+            // Initialize ADB Service (needs adb path from dependencyService)
+            await adbService.initialize()
+            console.log('ADB Service initialized.')
+            // Initialize Game Service (needs 7z and rclone from dependencyService)
+            const gameServiceStatus = await gameService.initialize()
+            console.log(`Game Service initialization status: ${gameServiceStatus}`)
+            const vrpConfig = await gameService.getVrpConfig()
+            // Initialize Download Service (needs VRP config from gameService)
+            if (vrpConfig) {
+              await downloadService.initialize(vrpConfig) // Pass VRP config
+              console.log('Download Service initialized.')
+            } else {
+              console.warn(
+                'vrpConfig did not initialize correctly, skipping download service initialization.'
+              )
+            }
+            // Initialize Upload Service
+            await uploadService.initialize()
+            console.log('Upload Service initialized.')
+
+            // Initialize Update Service
+            if (mainWindow) {
+              updateService.initialize()
+              console.log('Update Service initialized.')
+
+              // Check for updates on startup
+              updateService.checkForUpdates().catch((err) => {
+                console.error('Failed to check for updates on startup:', err)
+              })
+            }
+
+            typedWebContentsSend.send(
+              mainWindow,
+              'dependency-setup-complete',
+              dependencyService.getStatus()
+            )
+          } catch (serviceInitError) {
+            console.error('Error initializing dependent services:', serviceInitError)
+            // Optionally notify the renderer about this failure
+            // if (mainWindow && !mainWindow.isDestroyed()) {
+            //   typedWebContentsSend.send(mainWindow, 'service-init-error', {
+            //     message:
+            //       serviceInitError instanceof Error
+            //         ? serviceInitError.message
+            //         : 'Unknown service initialization error'
+            //   })
+            // }
+          }
+          // -----------------------------------------------------------
+        }
+      } catch (error) {
+        console.error('Error during dependency initialization:', error)
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          typedWebContentsSend.send(mainWindow, 'dependency-setup-error', {
+            message:
+              error instanceof Error ? error.message : 'Unknown dependency initialization error',
+            status: dependencyService.getStatus() // Send current status even on error
+          })
+        }
+      }
     }
   })
 
@@ -93,83 +166,7 @@ app.whenReady().then(async () => {
   // --------- IPC Handlers --------- //
 
   // --- Dependency Handlers ---
-  typedIpcMain.on('initialize-dependencies', async () => {
-    // Use .on, could be requested again?
-    console.log('Received initialize-dependencies request.')
-    try {
-      const initialized = await dependencyService.initialize(sendDependencyProgress)
-      if (initialized === 'INITIALIZING') {
-        return
-      }
-      console.log('Dependency initialization complete. Sending status.')
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        //mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
-        // --- Initialize other services that depend on dependencies ---
-        try {
-          console.log('Dependencies ready, initializing dependent services...')
-          // Initialize ADB Service (needs adb path from dependencyService)
-          await adbService.initialize()
-          console.log('ADB Service initialized.')
-          // Initialize Game Service (needs 7z and rclone from dependencyService)
-          const gameServiceStatus = await gameService.initialize()
-          console.log(`Game Service initialization status: ${gameServiceStatus}`)
-          const vrpConfig = await gameService.getVrpConfig()
-          // Initialize Download Service (needs VRP config from gameService)
-          if (vrpConfig) {
-            await downloadService.initialize(vrpConfig) // Pass VRP config
-            console.log('Download Service initialized.')
-          } else {
-            console.warn(
-              'vrpConfig did not initialize correctly, skipping download service initialization.'
-            )
-          }
-          // Initialize Upload Service
-          await uploadService.initialize()
-          console.log('Upload Service initialized.')
-
-          // Initialize Update Service
-          if (mainWindow) {
-            updateService.initialize()
-            console.log('Update Service initialized.')
-
-            // Check for updates on startup
-            setTimeout(() => {
-              updateService.checkForUpdates().catch((err) => {
-                console.error('Failed to check for updates on startup:', err)
-              })
-            }, 1000) // Delay update check to avoid slowing down startup
-          }
-
-          typedWebContentsSend.send(
-            mainWindow,
-            'dependency-setup-complete',
-            dependencyService.getStatus()
-          )
-        } catch (serviceInitError) {
-          console.error('Error initializing dependent services:', serviceInitError)
-          // Optionally notify the renderer about this failure
-          // if (mainWindow && !mainWindow.isDestroyed()) {
-          //   typedWebContentsSend.send(mainWindow, 'service-init-error', {
-          //     message:
-          //       serviceInitError instanceof Error
-          //         ? serviceInitError.message
-          //         : 'Unknown service initialization error'
-          //   })
-          // }
-        }
-        // -----------------------------------------------------------
-      }
-    } catch (error) {
-      console.error('Error during dependency initialization:', error)
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        typedWebContentsSend.send(mainWindow, 'dependency-setup-error', {
-          message:
-            error instanceof Error ? error.message : 'Unknown dependency initialization error',
-          status: dependencyService.getStatus() // Send current status even on error
-        })
-      }
-    }
-  })
+  typedIpcMain.handle('dependency:get-status', async () => dependencyService.getStatus())
 
   // --- ADB Handlers ---
   typedIpcMain.handle('adb:list-devices', async () => await adbService.listDevices())
@@ -194,6 +191,10 @@ app.whenReady().then(async () => {
   })
 
   typedIpcMain.on('adb:stop-tracking-devices', () => adbService.stopTrackingDevices())
+
+  typedIpcMain.handle('adb:get-application-label', async (_event, serial, packageName) => {
+    return await adbService.getApplicationLabel(serial, packageName)
+  })
 
   // --- Game Handlers ---
   typedIpcMain.handle('games:get-games', async () => gameService.getGames())

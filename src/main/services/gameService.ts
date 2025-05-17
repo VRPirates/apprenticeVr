@@ -15,13 +15,14 @@ interface VrpConfig {
   lastSync?: Date
 }
 
+const INTERNAL_BLACKLIST_GAMES = ['com.oculus.MiramarSetupRetail']
+
 class GameService extends EventEmitter implements GamesAPI {
   private dataPath: string
   private configPath: string
   private gameListPath: string
   private metaPath: string
   private blacklistGamesPath: string
-  //private uncrackableGamesPath: string
   private vrpConfig: VrpConfig | null = null
   private games: GameInfo[] = []
   private blacklistGames: string[] = []
@@ -32,7 +33,6 @@ class GameService extends EventEmitter implements GamesAPI {
     this.configPath = join(this.dataPath, 'vrp-config.json')
     this.gameListPath = join(this.dataPath, 'VRP-GameList.txt')
     this.metaPath = join(this.dataPath, '.meta')
-    //this.uncrackableGamesPath = join(this.dataPath, 'uncrackable-games.json')
     this.blacklistGamesPath = join(this.metaPath, 'nouns', 'blacklist.txt')
   }
 
@@ -434,7 +434,7 @@ class GameService extends EventEmitter implements GamesAPI {
       return
     }
     const data = await fs.readFile(this.blacklistGamesPath, 'utf-8')
-    this.blacklistGames = data.split('\n')
+    this.blacklistGames = [...data.split('\n'), ...INTERNAL_BLACKLIST_GAMES]
   }
 
   private parseGameList(data: string): void {

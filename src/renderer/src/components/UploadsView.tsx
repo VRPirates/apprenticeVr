@@ -96,7 +96,10 @@ const UploadRow: React.FC<{ item: UploadItem }> = ({ item }) => {
     case 'Error':
       statusElement = (
         <>
-          <Text weight="semibold" style={{ color: tokens.colorPaletteRedForeground1 }}>
+          <Text
+            weight="semibold"
+            style={{ color: tokens.colorPaletteRedForeground1, marginRight: '4px' }}
+          >
             Error
           </Text>
           {item.error && <Text size={200}>{item.error}</Text>}
@@ -141,7 +144,13 @@ const UploadRow: React.FC<{ item: UploadItem }> = ({ item }) => {
   return (
     <TableRow>
       <TableCell>{item.gameName}</TableCell>
-      <TableCell>{item.packageName}</TableCell>
+      <TableCell
+        style={{
+          wordBreak: 'break-all'
+        }}
+      >
+        {item.packageName}
+      </TableCell>
       <TableCell>{item.versionCode}</TableCell>
       <TableCell>{statusElement}</TableCell>
       <TableCell>{actions}</TableCell>

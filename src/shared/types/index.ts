@@ -168,11 +168,17 @@ export interface AdbAPI {
   listDevices: () => Promise<DeviceInfo[]>
   connectDevice: (serial: string) => Promise<boolean>
   getInstalledPackages: (serial: string) => Promise<PackageInfo[]>
-  // getPackageVersionCode: (serial: string, packageName: string) => Promise<number | null>
+  getApplicationLabel: (serial: string, packageName: string) => Promise<string | null>
   uninstallPackage: (serial: string, packageName: string) => Promise<boolean>
   startTrackingDevices: (mainWindow?: BrowserWindow) => void
   stopTrackingDevices: () => void
 }
+
+export interface DependencyAPI {
+  getStatus: () => Promise<DependencyStatus>
+}
+
+export interface DependencyAPIRenderer extends DependencyAPI {}
 
 export interface AdbAPIRenderer extends AdbAPI {
   onDeviceAdded: (callback: (device: DeviceInfo) => void) => () => void

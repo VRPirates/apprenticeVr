@@ -13,7 +13,12 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
   const [progress, setProgress] = useState<{ name: string; percentage: number } | null>(null)
 
   useEffect(() => {
-    console.log('DependencyProvider mounted. Requesting dependency initialization...')
+    console.log('DependencyProvider mounted. Requesting dependency status...')
+    window.api.dependency.getStatus().then((status) => {
+      console.log('Dependency status:', status)
+      setStatus(status)
+      setIsReady(status.sevenZip.ready && status.rclone.ready && status.adb.ready)
+    })
 
     // Setup listeners
     const removeProgressListener = window.api.onDependencyProgress((status, progressData) => {
@@ -54,7 +59,7 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
       setProgress(null)
     })
 
-    window.api.initializeDependencies() // No await needed, fire-and-forget request
+    //window.api.initializeDependencies() // No await needed, fire-and-forget request
 
     return () => {
       console.log('DependencyProvider unmounting, removing listeners.')

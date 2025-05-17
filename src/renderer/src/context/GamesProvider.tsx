@@ -30,12 +30,12 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const [downloadProgress, setDownloadProgress] = useState<number>(0)
   const [extractProgress, setExtractProgress] = useState<number>(0)
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
-  const [blacklistGames] = useState<string[]>([])
+  const [blacklistGames, setBlacklistGames] = useState<string[]>([])
   const [uploadCandidates, setUploadCandidates] = useState<UploadCandidate[]>([])
   const [missingGames] = useState<GameInfo[]>([])
   const [outdatedGames] = useState<GameInfo[]>([])
 
-  const { packages: installedPackages, isConnected: isDeviceConnected } = useAdb()
+  const { packages: installedPackages, isConnected: isDeviceConnected, selectedDevice } = useAdb()
   const dependencyContext = useDependency()
 
   // Check for installed games that are missing from the database or newer than store versions
@@ -59,25 +59,47 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
         // Check if this package is missing from the store
         if (!allGamePackages.has(pkg.packageName)) {
+          const applicationLabel = await window.api.adb.getApplicationLabel(
+            selectedDevice || '',
+            pkg.packageName
+          )
+          if (!applicationLabel) {
+            console.error(`No application label found for ${pkg.packageName}, skipping...`)
+            continue
+          }
           candidates.push({
             packageName: pkg.packageName,
-            gameName: pkg.packageName,
+            gameName: applicationLabel,
             versionCode: pkg.versionCode,
             reason: 'missing'
           })
         } else {
-          // Check if the local version is newer than the store version
-          const storeGame = rawGames.find((game) => game.packageName === pkg.packageName)
-          if (storeGame) {
-            const storeVersionCode = parseVersion(storeGame.version)
+          // Check if the local version is newer than ALL store versions with the same package name
+          const storeGamesWithSamePackage = rawGames.filter(
+            (game) => game.packageName === pkg.packageName
+          )
 
-            if (storeVersionCode !== null && pkg.versionCode > storeVersionCode) {
+          if (storeGamesWithSamePackage.length > 0) {
+            // Check if installed version is newer than ALL versions in the store
+            const isNewerThanAllStoreVersions = storeGamesWithSamePackage.every((storeGame) => {
+              const storeVersionCode = parseVersion(storeGame.version)
+              return storeVersionCode !== null && pkg.versionCode > storeVersionCode
+            })
+
+            if (isNewerThanAllStoreVersions) {
+              // Get the latest store version for display
+              const latestStoreGame = storeGamesWithSamePackage.reduce((latest, current) => {
+                const latestVersion = parseVersion(latest.version) || 0
+                const currentVersion = parseVersion(current.version) || 0
+                return currentVersion > latestVersion ? current : latest
+              }, storeGamesWithSamePackage[0])
+
               candidates.push({
                 packageName: pkg.packageName,
-                gameName: storeGame.name || pkg.packageName,
+                gameName: latestStoreGame.name || pkg.packageName,
                 versionCode: pkg.versionCode,
                 reason: 'newer',
-                storeVersion: storeGame.version
+                storeVersion: latestStoreGame.version
               })
             }
           }
@@ -91,7 +113,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     }
 
     processInstalledPackages()
-  }, [isDeviceConnected, installedPackages, rawGames, blacklistGames])
+  }, [isDeviceConnected, installedPackages, rawGames, blacklistGames, selectedDevice])
 
   // Check for upload candidates whenever device versions or game data changes
   useEffect(() => {
@@ -155,6 +177,9 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
       const gamesList = await window.api.games.getGames()
       setRawGames(gamesList)
+
+      const blacklistGames = await window.api.games.getBlacklistGames()
+      setBlacklistGames(blacklistGames)
 
       const syncTime = await window.api.games.getLastSyncTime()
       setLastSyncTime(syncTime ? new Date(syncTime) : null)

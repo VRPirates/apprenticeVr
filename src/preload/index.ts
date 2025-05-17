@@ -15,12 +15,15 @@ import {
   UploadAPIRenderer,
   UploadItem,
   UpdateInfo,
-  UpdateAPIRenderer
+  UpdateAPIRenderer,
+  DependencyAPIRenderer
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
 const api = {
-  initializeDependencies: (): void => typedIpcRenderer.send('initialize-dependencies'),
+  dependency: {
+    getStatus: (): Promise<DependencyStatus> => typedIpcRenderer.invoke('dependency:get-status')
+  } satisfies DependencyAPIRenderer,
   adb: {
     listDevices: (): Promise<DeviceInfo[]> => typedIpcRenderer.invoke('adb:list-devices'),
     connectDevice: (serial: string): Promise<boolean> =>
@@ -55,7 +58,9 @@ const api = {
       const listener = (_event: IpcRendererEvent, deviceId: string): void => callback(deviceId)
       typedIpcRenderer.on('adb:installation-completed', listener)
       return () => typedIpcRenderer.removeListener('adb:installation-completed', listener)
-    }
+    },
+    getApplicationLabel: (serial: string, packageName: string): Promise<string | null> =>
+      typedIpcRenderer.invoke('adb:get-application-label', serial, packageName)
   } satisfies AdbAPIRenderer,
   games: {
     getGames: (): Promise<GameInfo[]> => typedIpcRenderer.invoke('games:get-games'),

@@ -13,9 +13,8 @@ class UpdateService extends EventEmitter {
   /**
    * Initialize the update service
    */
-  public initialize(): void {
-    console.log('Update service initialized')
-  }
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  public initialize(): void {}
 
   /**
    * Check for updates by fetching the latest release from GitHub

@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { promises as fs, existsSync } from 'fs'
-import { join, dirname, basename } from 'path'
+import { join, dirname } from 'path'
 import { EventEmitter } from 'events'
 import crypto from 'crypto'
 import { execa } from 'execa'
@@ -446,10 +446,6 @@ class UploadService extends EventEmitter {
       // --- CREATING METADATA STAGE ---
       this.updateProgress(packageName, UploadStage.CreatingMetadata, 0)
 
-      // Create uploadMethod.txt file
-      await fs.writeFile(join(packageFolderPath, 'uploadMethod.txt'), 'manual', 'utf-8')
-      this.updateProgress(packageName, UploadStage.CreatingMetadata, 50)
-
       // Create HWID.txt file
       await fs.writeFile(join(packageFolderPath, 'HWID.txt'), hwid, 'utf-8')
       this.updateProgress(packageName, UploadStage.CreatingMetadata, 100)
@@ -583,35 +579,6 @@ class UploadService extends EventEmitter {
     }
 
     try {
-      // Get file stats
-      const stats = await fs.stat(zipFilePath)
-      const fileSize = stats.size
-      const zipFileName = basename(zipFilePath)
-
-      // Create a text file with the file size
-      const sizeFilePath = join(this.uploadsBasePath, `${zipFileName.replace('.zip', '.txt')}`)
-      await fs.writeFile(sizeFilePath, `${fileSize}`, 'utf-8')
-
-      console.log(`[UploadService] Created size file at ${sizeFilePath} with content: ${fileSize}`)
-
-      // First upload the size file
-      console.log(`[UploadService] Uploading size file: ${sizeFilePath}`)
-
-      await execa(rclonePath, [
-        'copy',
-        sizeFilePath,
-        'RSL-gameuploads:',
-        '--config',
-        this.configFilePath,
-        '--checkers',
-        '1',
-        '--retries',
-        '2',
-        '--inplace'
-      ])
-
-      console.log(`[UploadService] Size file uploaded successfully`)
-
       // Now upload the actual zip file with progress tracking
       console.log(`[UploadService] Starting upload of zip file: ${zipFilePath}`)
 
@@ -670,16 +637,12 @@ class UploadService extends EventEmitter {
       console.log(`[UploadService] Zip file uploaded successfully`)
 
       // Clean up
-      try {
-        await fs.unlink(sizeFilePath)
-      } catch (error) {
-        console.warn(`[UploadService] Failed to delete size file: ${sizeFilePath}`, error)
-      }
-      try {
-        await fs.unlink(zipFilePath)
-      } catch (error) {
-        console.warn(`[UploadService] Failed to delete zip file: ${zipFilePath}`, error)
-      }
+
+      // try {
+      //   await fs.unlink(zipFilePath)
+      // } catch (error) {
+      //   console.warn(`[UploadService] Failed to delete zip file: ${zipFilePath}`, error)
+      // }
 
       this.activeUpload = null
       return true

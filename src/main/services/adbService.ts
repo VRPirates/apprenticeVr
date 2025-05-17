@@ -26,6 +26,7 @@ class AdbService extends EventEmitter implements AdbAPI {
   private deviceTracker: Tracker | null = null
   private isTracking = false
   private status: ServiceStatus = 'NOT_INITIALIZED'
+  private aaptPushed = false
 
   constructor() {
     super()
@@ -826,6 +827,71 @@ class AdbService extends EventEmitter implements AdbAPI {
       console.error(`Error uninstalling package ${packageName} on device ${serial}:`, error)
       // Rethrow or return false based on how you want to handle errors upstream
       return false
+    }
+  }
+
+  public async getApplicationLabel(serial: string, packageName: string): Promise<string | null> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
+    const aaptRemotePath = '/data/local/tmp/aapt'
+
+    try {
+      if (!this.aaptPushed) {
+        // 1. Push the aapt binary to the device (assuming it's bundled with the app)
+        const aaptLocalPath = dependencyService.getAaptPath()
+
+        console.log(`[AdbService] Pushing aapt binary to ${serial}:${aaptRemotePath}...`)
+        const pushSuccess = await this.pushFileOrFolder(serial, aaptLocalPath, aaptRemotePath)
+
+        if (!pushSuccess) {
+          console.error('[AdbService] Failed to push aapt binary to device')
+          return null
+        }
+
+        // 2. Make the binary executable
+        console.log(`[AdbService] Making aapt executable...`)
+        await this.runShellCommand(serial, `chmod 755 ${aaptRemotePath}`)
+        this.aaptPushed = true
+      } else {
+        console.log('[AdbService] aapt binary already pushed to device')
+      }
+
+      // 3. Get the path to the APK file
+      console.log(`[AdbService] Getting APK path for ${packageName}...`)
+      const pathOutput = await this.runShellCommand(serial, `pm path ${packageName}`)
+
+      if (!pathOutput || !pathOutput.startsWith('package:')) {
+        console.error(`[AdbService] Could not find package path for ${packageName}`)
+        return null
+      }
+
+      const apkPath = pathOutput.trim().substring(8) // Remove 'package:' prefix
+
+      // 4. Use aapt to extract the application label
+      console.log(`[AdbService] Extracting application label for ${apkPath}...`)
+      const labelOutput = await this.runShellCommand(
+        serial,
+        `${aaptRemotePath} dump badging "${apkPath}" | grep "application-label:"`
+      )
+
+      if (!labelOutput) {
+        console.error(`[AdbService] Could not extract application label for ${packageName}`)
+        return null
+      }
+
+      // Parse the output: application-label:'AppName'
+      const labelMatch = labelOutput.match(/application-label:'([^']*)'/)
+      if (labelMatch && labelMatch[1]) {
+        console.log(`[AdbService] Found application label for ${packageName}: ${labelMatch[1]}`)
+        return labelMatch[1]
+      }
+
+      console.error(`[AdbService] Could not parse application label from: ${labelOutput}`)
+      return null
+    } catch (error) {
+      console.error(`[AdbService] Error getting application label for ${packageName}:`, error)
+      return null
     }
   }
 }

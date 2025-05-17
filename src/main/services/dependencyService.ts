@@ -130,6 +130,10 @@ class DependencyService {
     return fullPath
   }
 
+  public getAaptPath(): string {
+    return join(this.resourcesBinDir, 'aapt-arm')
+  }
+
   // New method to check for bundled 7zip
   private checkBundled7zip(): void {
     const source7zPath = this.get7zPath() // Path in resources

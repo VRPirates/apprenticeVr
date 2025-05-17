@@ -6,14 +6,15 @@ import {
   GameAPIRenderer,
   SettingsAPIRenderer,
   UploadAPIRenderer,
-  UpdateAPIRenderer
+  UpdateAPIRenderer,
+  DependencyAPIRenderer
 } from '@shared/types'
 
 declare global {
   interface Window {
     ipcRenderer: IpcRenderer
     api: {
-      initializeDependencies: () => void
+      dependency: DependencyAPIRenderer
       adb: AdbAPIRenderer
       games: GameAPIRenderer
       downloads: DownloadAPIRenderer

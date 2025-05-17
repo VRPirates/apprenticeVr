@@ -26,11 +26,15 @@ export type DefineChannel<TParams extends unknown[] = [], TReturn = void> = {
 
 // Interface mapping channel names to their parameter and return types
 export interface IPCChannels {
+  // Dependency related channels
+  'dependency:get-status': DefineChannel<[], DependencyStatus>
+
   // ADB related channels
   'adb:list-devices': DefineChannel<[], DeviceInfo[]>
   'adb:connect-device': DefineChannel<[serial: string], boolean>
   'adb:get-installed-packages': DefineChannel<[serial: string], PackageInfo[]>
   'adb:uninstallPackage': DefineChannel<[serial: string, packageName: string], boolean>
+  'adb:get-application-label': DefineChannel<[serial: string, packageName: string], string | null>
 
   // Game related channels
   'games:get-games': DefineChannel<[], GameInfo[]>
@@ -73,7 +77,6 @@ export interface IPCChannels {
 
 // Types for send (no response) channels
 export interface IPCSendChannels {
-  'initialize-dependencies': void
   'adb:start-tracking-devices': void
   'adb:stop-tracking-devices': void
   'download:remove': string
