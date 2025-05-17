@@ -35,12 +35,21 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const [missingGames] = useState<GameInfo[]>([])
   const [outdatedGames] = useState<GameInfo[]>([])
 
-  const { packages: installedPackages, isConnected: isDeviceConnected, selectedDevice } = useAdb()
+  const {
+    packages: installedPackages,
+    isConnected: isDeviceConnected,
+    selectedDevice,
+    selectedDeviceDetails
+  } = useAdb()
   const dependencyContext = useDependency()
 
   // Check for installed games that are missing from the database or newer than store versions
   const checkForUploadCandidates = useCallback(() => {
     if (!isDeviceConnected || installedPackages.length === 0 || rawGames.length === 0) {
+      return
+    }
+
+    if (!selectedDeviceDetails?.isQuestDevice) {
       return
     }
 
