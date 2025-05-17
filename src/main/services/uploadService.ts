@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron'
 import { promises as fs, existsSync } from 'fs'
-import { join, dirname } from 'path'
+import { join, dirname, basename } from 'path'
 import { EventEmitter } from 'events'
 import crypto from 'crypto'
 import { execa } from 'execa'
@@ -537,7 +537,7 @@ class UploadService extends EventEmitter {
         this.updateItemStatus(packageName, 'Uploading', 0, 'Uploading to VRPirates')
 
         // Upload the zip file to VRPirates
-        const uploadSuccess = await this.uploadToVRPirates(packageName, gameName, zipFilePath)
+        const uploadSuccess = await this.uploadToVRPirates(packageName, zipFilePath)
 
         if (!uploadSuccess) {
           throw new Error('Failed to upload to VRPirates')
@@ -568,11 +568,7 @@ class UploadService extends EventEmitter {
    * @param zipFilePath Path to the zip file to upload
    * @returns true if upload was successful, false otherwise
    */
-  private async uploadToVRPirates(
-    packageName: string,
-    gameName: string,
-    zipFilePath: string
-  ): Promise<boolean> {
+  private async uploadToVRPirates(packageName: string, zipFilePath: string): Promise<boolean> {
     console.log(`[UploadService] Starting upload of ${zipFilePath} to VRPirates`)
 
     if (!existsSync(this.configFilePath)) {
@@ -590,9 +586,10 @@ class UploadService extends EventEmitter {
       // Get file stats
       const stats = await fs.stat(zipFilePath)
       const fileSize = stats.size
+      const zipFileName = basename(zipFilePath)
 
       // Create a text file with the file size
-      const sizeFilePath = join(this.uploadsBasePath, `${gameName}.txt`)
+      const sizeFilePath = join(this.uploadsBasePath, `${zipFileName.replace('.zip', '.txt')}`)
       await fs.writeFile(sizeFilePath, `${fileSize}`, 'utf-8')
 
       console.log(`[UploadService] Created size file at ${sizeFilePath} with content: ${fileSize}`)
