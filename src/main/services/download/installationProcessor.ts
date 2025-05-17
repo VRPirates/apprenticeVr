@@ -1,6 +1,6 @@
 import { basename, join } from 'path'
 import { promises as fs, existsSync } from 'fs'
-import { DownloadItem, DownloadStatus } from './types'
+import { DownloadItem, DownloadStatus } from '@shared/types'
 import { QueueManager } from './queueManager'
 import adbService from '../adbService'
 

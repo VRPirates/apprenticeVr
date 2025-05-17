@@ -21,11 +21,6 @@ import {
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
-interface ExtractProgress {
-  type: string
-  progress: number
-}
-
 const api = {
   initializeDependencies: (): void => typedIpcRenderer.send('initialize-dependencies'),
   adb: {
@@ -79,11 +74,6 @@ const api = {
       const listener = (_: IpcRendererEvent, progress: DownloadProgress): void => callback(progress)
       typedIpcRenderer.on('games:download-progress', listener)
       return () => typedIpcRenderer.removeListener('games:download-progress', listener)
-    },
-    onExtractProgress: (callback: (progress: ExtractProgress) => void): (() => void) => {
-      const listener = (_: IpcRendererEvent, progress: ExtractProgress): void => callback(progress)
-      typedIpcRenderer.on('games:extract-progress', listener)
-      return () => typedIpcRenderer.removeListener('games:extract-progress', listener)
     }
   } satisfies GameAPIRenderer,
   // Download Queue APIs

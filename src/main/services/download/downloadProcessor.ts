@@ -2,10 +2,11 @@ import { join } from 'path'
 import { promises as fs } from 'fs'
 import { execa, ExecaError } from 'execa'
 import crypto from 'crypto'
-import { DownloadItem, DownloadStatus } from './types'
 import { QueueManager } from './queueManager'
 import dependencyService from '../dependencyService'
 import settingsService from '../settingsService'
+import { DownloadItem } from '@shared/types'
+import { DownloadStatus } from '@shared/types'
 
 // Type for VRP config - adjust if needed elsewhere
 interface VrpConfig {

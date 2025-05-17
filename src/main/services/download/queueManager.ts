@@ -1,8 +1,8 @@
 import { join } from 'path'
 import { promises as fs, existsSync } from 'fs'
 import { app } from 'electron'
-import { DownloadItem } from './types' // Assuming types are moved
 import { debounce } from './utils'
+import { DownloadItem } from '@shared/types'
 
 export class QueueManager {
   private queue: DownloadItem[] = []

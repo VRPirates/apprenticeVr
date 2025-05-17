@@ -221,20 +221,15 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const removeDownloadProgressListener = window.api.games.onDownloadProgress((progress) => {
-      if (progress.type === 'meta') {
-        setDownloadProgress(progress.progress)
-      }
-    })
-
-    const removeExtractProgressListener = window.api.games.onExtractProgress((progress) => {
-      if (progress.type === 'meta') {
+      if (progress.stage === 'extract') {
         setExtractProgress(progress.progress)
+      } else {
+        setDownloadProgress(progress.progress)
       }
     })
 
     return () => {
       removeDownloadProgressListener()
-      removeExtractProgressListener()
     }
   }, [])
 

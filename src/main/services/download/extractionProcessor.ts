@@ -1,9 +1,9 @@
 import { join, basename } from 'path'
 import { promises as fs, existsSync } from 'fs'
 import { execa, ExecaError } from 'execa'
-import { DownloadItem, DownloadStatus } from './types'
 import { QueueManager } from './queueManager'
 import dependencyService from '../dependencyService'
+import { DownloadItem, DownloadStatus } from '@shared/types'
 
 // Type for VRP config - reuse or import
 interface VrpConfig {

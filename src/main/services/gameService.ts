@@ -276,7 +276,8 @@ class GameService extends EventEmitter implements GamesAPI {
             // Send progress to renderer process if we have a valid window
             if (mainWindow && !mainWindow.isDestroyed()) {
               typedWebContentsSend.send(mainWindow, 'games:download-progress', {
-                type: 'meta',
+                packageName: 'meta',
+                stage: 'download',
                 progress: progressPercentage
               })
             }
@@ -303,7 +304,8 @@ class GameService extends EventEmitter implements GamesAPI {
       // Send 100% progress on completion
       if (mainWindow && !mainWindow.isDestroyed()) {
         typedWebContentsSend.send(mainWindow, 'games:download-progress', {
-          type: 'meta',
+          packageName: 'meta',
+          stage: 'download',
           progress: 100
         })
       }
@@ -379,8 +381,9 @@ class GameService extends EventEmitter implements GamesAPI {
 
                 // Send progress to renderer process if we have a valid window
                 if (mainWindow && !mainWindow.isDestroyed()) {
-                  typedWebContentsSend.send(mainWindow, 'games:extract-progress', {
-                    type: 'meta',
+                  typedWebContentsSend.send(mainWindow, 'games:download-progress', {
+                    packageName: 'meta',
+                    stage: 'extract',
                     progress: progressPercentage
                   })
                 }
@@ -416,8 +419,9 @@ class GameService extends EventEmitter implements GamesAPI {
 
         // Send 100% progress on completion
         if (mainWindow && !mainWindow.isDestroyed()) {
-          typedWebContentsSend.send(mainWindow, 'games:extract-progress', {
-            type: 'meta',
+          typedWebContentsSend.send(mainWindow, 'games:download-progress', {
+            packageName: 'meta',
+            stage: 'extract',
             progress: 100
           })
         }

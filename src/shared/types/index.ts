@@ -129,7 +129,8 @@ export interface DownloadItem {
 }
 
 export interface DownloadProgress {
-  type: string
+  packageName: string
+  stage: 'download' | 'extract' | 'copy' | 'install'
   progress: number
 }
 
@@ -214,7 +215,6 @@ export interface GamesAPI {
 
 export interface GameAPIRenderer extends GamesAPI {
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
-  onExtractProgress: (callback: (progress: DownloadProgress) => void) => () => void
 }
 
 export interface DownloadAPI {
