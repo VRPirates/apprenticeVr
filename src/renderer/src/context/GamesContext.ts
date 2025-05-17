@@ -14,6 +14,7 @@ export interface GamesContextType {
   loadGames: () => Promise<void>
   getNote: (releaseName: string) => Promise<string>
   isInitialLoadComplete: boolean
+  getTrailerVideoId: (gameName: string) => Promise<string | null>
 }
 
 export const GamesContext = createContext<GamesContextType | undefined>(undefined)

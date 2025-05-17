@@ -29,9 +29,12 @@ import {
   ArrowSyncRegular,
   ArrowUpRegular,
   InfoRegular,
-  CheckmarkCircleRegular
+  CheckmarkCircleRegular,
+  VideoRegular
 } from '@fluentui/react-icons'
 import placeholderImage from '../assets/images/game-placeholder.png'
+import YouTube from 'react-youtube'
+import { useGames } from '@renderer/hooks/useGames'
 
 const useStyles = makeStyles({
   dialogContentLayout: {
@@ -115,6 +118,29 @@ const useStyles = makeStyles({
     right: tokens.spacingHorizontalS,
     ...shorthands.padding(tokens.spacingVerticalXS),
     minWidth: 'unset'
+  },
+  trailerSection: {
+    marginTop: tokens.spacingVerticalL,
+    marginBottom: tokens.spacingVerticalL
+  },
+  youtubeContainer: {
+    position: 'relative',
+    width: '100%',
+    paddingTop: '56.25%', // 16:9 aspect ratio
+    marginTop: tokens.spacingVerticalM
+  },
+  youtubePlayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%'
+  },
+  trailerTitle: {
+    marginBottom: tokens.spacingVerticalS,
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS
   }
 })
 
@@ -154,9 +180,12 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
   isBusy
 }) => {
   const styles = useStyles()
+  const { getTrailerVideoId: getTrailerVideoIdFromContext } = useGames()
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<boolean>(false)
   const [currentGameNote, setCurrentGameNote] = useState<string | null>(null)
   const [loadingNote, setLoadingNote] = useState<boolean>(false)
+  const [videoId, setVideoId] = useState<string | null>(null)
+  const [loadingVideo, setLoadingVideo] = useState<boolean>(false)
 
   // Fetch note when dialog opens or game changes
   useEffect(() => {
@@ -189,6 +218,39 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
       isMounted = false
     }
   }, [open, game, getNote])
+
+  useEffect(() => {
+    let isMounted = true
+
+    const getTrailerVideoId = async (): Promise<void> => {
+      if (!game?.name) return
+
+      setLoadingVideo(true)
+      setVideoId(null)
+
+      try {
+        const videoId = await getTrailerVideoIdFromContext(game.name)
+
+        if (isMounted && videoId) {
+          setVideoId(videoId)
+        }
+      } catch (error) {
+        console.error('Error searching for game trailer:', error)
+      } finally {
+        if (isMounted) {
+          setLoadingVideo(false)
+        }
+      }
+    }
+
+    if (open && game?.name) {
+      getTrailerVideoId()
+    }
+
+    return () => {
+      isMounted = false
+    }
+  }, [open, game, getTrailerVideoIdFromContext])
 
   // Internal handler to request delete confirmation
   const handleDeleteRequest = (): void => {
@@ -465,6 +527,33 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
                   <Text>No note available.</Text>
                 )}
               </div>
+
+              <div className={styles.trailerSection}>
+                <div className={styles.trailerTitle}>
+                  <VideoRegular fontSize={16} />
+                  <Text weight="semibold">Trailer:</Text>
+                </div>
+                {loadingVideo ? (
+                  <Spinner size="tiny" label="Searching for trailer..." />
+                ) : videoId ? (
+                  <div className={styles.youtubeContainer}>
+                    <YouTube
+                      videoId={videoId}
+                      className={styles.youtubePlayer}
+                      opts={{
+                        width: '100%',
+                        height: '100%',
+                        playerVars: {
+                          autoplay: 0
+                        }
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <Text>No trailer available.</Text>
+                )}
+              </div>
+
               <div className={styles.actionsList}>{renderActionButtons(game)}</div>
             </DialogContent>
           </DialogBody>

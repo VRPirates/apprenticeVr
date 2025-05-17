@@ -8,6 +8,7 @@ import dependencyService from './dependencyService'
 import { GameInfo, ServiceStatus, GamesAPI } from '@shared/types'
 import EventEmitter from 'events'
 import { typedWebContentsSend } from '@shared/ipc-utils'
+import yts from 'yt-search'
 
 interface VrpConfig {
   baseUri: string
@@ -27,6 +28,7 @@ class GameService extends EventEmitter implements GamesAPI {
   private games: GameInfo[] = []
   private blacklistGames: string[] = []
   private status: ServiceStatus = 'NOT_INITIALIZED'
+  private videoIdCache: Map<string, string | null> = new Map()
   constructor() {
     super()
     this.dataPath = join(app.getPath('userData'), 'vrp-data')
@@ -567,6 +569,39 @@ class GameService extends EventEmitter implements GamesAPI {
     const notePath = join(this.metaPath, 'notes', `${releaseName}.txt`)
     const noteExists = existsSync(notePath)
     return Promise.resolve(noteExists ? readFileSync(notePath, 'utf-8') : '')
+  }
+
+  async getTrailerVideoId(gameName: string): Promise<string | null> {
+    // Check if the video ID is in the cache
+    if (this.videoIdCache.has(gameName)) {
+      return this.videoIdCache.get(gameName) || null
+    }
+
+    const searchQuery = `${gameName} vr trailer`
+    const searchResults = await yts({
+      query: searchQuery,
+      pages: 1
+    })
+    if (!searchResults.videos || searchResults.videos.length === 0) {
+      // Cache the null result to avoid repeated searches
+      this.videoIdCache.set(gameName, null)
+      return null
+    }
+
+    const cleanGameName = (name: string): string =>
+      // remove all non-alphanumeric characters and convert to lowercase
+      name.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+
+    // only use videos that have the game name in the title
+    const video = searchResults.videos.find((video) =>
+      cleanGameName(video.title).includes(cleanGameName(gameName))
+    )
+
+    const videoId = video ? video.videoId : null
+    // Store result in cache (even if null)
+    this.videoIdCache.set(gameName, videoId)
+
+    return videoId
   }
 }
 

@@ -42,6 +42,7 @@ export interface IPCChannels {
   'games:get-last-sync-time': DefineChannel<[], Date | null>
   'games:force-sync-games': DefineChannel<[], GameInfo[]>
   'games:get-note': DefineChannel<[releaseName: string], string>
+  'games:get-trailer-video-id': DefineChannel<[gameName: string], string | null>
 
   // Download related channels
   'download:get-queue': DefineChannel<[], DownloadItem[]>

@@ -210,6 +210,10 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     }
   }, [isInitialLoadComplete])
 
+  const getTrailerVideoId = useCallback(async (gameName: string): Promise<string | null> => {
+    return await window.api.games.getTrailerVideoId(gameName)
+  }, [])
+
   const refreshGames = useCallback(async (): Promise<void> => {
     try {
       setIsLoading(true)
@@ -282,7 +286,8 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     isInitialLoadComplete,
     outdatedGames,
     missingGames,
-    uploadCandidates
+    uploadCandidates,
+    getTrailerVideoId
   }
 
   return <GamesContext.Provider value={value}>{children}</GamesContext.Provider>

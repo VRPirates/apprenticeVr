@@ -40,7 +40,7 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,
     minWidth: 1200,
-    height: 720,
+    height: 850,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -52,7 +52,7 @@ function createWindow(): void {
   })
 
   // Explicitly set minimum size to ensure constraint is enforced
-  mainWindow.setMinimumSize(1200, 720)
+  mainWindow.setMinimumSize(1200, 850)
 
   mainWindow.on('ready-to-show', async () => {
     if (mainWindow) {
@@ -210,6 +210,9 @@ app.whenReady().then(async () => {
   })
   typedIpcMain.handle('games:get-note', async (_event, releaseName) => {
     return gameService.getNote(releaseName)
+  })
+  typedIpcMain.handle('games:get-trailer-video-id', async (_event, gameName) => {
+    return gameService.getTrailerVideoId(gameName)
   })
 
   // --- Download Handlers ---

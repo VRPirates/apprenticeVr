@@ -194,6 +194,7 @@ export interface GamesAPI {
   forceSync: () => Promise<GameInfo[]>
   getNote: (releaseName: string) => Promise<string>
   getBlacklistGames: () => Promise<string[]>
+  getTrailerVideoId: (gameName: string) => Promise<string | null>
 }
 
 export interface GameAPIRenderer extends GamesAPI {
