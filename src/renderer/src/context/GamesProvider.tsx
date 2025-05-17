@@ -122,7 +122,14 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     }
 
     processInstalledPackages()
-  }, [isDeviceConnected, installedPackages, rawGames, blacklistGames, selectedDevice])
+  }, [
+    isDeviceConnected,
+    installedPackages,
+    rawGames,
+    selectedDeviceDetails,
+    blacklistGames,
+    selectedDevice
+  ])
 
   // Check for upload candidates whenever device versions or game data changes
   useEffect(() => {

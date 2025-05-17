@@ -102,6 +102,19 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalS
+  },
+  dialogHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%'
+  },
+  dismissButton: {
+    position: 'absolute',
+    top: tokens.spacingVerticalS,
+    right: tokens.spacingHorizontalS,
+    ...shorthands.padding(tokens.spacingVerticalXS),
+    minWidth: 'unset'
   }
 })
 
@@ -344,7 +357,16 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
       >
         <DialogSurface mountNode={document.getElementById('portal')}>
           <DialogBody>
-            <DialogTitle>{game?.name}</DialogTitle>
+            <div className={styles.dialogHeader}>
+              <DialogTitle>{game?.name}</DialogTitle>
+              <Button
+                appearance="subtle"
+                icon={<DismissRegular />}
+                onClick={handleClose}
+                className={styles.dismissButton}
+                aria-label="Close"
+              />
+            </div>
             <DialogContent>
               <div className={styles.dialogContentLayout}>
                 <div>
@@ -445,13 +467,6 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
               </div>
               <div className={styles.actionsList}>{renderActionButtons(game)}</div>
             </DialogContent>
-            <DialogActions>
-              <DialogTrigger disableButtonEnhancement>
-                <Button appearance="secondary" onClick={handleClose}>
-                  Close
-                </Button>
-              </DialogTrigger>
-            </DialogActions>
           </DialogBody>
         </DialogSurface>
       </Dialog>
