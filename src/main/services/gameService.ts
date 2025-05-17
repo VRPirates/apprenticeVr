@@ -7,6 +7,7 @@ import { existsSync } from 'fs'
 import dependencyService from './dependencyService'
 import { GameInfo, ServiceStatus, GamesAPI, OutdatedGame, MissingGame } from '@shared/types'
 import EventEmitter from 'events'
+import { typedWebContentsSend } from '@shared/ipc-utils'
 
 interface VrpConfig {
   baseUri: string
@@ -274,7 +275,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
             // Send progress to renderer process if we have a valid window
             if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send('games:download-progress', {
+              typedWebContentsSend.send(mainWindow, 'games:download-progress', {
                 type: 'meta',
                 progress: progressPercentage
               })
@@ -301,7 +302,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
       // Send 100% progress on completion
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('games:download-progress', {
+        typedWebContentsSend.send(mainWindow, 'games:download-progress', {
           type: 'meta',
           progress: 100
         })
@@ -378,7 +379,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
                 // Send progress to renderer process if we have a valid window
                 if (mainWindow && !mainWindow.isDestroyed()) {
-                  mainWindow.webContents.send('games:extract-progress', {
+                  typedWebContentsSend.send(mainWindow, 'games:extract-progress', {
                     type: 'meta',
                     progress: progressPercentage
                   })
@@ -415,7 +416,7 @@ class GameService extends EventEmitter implements GamesAPI {
 
         // Send 100% progress on completion
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('games:extract-progress', {
+          typedWebContentsSend.send(mainWindow, 'games:extract-progress', {
             type: 'meta',
             progress: 100
           })

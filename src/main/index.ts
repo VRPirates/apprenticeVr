@@ -10,6 +10,7 @@ import uploadService from './services/uploadService'
 import updateService from './services/updateService'
 import { typedIpcMain } from '@shared/ipc-utils'
 import settingsService from './services/settingsService'
+import { typedWebContentsSend } from '@shared/ipc-utils'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -19,7 +20,7 @@ downloadService.on('installation:success', (deviceId) => {
     `[Main] Detected successful installation for device: ${deviceId}. Notifying renderer.`
   )
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('adb:installation-completed', deviceId)
+    typedWebContentsSend.send(mainWindow, 'adb:installation-completed', deviceId)
   }
 })
 
@@ -30,7 +31,7 @@ function sendDependencyProgress(
 ): void {
   console.log('Sending dependency progress:', progress)
   if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('dependency-progress', status, progress)
+    typedWebContentsSend.send(mainWindow, 'dependency-progress', status, progress)
   }
 }
 
@@ -139,25 +140,29 @@ app.whenReady().then(async () => {
             }, 1000) // Delay update check to avoid slowing down startup
           }
 
-          mainWindow.webContents.send('dependency-setup-complete', dependencyService.getStatus())
+          typedWebContentsSend.send(
+            mainWindow,
+            'dependency-setup-complete',
+            dependencyService.getStatus()
+          )
         } catch (serviceInitError) {
           console.error('Error initializing dependent services:', serviceInitError)
           // Optionally notify the renderer about this failure
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send('service-init-error', {
-              message:
-                serviceInitError instanceof Error
-                  ? serviceInitError.message
-                  : 'Unknown service initialization error'
-            })
-          }
+          // if (mainWindow && !mainWindow.isDestroyed()) {
+          //   typedWebContentsSend.send(mainWindow, 'service-init-error', {
+          //     message:
+          //       serviceInitError instanceof Error
+          //         ? serviceInitError.message
+          //         : 'Unknown service initialization error'
+          //   })
+          // }
         }
         // -----------------------------------------------------------
       }
     } catch (error) {
       console.error('Error during dependency initialization:', error)
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('dependency-setup-error', {
+        typedWebContentsSend.send(mainWindow, 'dependency-setup-error', {
           message:
             error instanceof Error ? error.message : 'Unknown dependency initialization error',
           status: dependencyService.getStatus() // Send current status even on error
@@ -291,19 +296,19 @@ app.whenReady().then(async () => {
   // Set up update service event forwarding to renderer
   updateService.on('checking-for-update', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update:checking-for-update')
+      typedWebContentsSend.send(mainWindow, 'update:checking-for-update')
     }
   })
 
   updateService.on('update-available', (info) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update:update-available', info)
+      typedWebContentsSend.send(mainWindow, 'update:update-available', info)
     }
   })
 
   updateService.on('error', (err) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update:error', err)
+      typedWebContentsSend.send(mainWindow, 'update:error', err)
     }
   })
 

@@ -1,4 +1,4 @@
-import { ipcRenderer, IpcRendererEvent, ipcMain } from 'electron'
+import { ipcRenderer, IpcRendererEvent, ipcMain, BrowserWindow } from 'electron'
 import { IPCChannels, IPCSendChannels, IPCEvents } from './types/ipc'
 
 // Registry to track registered handlers
@@ -107,5 +107,17 @@ export const typedIpcMain = {
   // Validate that all defined channels have handlers registered
   validateAllHandlersRegistered(): boolean {
     return mainRegistry.validateAllHandled()
+  }
+}
+
+// Type-safe wrapper for WebContents.send
+export const typedWebContentsSend = {
+  // Type-safe send for WebContents
+  send: <K extends keyof IPCEvents>(
+    window: BrowserWindow,
+    channel: K,
+    ...args: IPCEvents[K]
+  ): void => {
+    window.webContents.send(channel, ...args)
   }
 }

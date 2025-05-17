@@ -7,6 +7,7 @@ import { execa } from 'execa'
 import adbService from './adbService'
 import dependencyService from './dependencyService'
 import { ServiceStatus, UploadPreparationProgress, UploadStatus, UploadItem } from '@shared/types'
+import { typedWebContentsSend } from '@shared/ipc-utils'
 
 // Enum for stages to track overall progress
 enum UploadStage {
@@ -96,7 +97,7 @@ class UploadService extends EventEmitter {
         stage,
         progress
       }
-      mainWindow.webContents.send('upload:progress', progressData)
+      typedWebContentsSend.send(mainWindow, 'upload:progress', progressData)
 
       // Update queue item with progress info
       this.updateItemStatus(packageName, undefined, progress, stage)
@@ -178,7 +179,7 @@ class UploadService extends EventEmitter {
   private emitQueueUpdated(): void {
     const mainWindow = BrowserWindow.getAllWindows()[0]
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('upload:queue-updated', this.uploadQueue)
+      typedWebContentsSend.send(mainWindow, 'upload:queue-updated', this.uploadQueue)
     }
   }
 

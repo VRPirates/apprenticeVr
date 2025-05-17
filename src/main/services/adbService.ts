@@ -6,6 +6,7 @@ import dependencyService from './dependencyService'
 import fs, { Dirent } from 'fs'
 import path from 'path'
 import { AdbAPI, DeviceInfo, PackageInfo, ServiceStatus } from '@shared/types'
+import { typedWebContentsSend } from '@shared/ipc-utils'
 
 const QUEST_MODELS = [
   'monterey',
@@ -222,7 +223,9 @@ class AdbService extends EventEmitter implements AdbAPI {
         // Emit event for our internal listeners
         this.emit('adb:device-added', extendedDevice)
         // Send to UI if window exists
-        mainWindow?.webContents.send('adb:device-added', extendedDevice)
+        if (mainWindow) {
+          typedWebContentsSend.send(mainWindow, 'adb:device-added', extendedDevice)
+        }
       } else {
         // For 'offline', 'unauthorized', 'unknown' devices
         const extendedDevice: DeviceInfo = {
@@ -235,7 +238,9 @@ class AdbService extends EventEmitter implements AdbAPI {
           friendlyModelName: null
         }
         this.emit('adb:device-added', extendedDevice)
-        mainWindow?.webContents.send('adb:device-added', extendedDevice)
+        if (mainWindow) {
+          typedWebContentsSend.send(mainWindow, 'adb:device-added', extendedDevice)
+        }
       }
     })
 
@@ -255,7 +260,9 @@ class AdbService extends EventEmitter implements AdbAPI {
       } satisfies DeviceInfo
 
       this.emit('adb:device-removed', deviceInfo)
-      mainWindow?.webContents.send('adb:device-removed', deviceInfo)
+      if (mainWindow) {
+        typedWebContentsSend.send(mainWindow, 'adb:device-removed', deviceInfo)
+      }
     })
 
     this.deviceTracker.on('change', async (device: DeviceInfo) => {
@@ -276,7 +283,9 @@ class AdbService extends EventEmitter implements AdbAPI {
           })
         }
         this.emit('adb:device-changed', extendedDevice)
-        mainWindow?.webContents.send('adb:device-changed', extendedDevice)
+        if (mainWindow) {
+          typedWebContentsSend.send(mainWindow, 'adb:device-changed', extendedDevice)
+        }
       } else {
         // Handle changes for devices becoming offline, unauthorized, etc.
         const extendedDevice: DeviceInfo = {
@@ -289,14 +298,18 @@ class AdbService extends EventEmitter implements AdbAPI {
           friendlyModelName: null
         }
         this.emit('adb:device-changed', extendedDevice)
-        mainWindow?.webContents.send('adb:device-changed', extendedDevice)
+        if (mainWindow) {
+          typedWebContentsSend.send(mainWindow, 'adb:device-changed', extendedDevice)
+        }
       }
     })
 
     this.deviceTracker.on('error', (error) => {
       console.error('Device tracker error:', error)
       this.emit('tracker-error', error.message)
-      mainWindow?.webContents.send('device-tracker-error', error.message)
+      if (mainWindow) {
+        typedWebContentsSend.send(mainWindow, 'adb:device-tracker-error', error.message)
+      }
       this.stopTrackingDevices()
     })
   }

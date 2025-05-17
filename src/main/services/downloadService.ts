@@ -10,6 +10,7 @@ import { ExtractionProcessor } from './download/extractionProcessor'
 import { InstallationProcessor } from './download/installationProcessor'
 import { DownloadAPI, GameInfo } from '@shared/types'
 import settingsService from './settingsService'
+import { typedWebContentsSend } from '@shared/ipc-utils'
 
 interface VrpConfig {
   baseUri?: string
@@ -324,7 +325,7 @@ class DownloadService extends EventEmitter implements DownloadAPI {
   private emitUpdate(): void {
     const mainWindow = BrowserWindow.getAllWindows()[0]
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('download:queue-updated', this.queueManager.getQueue())
+      typedWebContentsSend.send(mainWindow, 'download:queue-updated', this.queueManager.getQueue())
     }
   }
 
