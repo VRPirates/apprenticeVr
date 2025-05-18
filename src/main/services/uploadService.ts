@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import { execa } from 'execa'
 import adbService from './adbService'
 import dependencyService from './dependencyService'
+import gameService from './gameService'
 import { ServiceStatus, UploadPreparationProgress, UploadStatus, UploadItem } from '@shared/types'
 import { typedWebContentsSend } from '@shared/ipc-utils'
 
@@ -189,6 +190,14 @@ class UploadService extends EventEmitter {
     versionCode: number,
     deviceId: string
   ): boolean {
+    // Check if item is in the blacklist with this or lower version
+    if (gameService.isGameBlacklisted(packageName, versionCode)) {
+      console.log(
+        `[UploadService] ${packageName} v${versionCode} is in the blacklist or has a newer version already uploaded.`
+      )
+      return false
+    }
+
     // Check if item already exists in queue
     const existingItem = this.findItem(packageName)
     if (existingItem) {
@@ -218,7 +227,7 @@ class UploadService extends EventEmitter {
     }
 
     this.uploadQueue.push(newItem)
-    console.log(`[UploadService] Added ${packageName} to upload queue.`)
+    console.log(`[UploadService] Added ${packageName} v${versionCode} to upload queue.`)
     this.emitQueueUpdated()
 
     // Start processing the queue if we're not already
@@ -277,6 +286,9 @@ class UploadService extends EventEmitter {
           undefined,
           zipPath
         )
+
+        // Add to blacklist when successfully uploaded, with specific version
+        await gameService.addToBlacklist(nextItem.packageName, nextItem.versionCode)
       } else {
         console.error(`[UploadService] Upload failed for ${nextItem.packageName}`)
         this.updateItemStatus(nextItem.packageName, 'Error', 0, 'Error', 'Upload failed')

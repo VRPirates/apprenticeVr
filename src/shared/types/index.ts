@@ -148,6 +148,11 @@ export interface DependencyStatus {
   }
 }
 
+export interface BlacklistEntry {
+  packageName: string
+  version: number | 'any'
+}
+
 // API types
 export interface AdbContextType {
   devices: DeviceInfo[]
@@ -193,11 +198,20 @@ export interface GamesAPI {
   getLastSyncTime: () => Promise<Date | null>
   forceSync: () => Promise<GameInfo[]>
   getNote: (releaseName: string) => Promise<string>
-  getBlacklistGames: () => Promise<string[]>
+  getBlacklistGames: () => Promise<BlacklistEntry[]>
   getTrailerVideoId: (gameName: string) => Promise<string | null>
+  addToBlacklist: (packageName: string, version?: number | 'any') => Promise<boolean>
+  removeFromBlacklist: (packageName: string) => Promise<boolean>
+  isGameBlacklisted: (packageName: string, version?: number) => boolean
 }
 
-export interface GameAPIRenderer extends GamesAPI {
+export interface GameAPIRenderer
+  extends Modify<
+    GamesAPI,
+    {
+      isGameBlacklisted: (packageName: string, version?: number) => Promise<boolean>
+    }
+  > {
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void
 }
 

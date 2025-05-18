@@ -203,6 +203,15 @@ app.whenReady().then(async () => {
   // --- Game Handlers ---
   typedIpcMain.handle('games:get-games', async () => gameService.getGames())
   typedIpcMain.handle('games:get-blacklist-games', async () => gameService.getBlacklistGames())
+  typedIpcMain.handle('games:add-to-blacklist', async (_event, packageName, version) => {
+    return gameService.addToBlacklist(packageName, version)
+  })
+  typedIpcMain.handle('games:remove-from-blacklist', async (_event, packageName) => {
+    return gameService.removeFromBlacklist(packageName)
+  })
+  typedIpcMain.handle('games:is-game-blacklisted', async (_event, packageName, version) => {
+    return gameService.isGameBlacklisted(packageName, version)
+  })
   typedIpcMain.handle('games:get-last-sync-time', async () => gameService.getLastSyncTime())
   typedIpcMain.handle('games:force-sync-games', async () => {
     await gameService.forceSync()

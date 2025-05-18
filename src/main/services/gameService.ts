@@ -5,7 +5,7 @@ import { execa } from 'execa'
 import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
 import dependencyService from './dependencyService'
-import { GameInfo, ServiceStatus, GamesAPI } from '@shared/types'
+import { GameInfo, ServiceStatus, GamesAPI, BlacklistEntry } from '@shared/types'
 import EventEmitter from 'events'
 import { typedWebContentsSend } from '@shared/ipc-utils'
 import yts from 'yt-search'
@@ -24,9 +24,11 @@ class GameService extends EventEmitter implements GamesAPI {
   private gameListPath: string
   private metaPath: string
   private blacklistGamesPath: string
+  private customBlacklistPath: string
   private vrpConfig: VrpConfig | null = null
   private games: GameInfo[] = []
   private blacklistGames: string[] = []
+  private customBlacklistGames: BlacklistEntry[] = []
   private status: ServiceStatus = 'NOT_INITIALIZED'
   private videoIdCache: Map<string, string | null> = new Map()
   constructor() {
@@ -36,6 +38,7 @@ class GameService extends EventEmitter implements GamesAPI {
     this.gameListPath = join(this.dataPath, 'VRP-GameList.txt')
     this.metaPath = join(this.dataPath, '.meta')
     this.blacklistGamesPath = join(this.metaPath, 'nouns', 'blacklist.txt')
+    this.customBlacklistPath = join(app.getPath('userData'), 'custom-blacklist.json')
   }
 
   async initialize(force?: boolean): Promise<ServiceStatus> {
@@ -64,6 +67,7 @@ class GameService extends EventEmitter implements GamesAPI {
       console.log('Using cached game data...')
       await this.loadGameList()
       await this.loadBlacklistGames()
+      await this.loadCustomBlacklistGames()
       //}
     } catch (error) {
       console.error('Error initializing game service:', error)
@@ -170,6 +174,7 @@ class GameService extends EventEmitter implements GamesAPI {
       // Load the game list
       await this.loadGameList()
       await this.loadBlacklistGames()
+      await this.loadCustomBlacklistGames()
 
       // Update last sync time
       if (this.vrpConfig) {
@@ -437,7 +442,42 @@ class GameService extends EventEmitter implements GamesAPI {
       return
     }
     const data = await fs.readFile(this.blacklistGamesPath, 'utf-8')
-    this.blacklistGames = [...data.split('\n'), ...INTERNAL_BLACKLIST_GAMES]
+    this.blacklistGames = data.split('\n')
+    console.log(`Loaded ${this.blacklistGames.length} games from blacklist`)
+  }
+
+  private async loadCustomBlacklistGames(): Promise<void> {
+    try {
+      if (existsSync(this.customBlacklistPath)) {
+        const data = await fs.readFile(this.customBlacklistPath, 'utf-8')
+        try {
+          this.customBlacklistGames = JSON.parse(data)
+          console.log(`Loaded ${this.customBlacklistGames.length} games from custom blacklist`)
+        } catch (parseError) {
+          console.error('Error parsing custom blacklist JSON:', parseError)
+          this.customBlacklistGames = []
+        }
+      } else {
+        console.log('No custom blacklist file found, starting with empty list')
+        this.customBlacklistGames = []
+      }
+    } catch (error) {
+      console.error('Error loading custom blacklist games:', error)
+      this.customBlacklistGames = []
+    }
+  }
+
+  private async saveCustomBlacklistGames(): Promise<void> {
+    try {
+      await fs.writeFile(
+        this.customBlacklistPath,
+        JSON.stringify(this.customBlacklistGames),
+        'utf-8'
+      )
+      console.log(`Saved ${this.customBlacklistGames.length} games to custom blacklist`)
+    } catch (error) {
+      console.error('Error saving custom blacklist games:', error)
+    }
   }
 
   private parseGameList(data: string): void {
@@ -544,8 +584,8 @@ class GameService extends EventEmitter implements GamesAPI {
     return Promise.resolve(this.games)
   }
 
-  getBlacklistGames(): Promise<string[]> {
-    return Promise.resolve(this.blacklistGames)
+  getBlacklistGames(): Promise<BlacklistEntry[]> {
+    return Promise.resolve(this.customBlacklistGames)
   }
 
   getLastSyncTime(): Promise<Date | null> {
@@ -602,6 +642,112 @@ class GameService extends EventEmitter implements GamesAPI {
     this.videoIdCache.set(gameName, videoId)
 
     return videoId
+  }
+
+  async addToBlacklist(packageName: string, version: number | 'any' = 'any'): Promise<boolean> {
+    // Check if game is already in original blacklist
+    if (
+      this.blacklistGames.includes(packageName) ||
+      INTERNAL_BLACKLIST_GAMES.includes(packageName)
+    ) {
+      return false
+    }
+
+    // Check if game is already in custom blacklist with same or higher version
+    const existingEntry = this.customBlacklistGames.find(
+      (entry) => entry.packageName === packageName
+    )
+    if (existingEntry) {
+      // If existing entry has version 'any', it covers all versions already
+      if (existingEntry.version === 'any') {
+        return false
+      }
+
+      // If we're adding 'any' version or a higher version number, update the entry
+      if (
+        version === 'any' ||
+        (typeof existingEntry.version === 'number' &&
+          typeof version === 'number' &&
+          version > existingEntry.version)
+      ) {
+        existingEntry.version = version
+        await this.saveCustomBlacklistGames()
+        return true
+      }
+
+      // Don't add if new version is equal or lower than existing version
+      if (
+        typeof existingEntry.version === 'number' &&
+        typeof version === 'number' &&
+        version <= existingEntry.version
+      ) {
+        return false
+      }
+    }
+
+    // Add to custom blacklist
+    this.customBlacklistGames.push({ packageName, version })
+
+    // Save updated custom blacklist
+    await this.saveCustomBlacklistGames()
+
+    return true
+  }
+
+  async removeFromBlacklist(packageName: string): Promise<boolean> {
+    // Check if the game is in the internal blacklist (can't be removed)
+    if (INTERNAL_BLACKLIST_GAMES.includes(packageName)) {
+      return false
+    }
+
+    // Check if game is in the original blacklist (can't be removed directly)
+    if (this.blacklistGames.includes(packageName)) {
+      console.warn(`Cannot remove ${packageName} as it's in the original blacklist`)
+      return false
+    }
+
+    // Check if game is in custom blacklist
+    const index = this.customBlacklistGames.findIndex((entry) => entry.packageName === packageName)
+    if (index === -1) {
+      return false
+    }
+
+    // Remove from custom blacklist
+    this.customBlacklistGames.splice(index, 1)
+
+    // Save updated custom blacklist
+    await this.saveCustomBlacklistGames()
+
+    return true
+  }
+
+  isGameBlacklisted(packageName: string, version?: number): boolean {
+    // Check internal and original blacklist (these block all versions)
+    if (
+      INTERNAL_BLACKLIST_GAMES.includes(packageName) ||
+      this.blacklistGames.includes(packageName)
+    ) {
+      return true
+    }
+
+    // Check custom blacklist with version comparison
+    const entry = this.customBlacklistGames.find((entry) => entry.packageName === packageName)
+    if (!entry) {
+      return false
+    }
+
+    // If entry version is 'any', it blocks all versions
+    if (entry.version === 'any') {
+      return true
+    }
+
+    // If no specific version provided for checking, consider it blacklisted
+    if (version === undefined) {
+      return true
+    }
+
+    // Compare versions - only blacklisted if the version we're checking is less than or equal to blacklisted version
+    return typeof entry.version === 'number' && version <= entry.version
   }
 }
 

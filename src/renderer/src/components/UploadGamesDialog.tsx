@@ -22,7 +22,7 @@ import { useAdb } from '@renderer/hooks/useAdb'
 import { useUpload } from '@renderer/hooks/useUpload'
 
 const UploadGamesDialog: React.FC = () => {
-  const { uploadCandidates } = useGames()
+  const { uploadCandidates, addGameToBlacklist } = useGames()
   const { selectedDevice } = useAdb()
   const { addToQueue } = useUpload()
   const [showUploadDialog, setShowUploadDialog] = useState<boolean>(false)
@@ -90,6 +90,23 @@ const UploadGamesDialog: React.FC = () => {
     }
   }
 
+  const handleBlacklist = (): void => {
+    const selectedForBlacklist = uploadCandidates.filter(
+      (candidate) => selectedCandidates[candidate.packageName]
+    )
+    console.log('Games selected for blacklist:', selectedForBlacklist)
+
+    const closeAfterBlacklist = uploadCandidates.length === selectedForBlacklist.length
+
+    for (const candidate of selectedForBlacklist) {
+      addGameToBlacklist(candidate.packageName, candidate.versionCode)
+    }
+    // if the list is empy now, close the dialog
+    if (closeAfterBlacklist) {
+      setShowUploadDialog(false)
+    }
+  }
+
   const headerCheckboxState = getHeaderCheckboxState()
 
   return (
@@ -153,6 +170,13 @@ const UploadGamesDialog: React.FC = () => {
             <DialogTrigger disableButtonEnhancement>
               <Button appearance="secondary">Cancel</Button>
             </DialogTrigger>
+            <Button
+              appearance="secondary"
+              onClick={handleBlacklist}
+              disabled={Object.values(selectedCandidates).every((value) => value === false)}
+            >
+              Blacklist Selected
+            </Button>
             <Button
               appearance="primary"
               onClick={handleUpload}

@@ -1,5 +1,5 @@
 import React, { ReactNode, useEffect, useState, useCallback, useMemo } from 'react'
-import { GameInfo, UploadCandidate } from '@shared/types'
+import { BlacklistEntry, GameInfo, UploadCandidate } from '@shared/types'
 import { GamesContext } from './GamesContext'
 import { useAdb } from '../hooks/useAdb'
 import { useDependency } from '../hooks/useDependency'
@@ -30,7 +30,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const [downloadProgress, setDownloadProgress] = useState<number>(0)
   const [extractProgress, setExtractProgress] = useState<number>(0)
   const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
-  const [blacklistGames, setBlacklistGames] = useState<string[]>([])
   const [uploadCandidates, setUploadCandidates] = useState<UploadCandidate[]>([])
   const [missingGames] = useState<GameInfo[]>([])
   const [outdatedGames] = useState<GameInfo[]>([])
@@ -42,6 +41,25 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     selectedDeviceDetails
   } = useAdb()
   const dependencyContext = useDependency()
+
+  const addGameToBlacklist = useCallback(
+    async (packageName: string, version?: number | 'any'): Promise<void> => {
+      await window.api.games.addToBlacklist(packageName, version)
+      // remove from candidates
+      setUploadCandidates(
+        uploadCandidates.filter((candidate) => candidate.packageName !== packageName)
+      )
+    },
+    [uploadCandidates]
+  )
+
+  const getBlacklistGames = useCallback(async (): Promise<BlacklistEntry[]> => {
+    return await window.api.games.getBlacklistGames()
+  }, [])
+
+  const removeGameFromBlacklist = useCallback(async (packageName: string): Promise<void> => {
+    await window.api.games.removeFromBlacklist(packageName)
+  }, [])
 
   // Check for installed games that are missing from the database or newer than store versions
   const checkForUploadCandidates = useCallback(() => {
@@ -62,7 +80,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     const processInstalledPackages = async (): Promise<void> => {
       for (const pkg of installedPackages) {
         // Skip blacklisted games
-        if (blacklistGames.includes(pkg.packageName)) {
+        if (await window.api.games.isGameBlacklisted(pkg.packageName, pkg.versionCode)) {
           continue
         }
 
@@ -122,19 +140,12 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     }
 
     processInstalledPackages()
-  }, [
-    isDeviceConnected,
-    installedPackages,
-    rawGames,
-    selectedDeviceDetails,
-    blacklistGames,
-    selectedDevice
-  ])
+  }, [isDeviceConnected, installedPackages, rawGames, selectedDeviceDetails, selectedDevice])
 
   // Check for upload candidates whenever device versions or game data changes
   useEffect(() => {
     checkForUploadCandidates()
-  }, [installedPackages, rawGames, blacklistGames, checkForUploadCandidates])
+  }, [installedPackages, rawGames, checkForUploadCandidates])
 
   // enrich the games with the installed packages and the device version codes
   const games = useMemo((): GameInfo[] => {
@@ -193,9 +204,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
       const gamesList = await window.api.games.getGames()
       setRawGames(gamesList)
-
-      const blacklistGames = await window.api.games.getBlacklistGames()
-      setBlacklistGames(blacklistGames)
 
       const syncTime = await window.api.games.getLastSyncTime()
       setLastSyncTime(syncTime ? new Date(syncTime) : null)
@@ -287,7 +295,10 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     outdatedGames,
     missingGames,
     uploadCandidates,
-    getTrailerVideoId
+    getTrailerVideoId,
+    addGameToBlacklist,
+    getBlacklistGames,
+    removeGameFromBlacklist
   }
 
   return <GamesContext.Provider value={value}>{children}</GamesContext.Provider>

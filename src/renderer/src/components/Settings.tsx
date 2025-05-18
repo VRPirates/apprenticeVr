@@ -11,10 +11,23 @@ import {
   Title2,
   Subtitle1,
   Dropdown,
-  Option
+  Option,
+  Table,
+  TableHeader,
+  TableRow,
+  TableHeaderCell,
+  TableBody,
+  TableCell,
+  TableCellLayout
 } from '@fluentui/react-components'
-import { FolderOpenRegular, CheckmarkCircleRegular, InfoRegular } from '@fluentui/react-icons'
+import {
+  FolderOpenRegular,
+  CheckmarkCircleRegular,
+  InfoRegular,
+  DeleteRegular
+} from '@fluentui/react-icons'
 import { useSettings } from '../hooks/useSettings'
+import { useGames } from '../hooks/useGames'
 
 // Supported speed units with conversion factors to KB/s
 const SPEED_UNITS = [
@@ -111,8 +124,136 @@ const useStyles = makeStyles({
   unitDropdown: {
     width: '80px',
     minWidth: '80px'
+  },
+  blacklistTable: {
+    marginTop: tokens.spacingVerticalM,
+    width: '100%',
+    maxWidth: '800px'
+  },
+  emptyState: {
+    marginTop: tokens.spacingVerticalL,
+    color: tokens.colorNeutralForeground2,
+    textAlign: 'center',
+    padding: tokens.spacingVerticalL
+  },
+  actionButton: {
+    minWidth: 'auto'
   }
 })
+
+const BlacklistSettings: React.FC = () => {
+  const styles = useStyles()
+  const { getBlacklistGames, removeGameFromBlacklist } = useGames()
+  const [blacklistGames, setBlacklistGames] = useState<
+    { packageName: string; version: number | 'any' }[]
+  >([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [removeSuccess, setRemoveSuccess] = useState(false)
+
+  const loadBlacklistGames = async (): Promise<void> => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      const games = await getBlacklistGames()
+      setBlacklistGames(games)
+    } catch (err) {
+      console.error('Error loading blacklisted games:', err)
+      setError('Failed to load blacklisted games')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadBlacklistGames()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const handleRemoveFromBlacklist = async (packageName: string): Promise<void> => {
+    try {
+      setError(null)
+      await removeGameFromBlacklist(packageName)
+      await loadBlacklistGames()
+      setRemoveSuccess(true)
+
+      setTimeout(() => {
+        setRemoveSuccess(false)
+      }, 3000)
+    } catch (err) {
+      console.error('Error removing game from blacklist:', err)
+      setError('Failed to remove game from blacklist')
+    }
+  }
+
+  return (
+    <Card className={styles.card}>
+      <CardHeader>
+        <Subtitle1 weight="semibold">Blacklisted Games</Subtitle1>
+      </CardHeader>
+      <div className={styles.cardContent}>
+        <Text>Manage games that will not prompt for uploads</Text>
+
+        {isLoading ? (
+          <div
+            style={{ display: 'flex', justifyContent: 'center', padding: tokens.spacingVerticalL }}
+          >
+            <Spinner size="small" label="Loading blacklisted games..." />
+          </div>
+        ) : (
+          <>
+            {blacklistGames.length === 0 ? (
+              <div className={styles.emptyState}>
+                <Text>No blacklisted games found</Text>
+              </div>
+            ) : (
+              <Table className={styles.blacklistTable}>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell>Package Name</TableHeaderCell>
+                    <TableHeaderCell>Version</TableHeaderCell>
+                    <TableHeaderCell style={{ width: '100px' }}>Actions</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {blacklistGames.map((game) => (
+                    <TableRow key={`${game.packageName}-${game.version}`}>
+                      <TableCell>
+                        <TableCellLayout>{game.packageName}</TableCellLayout>
+                      </TableCell>
+                      <TableCell>
+                        <TableCellLayout>
+                          {game.version === 'any' ? 'All Versions' : game.version}
+                        </TableCellLayout>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          icon={<DeleteRegular />}
+                          appearance="subtle"
+                          className={styles.actionButton}
+                          onClick={() => handleRemoveFromBlacklist(game.packageName)}
+                          aria-label="Remove from blacklist"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+
+            {error && <Text className={styles.error}>{error}</Text>}
+            {removeSuccess && (
+              <Text className={styles.success}>
+                <CheckmarkCircleRegular />
+                Game removed from blacklist successfully
+              </Text>
+            )}
+          </>
+        )}
+      </div>
+    </Card>
+  )
+}
 
 const Settings: React.FC = () => {
   const styles = useStyles()
@@ -554,18 +695,7 @@ const Settings: React.FC = () => {
         </div>
       </Card>
 
-      {/* Add more settings sections here as needed */}
-      {/* 
-      <Card className={styles.card}>
-        <CardHeader>
-          <Subtitle1 weight="semibold">Other Settings</Subtitle1>
-        </CardHeader>
-        <Divider />
-        <div className={styles.cardContent}>
-          // Additional settings UI
-        </div>
-      </Card>
-      */}
+      <BlacklistSettings />
     </div>
   )
 }

@@ -64,8 +64,7 @@ const api = {
   } satisfies AdbAPIRenderer,
   games: {
     getGames: (): Promise<GameInfo[]> => typedIpcRenderer.invoke('games:get-games'),
-    getBlacklistGames: (): Promise<string[]> =>
-      typedIpcRenderer.invoke('games:get-blacklist-games'),
+    getBlacklistGames: () => typedIpcRenderer.invoke('games:get-blacklist-games'),
     getNote: (releaseName: string): Promise<string> =>
       typedIpcRenderer.invoke('games:get-note', releaseName),
     getLastSyncTime: (): Promise<Date | null> =>
@@ -77,7 +76,13 @@ const api = {
       const listener = (_: IpcRendererEvent, progress: DownloadProgress): void => callback(progress)
       typedIpcRenderer.on('games:download-progress', listener)
       return () => typedIpcRenderer.removeListener('games:download-progress', listener)
-    }
+    },
+    addToBlacklist: (packageName: string, version?: number | 'any'): Promise<boolean> =>
+      typedIpcRenderer.invoke('games:add-to-blacklist', packageName, version),
+    removeFromBlacklist: (packageName: string): Promise<boolean> =>
+      typedIpcRenderer.invoke('games:remove-from-blacklist', packageName),
+    isGameBlacklisted: (packageName: string, version?: number): Promise<boolean> =>
+      typedIpcRenderer.invoke('games:is-game-blacklisted', packageName, version)
   } satisfies GameAPIRenderer,
   // Download Queue APIs
   downloads: {

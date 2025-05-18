@@ -8,7 +8,8 @@ import {
   UploadItem,
   UploadPreparationProgress,
   UpdateInfo,
-  UpdateProgressInfo
+  UpdateProgressInfo,
+  BlacklistEntry
 } from './index'
 
 // Define types for all IPC channels between renderer and main
@@ -38,7 +39,10 @@ export interface IPCChannels {
 
   // Game related channels
   'games:get-games': DefineChannel<[], GameInfo[]>
-  'games:get-blacklist-games': DefineChannel<[], string[]>
+  'games:get-blacklist-games': DefineChannel<[], BlacklistEntry[]>
+  'games:add-to-blacklist': DefineChannel<[packageName: string, version?: number | 'any'], boolean>
+  'games:remove-from-blacklist': DefineChannel<[packageName: string], boolean>
+  'games:is-game-blacklisted': DefineChannel<[packageName: string, version?: number], boolean>
   'games:get-last-sync-time': DefineChannel<[], Date | null>
   'games:force-sync-games': DefineChannel<[], GameInfo[]>
   'games:get-note': DefineChannel<[releaseName: string], string>
