@@ -650,7 +650,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       .catch((err) => {
         console.error('Error adding to queue:', err)
       })
-    handleCloseDialog()
   }
 
   const handleReinstall = async (game: GameInfo): Promise<void> => {
@@ -663,13 +662,11 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         }
       )
       window.alert('Cannot start reinstall: Essential information is missing.')
-      handleCloseDialog() // Ensure dialog closes even on early exit
       return
     }
 
     console.log(`Reinstall: Starting for ${game.name} (${game.packageName}) on ${selectedDevice}.`)
     setIsLoading(true)
-    handleCloseDialog() // Close dialog before starting potentially long operation
 
     try {
       // Step 1: Uninstall the package
@@ -744,7 +741,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     console.log(
       `Update action triggered for: ${game.name} (${game.packageName}) on ${selectedDevice}`
     )
-    handleCloseDialog() // Close dialog early
 
     try {
       const downloadInfo = downloadStatusMap.get(game.releaseName)
@@ -785,14 +781,12 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     if (!game || !game.releaseName) return
     console.log('Retry action triggered for:', game.releaseName)
     retryDownload(game.releaseName)
-    handleCloseDialog()
   }
 
   const handleCancelDownload = (game: GameInfo): void => {
     if (!game || !game.releaseName) return
     console.log('Cancel download/extraction action triggered for:', game.releaseName)
     cancelDownload(game.releaseName)
-    handleCloseDialog()
   }
 
   const handleInstallFromCompleted = (game: GameInfo): void => {
@@ -806,7 +800,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       console.error('Error triggering install from completed:', err)
       window.alert('Failed to start installation. Please check the main process logs.')
     })
-    handleCloseDialog()
   }
 
   const handleConfirmDelete = useCallback(

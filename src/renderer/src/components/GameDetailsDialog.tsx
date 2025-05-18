@@ -16,7 +16,8 @@ import {
   Image,
   Badge,
   Divider,
-  Spinner
+  Spinner,
+  ProgressBar
 } from '@fluentui/react-components'
 import {
   ArrowClockwiseRegular,
@@ -141,6 +142,10 @@ const useStyles = makeStyles({
     display: 'flex',
     alignItems: 'center',
     gap: tokens.spacingHorizontalS
+  },
+  progressSection: {
+    marginTop: tokens.spacingVerticalL,
+    marginBottom: tokens.spacingVerticalL
   }
 })
 
@@ -572,6 +577,47 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
                   <Text>No trailer available.</Text>
                 )}
               </div>
+
+              {/* Download Progress Section */}
+              {game.releaseName && downloadStatusMap.get(game.releaseName) && (
+                <div className={styles.progressSection}>
+                  {(() => {
+                    const status = downloadStatusMap.get(game.releaseName || '')?.status
+                    const progress = downloadStatusMap.get(game.releaseName || '')?.progress || 0
+                    const isDownloading = status === 'Downloading'
+                    const isExtracting = status === 'Extracting'
+                    const isInstalling = status === 'Installing'
+
+                    if (isDownloading || isExtracting || isInstalling) {
+                      return (
+                        <>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: tokens.spacingHorizontalS,
+                              marginBottom: tokens.spacingVerticalS
+                            }}
+                          >
+                            <Spinner size="tiny" />
+                            <Text weight="semibold">
+                              {status}... {progress}%
+                            </Text>
+                          </div>
+                          <ProgressBar
+                            value={progress}
+                            max={100}
+                            shape="rounded"
+                            thickness="medium"
+                            aria-label={`${status} progress`}
+                          />
+                        </>
+                      )
+                    }
+                    return null
+                  })()}
+                </div>
+              )}
 
               <div className={styles.actionsList}>{renderActionButtons(game)}</div>
             </DialogContent>
