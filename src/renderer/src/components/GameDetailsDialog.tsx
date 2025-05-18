@@ -431,7 +431,14 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
             </div>
             <DialogContent>
               <div className={styles.dialogContentLayout}>
-                <div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: '100%'
+                  }}
+                >
                   <Image
                     src={game.thumbnailPath ? `file://${game.thumbnailPath}` : placeholderImage}
                     alt={`${game.name} thumbnail`}
@@ -439,6 +446,10 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
                     width={150}
                     height={150}
                     fit="cover"
+                    style={{
+                      height: '150px',
+                      width: '150px'
+                    }}
                   />
                 </div>
                 <div className={styles.detailsColumn}>
@@ -490,19 +501,27 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
                         <DownloadIcon fontSize={16} />
                         <Text size={300}>{game.downloads?.toLocaleString() || '-'}</Text>
                       </div>
+                      <div className={styles.inlineInfo}>
+                        <InfoRegular fontSize={16} />
+                        <Text size={300}>
+                          {game.version ? `v${game.version}` : '-'}
+                          <span
+                            style={{
+                              color: tokens.colorNeutralForeground3,
+                              fontSize: 12,
+                              fontWeight: 'bold'
+                            }}
+                          >
+                            {game.isInstalled &&
+                              game.deviceVersionCode &&
+                              ` (Device: v${game.deviceVersionCode})`}
+                          </span>
+                        </Text>
+                      </div>
                     </div>
                   </div>
                   <Divider />
                   <div className={styles.detailList}>
-                    <div className={styles.inlineInfo}>
-                      <InfoRegular fontSize={16} />
-                      <Text>
-                        {game.version ? `v${game.version}` : '-'}
-                        {game.isInstalled &&
-                          game.deviceVersionCode &&
-                          ` (Device: v${game.deviceVersionCode})`}
-                      </Text>
-                    </div>
                     <div className={styles.inlineInfo}>
                       <TagRegular fontSize={16} />
                       <Text>{game.releaseName || '-'}</Text>

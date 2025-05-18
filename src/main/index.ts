@@ -40,7 +40,7 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1200,
     minWidth: 1200,
-    height: 850,
+    height: 900,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -52,7 +52,7 @@ function createWindow(): void {
   })
 
   // Explicitly set minimum size to ensure constraint is enforced
-  mainWindow.setMinimumSize(1200, 850)
+  mainWindow.setMinimumSize(1200, 900)
 
   mainWindow.on('ready-to-show', async () => {
     if (mainWindow) {
