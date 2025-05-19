@@ -297,7 +297,16 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       console.log('[GamesView] Cleaning up installation completed listener.')
       unsubscribe()
     }
-  }, [selectedDevice, loadPackages])
+  }, [selectedDevice, loadPackages, dialogGame, games])
+
+  useEffect(() => {
+    if (dialogGame) {
+      const updatedGame = games.find((game) => game.id === dialogGame.id)
+      if (updatedGame) {
+        setDialogGame(updatedGame)
+      }
+    }
+  }, [dialogGame, games])
 
   const downloadStatusMap = useMemo(() => {
     const map = new Map<string, { status: string; progress: number }>()
