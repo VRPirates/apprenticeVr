@@ -18,13 +18,15 @@ import {
   TableHeaderCell,
   TableBody,
   TableCell,
-  TableCellLayout
+  TableCellLayout,
+  Switch
 } from '@fluentui/react-components'
 import {
   FolderOpenRegular,
   CheckmarkCircleRegular,
   InfoRegular,
-  DeleteRegular
+  DeleteRegular,
+  EyeOffRegular
 } from '@fluentui/react-icons'
 import { useSettings } from '../hooks/useSettings'
 import { useGames } from '../hooks/useGames'
@@ -37,8 +39,18 @@ const SPEED_UNITS = [
 
 const useStyles = makeStyles({
   root: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalL,
+    position: 'relative',
+    height: 'calc(100vh - 90px)', // Account for header height
+    overflowY: 'auto',
     padding: tokens.spacingVerticalXL,
+    backgroundColor: tokens.colorNeutralBackground1
+  },
+  contentContainer: {
     maxWidth: '1200px',
+    width: '100%',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
@@ -188,9 +200,7 @@ const BlacklistSettings: React.FC = () => {
 
   return (
     <Card className={styles.card}>
-      <CardHeader>
-        <Subtitle1 weight="semibold">Blacklisted Games</Subtitle1>
-      </CardHeader>
+      <CardHeader description={<Subtitle1 weight="semibold">Blacklisted Games</Subtitle1>} />
       <div className={styles.cardContent}>
         <Text>Manage games that will not prompt for uploads</Text>
 
@@ -261,11 +271,13 @@ const Settings: React.FC = () => {
     downloadPath,
     downloadSpeedLimit,
     uploadSpeedLimit,
+    hideAdultContent,
     isLoading,
     error,
     setDownloadPath,
     setDownloadSpeedLimit,
-    setUploadSpeedLimit
+    setUploadSpeedLimit,
+    setHideAdultContent
   } = useSettings()
   const [editedDownloadPath, setEditedDownloadPath] = useState(downloadPath)
 
@@ -549,153 +561,182 @@ const Settings: React.FC = () => {
     }
   }
 
-  if (isLoading) {
-    return (
-      <div className={styles.root}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '200px'
-          }}
-        >
-          <Spinner size="large" label="Loading settings..." />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className={styles.root}>
-      <div className={styles.headerSection}>
-        <Title2 className={styles.headerTitle}>Application Settings</Title2>
-        <Text as="p" className={styles.headerSubtitle}>
-          Configure application preferences and manage your downloads
-        </Text>
-      </div>
-
-      <Card className={styles.card}>
-        <CardHeader>
-          <Subtitle1 weight="semibold">Download Settings</Subtitle1>
-        </CardHeader>
-        <div className={styles.cardContent}>
-          <Text>Set where your games will be downloaded and stored on your device</Text>
-
-          <div className={styles.formRow}>
-            <Input
-              className={styles.input}
-              value={editedDownloadPath}
-              onChange={(_, data) => setEditedDownloadPath(data.value)}
-              placeholder="Download path"
-              contentAfter={
-                <Button
-                  icon={<FolderOpenRegular />}
-                  onClick={handleSelectFolder}
-                  aria-label="Browse folders"
-                />
-              }
-              size="large"
-            />
-            <Button onClick={handleSaveDownloadPath} appearance="primary" size="large">
-              Save Path
-            </Button>
+      <div className={styles.contentContainer}>
+        <div className={styles.headerSection}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalM }}>
+            <Title2 className={styles.headerTitle}>Application Settings</Title2>
+            {isLoading && <Spinner size="large" label="Loading settings..." />}
           </div>
+          <Text as="p" className={styles.headerSubtitle}>
+            Configure application preferences and manage your downloads
+          </Text>
+        </div>
 
-          <div className={styles.speedLimitSection}>
-            <Text>Configure download and upload speed limits</Text>
+        <Card className={styles.card}>
+          <CardHeader description={<Subtitle1 weight="semibold">Download Settings</Subtitle1>} />
+          <div className={styles.cardContent}>
+            <Text>Set where your games will be downloaded and stored on your device</Text>
 
-            <div className={styles.speedFormRow}>
-              <div className={styles.speedControl}>
-                <Text>Download Speed Limit</Text>
-                <div className={styles.speedInputGroup}>
-                  <Input
-                    className={styles.speedInput}
-                    value={downloadSpeedInput}
-                    onChange={(_, data) => handleDownloadInputChange(data.value)}
-                    placeholder="Unlimited"
+            <div className={styles.formRow}>
+              <Input
+                className={styles.input}
+                value={editedDownloadPath}
+                onChange={(_, data) => setEditedDownloadPath(data.value)}
+                placeholder="Download path"
+                contentAfter={
+                  <Button
+                    icon={<FolderOpenRegular />}
+                    onClick={handleSelectFolder}
+                    aria-label="Browse folders"
                   />
-                  <Dropdown
-                    className={styles.unitDropdown}
-                    value={SPEED_UNITS.find((u) => u.value === downloadSpeedUnit)?.label}
-                    label="Download Speed Limit Unit"
-                    selectedOptions={[downloadSpeedUnit]}
-                    onOptionSelect={(_, data) => {
-                      if (data.optionValue) {
-                        handleDownloadUnitChange(data.optionValue)
-                      }
-                    }}
-                    mountNode={document.getElementById('portal')}
-                  >
-                    {SPEED_UNITS.map((unit) => (
-                      <Option key={unit.value} value={unit.value} text={unit.label}>
-                        {unit.label}
-                      </Option>
-                    ))}
-                  </Dropdown>
-                </div>
-                <Text className={styles.hint}>
-                  <InfoRegular />
-                  Leave empty for unlimited download speed
-                </Text>
-              </div>
-
-              <div className={styles.speedControl}>
-                <Text>Upload Speed Limit</Text>
-                <div className={styles.speedInputGroup}>
-                  <Input
-                    className={styles.speedInput}
-                    value={uploadSpeedInput}
-                    onChange={(_, data) => handleUploadInputChange(data.value)}
-                    placeholder="Unlimited"
-                  />
-                  <Dropdown
-                    className={styles.unitDropdown}
-                    value={SPEED_UNITS.find((u) => u.value === uploadSpeedUnit)?.label}
-                    selectedOptions={[uploadSpeedUnit]}
-                    onOptionSelect={(_, data) => {
-                      if (data.optionValue) {
-                        handleUploadUnitChange(data.optionValue)
-                      }
-                    }}
-                    mountNode={document.getElementById('portal')}
-                  >
-                    {SPEED_UNITS.map((unit) => (
-                      <Option key={unit.value} value={unit.value} text={unit.label}>
-                        {unit.label}
-                      </Option>
-                    ))}
-                  </Dropdown>
-                </div>
-                <Text className={styles.hint}>
-                  <InfoRegular />
-                  Leave empty for unlimited upload speed
-                </Text>
-              </div>
-            </div>
-
-            <div
-              className={styles.formRow}
-              style={{ justifyContent: 'flex-end', marginTop: tokens.spacingVerticalM }}
-            >
-              <Button onClick={handleSaveSpeedLimits} appearance="primary" size="large">
-                Save Speed Limits
+                }
+                size="large"
+              />
+              <Button onClick={handleSaveDownloadPath} appearance="primary" size="large">
+                Save Path
               </Button>
             </div>
+
+            <div className={styles.speedLimitSection}>
+              <Text>Configure download and upload speed limits</Text>
+
+              <div className={styles.speedFormRow}>
+                <div className={styles.speedControl}>
+                  <Text>Download Speed Limit</Text>
+                  <div className={styles.speedInputGroup}>
+                    <Input
+                      className={styles.speedInput}
+                      value={downloadSpeedInput}
+                      onChange={(_, data) => handleDownloadInputChange(data.value)}
+                      placeholder="Unlimited"
+                    />
+                    <Dropdown
+                      className={styles.unitDropdown}
+                      value={SPEED_UNITS.find((u) => u.value === downloadSpeedUnit)?.label}
+                      label="Download Speed Limit Unit"
+                      selectedOptions={[downloadSpeedUnit]}
+                      onOptionSelect={(_, data) => {
+                        if (data.optionValue) {
+                          handleDownloadUnitChange(data.optionValue)
+                        }
+                      }}
+                      mountNode={document.getElementById('portal')}
+                    >
+                      {SPEED_UNITS.map((unit) => (
+                        <Option key={unit.value} value={unit.value} text={unit.label}>
+                          {unit.label}
+                        </Option>
+                      ))}
+                    </Dropdown>
+                  </div>
+                  <Text className={styles.hint}>
+                    <InfoRegular />
+                    Leave empty for unlimited download speed
+                  </Text>
+                </div>
+
+                <div className={styles.speedControl}>
+                  <Text>Upload Speed Limit</Text>
+                  <div className={styles.speedInputGroup}>
+                    <Input
+                      className={styles.speedInput}
+                      value={uploadSpeedInput}
+                      onChange={(_, data) => handleUploadInputChange(data.value)}
+                      placeholder="Unlimited"
+                    />
+                    <Dropdown
+                      className={styles.unitDropdown}
+                      value={SPEED_UNITS.find((u) => u.value === uploadSpeedUnit)?.label}
+                      selectedOptions={[uploadSpeedUnit]}
+                      onOptionSelect={(_, data) => {
+                        if (data.optionValue) {
+                          handleUploadUnitChange(data.optionValue)
+                        }
+                      }}
+                      mountNode={document.getElementById('portal')}
+                    >
+                      {SPEED_UNITS.map((unit) => (
+                        <Option key={unit.value} value={unit.value} text={unit.label}>
+                          {unit.label}
+                        </Option>
+                      ))}
+                    </Dropdown>
+                  </div>
+                  <Text className={styles.hint}>
+                    <InfoRegular />
+                    Leave empty for unlimited upload speed
+                  </Text>
+                </div>
+              </div>
+
+              <div
+                className={styles.formRow}
+                style={{ justifyContent: 'flex-end', marginTop: tokens.spacingVerticalM }}
+              >
+                <Button onClick={handleSaveSpeedLimits} appearance="primary" size="large">
+                  Save Speed Limits
+                </Button>
+              </div>
+            </div>
+
+            {(error || localError) && <Text className={styles.error}>{error || localError}</Text>}
+
+            {saveSuccess && (
+              <Text className={styles.success}>
+                <CheckmarkCircleRegular />
+                Settings saved successfully
+              </Text>
+            )}
           </div>
+        </Card>
 
-          {(error || localError) && <Text className={styles.error}>{error || localError}</Text>}
+        <Card className={styles.card}>
+          <CardHeader
+            description={<Subtitle1 weight="semibold">Content Filters</Subtitle1>}
+          ></CardHeader>
+          <div className={styles.cardContent}>
+            <Text>Configure content filtering preferences</Text>
 
-          {saveSuccess && (
-            <Text className={styles.success}>
-              <CheckmarkCircleRegular />
-              Settings saved successfully
+            <div className={styles.formRow}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: tokens.spacingHorizontalM
+                }}
+              >
+                <Switch
+                  checked={hideAdultContent}
+                  onChange={(_, data) => setHideAdultContent(data.checked)}
+                  label={{
+                    children: (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: tokens.spacingHorizontalXS
+                        }}
+                      >
+                        <EyeOffRegular />
+                        <span>Hide Adult Content</span>
+                      </div>
+                    )
+                  }}
+                />
+              </div>
+            </div>
+            <Text className={styles.hint}>
+              <InfoRegular />
+              When enabled, games marked as (18+) will be hidden from the game list
             </Text>
-          )}
-        </div>
-      </Card>
+          </div>
+        </Card>
 
-      <BlacklistSettings />
+        <BlacklistSettings />
+      </div>
     </div>
   )
 }

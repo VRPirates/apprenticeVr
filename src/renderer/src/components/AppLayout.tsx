@@ -54,7 +54,8 @@ const useStyles = makeStyles({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    minHeight: '100vh'
+    height: '100vh',
+    overflow: 'hidden'
   },
   header: {
     display: 'flex',
@@ -63,7 +64,9 @@ const useStyles = makeStyles({
     borderBottom: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
     backgroundColor: tokens.colorNeutralBackground3,
     gap: tokens.spacingHorizontalM,
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    height: '90px', // Fixed header height
+    flexShrink: 0
   },
   logo: {
     height: '48px'
@@ -76,7 +79,10 @@ const useStyles = makeStyles({
   mainContent: {
     flexGrow: 1,
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    overflow: 'hidden',
+    height: 'calc(100vh - 90px)', // Remaining height after header
+    position: 'relative'
   },
   loadingOrErrorContainer: {
     flexGrow: 1,

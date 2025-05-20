@@ -170,7 +170,11 @@ const api = {
     getUploadSpeedLimit: (): Promise<number> =>
       typedIpcRenderer.invoke('settings:get-upload-speed-limit'),
     setUploadSpeedLimit: (limit: number): Promise<void> =>
-      typedIpcRenderer.invoke('settings:set-upload-speed-limit', limit)
+      typedIpcRenderer.invoke('settings:set-upload-speed-limit', limit),
+    getHideAdultContent: (): Promise<boolean> =>
+      typedIpcRenderer.invoke('settings:get-hide-adult-content'),
+    setHideAdultContent: (hide: boolean): Promise<void> =>
+      typedIpcRenderer.invoke('settings:set-hide-adult-content', hide)
   } satisfies SettingsAPIRenderer,
   // Add dialog API
   dialog: {

@@ -345,6 +345,12 @@ app.whenReady().then(async () => {
   typedIpcMain.handle('settings:set-upload-speed-limit', (_event, limit) =>
     settingsService.setUploadSpeedLimit(limit)
   )
+  typedIpcMain.handle('settings:get-hide-adult-content', () =>
+    settingsService.getHideAdultContent()
+  )
+  typedIpcMain.handle('settings:set-hide-adult-content', (_event, hide) =>
+    settingsService.setHideAdultContent(hide)
+  )
 
   // --- Dialog Handlers ---
   typedIpcMain.handle('dialog:show-directory-picker', async () => {

@@ -16,7 +16,8 @@ class SettingsService extends EventEmitter implements SettingsAPI {
     this.settings = {
       downloadPath: join(app.getPath('userData'), 'downloads'),
       downloadSpeedLimit: 0,
-      uploadSpeedLimit: 0
+      uploadSpeedLimit: 0,
+      hideAdultContent: true // Default to hiding adult content
     }
 
     // Load settings from disk
@@ -51,6 +52,16 @@ class SettingsService extends EventEmitter implements SettingsAPI {
     this.settings.uploadSpeedLimit = limit
     this.saveSettings()
     this.emit('upload-speed-limit-changed', limit)
+  }
+
+  getHideAdultContent(): boolean {
+    return this.settings.hideAdultContent
+  }
+
+  setHideAdultContent(hide: boolean): void {
+    this.settings.hideAdultContent = hide
+    this.saveSettings()
+    this.emit('hide-adult-content-changed', hide)
   }
 
   private loadSettings(): void {

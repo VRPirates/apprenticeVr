@@ -269,6 +269,7 @@ export interface Settings {
   downloadPath: string
   downloadSpeedLimit: number
   uploadSpeedLimit: number
+  hideAdultContent: boolean
 }
 
 export interface SettingsAPI {
@@ -278,6 +279,8 @@ export interface SettingsAPI {
   setDownloadSpeedLimit: (limit: number) => void
   getUploadSpeedLimit: () => number
   setUploadSpeedLimit: (limit: number) => void
+  getHideAdultContent: () => boolean
+  setHideAdultContent: (hide: boolean) => void
 }
 
 export interface SettingsAPIRenderer
@@ -290,6 +293,8 @@ export interface SettingsAPIRenderer
       setDownloadSpeedLimit: (limit: number) => Promise<void>
       getUploadSpeedLimit: () => Promise<number>
       setUploadSpeedLimit: (limit: number) => Promise<void>
+      getHideAdultContent: () => Promise<boolean>
+      setHideAdultContent: (hide: boolean) => Promise<void>
     }
   > {}
 

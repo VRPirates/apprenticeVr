@@ -9,6 +9,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const [downloadPath, setDownloadPathState] = useState<string>('')
   const [downloadSpeedLimit, setDownloadSpeedLimitState] = useState<number>(0)
   const [uploadSpeedLimit, setUploadSpeedLimitState] = useState<number>(0)
+  const [hideAdultContent, setHideAdultContentState] = useState<boolean>(true)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -18,19 +19,22 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
     const loadSettings = async (): Promise<void> => {
       try {
-        const [path, downloadLimit, uploadLimit] = await Promise.all([
+        const [path, downloadLimit, uploadLimit, hideAdult] = await Promise.all([
           window.api.settings.getDownloadPath(),
           window.api.settings.getDownloadSpeedLimit(),
-          window.api.settings.getUploadSpeedLimit()
+          window.api.settings.getUploadSpeedLimit(),
+          window.api.settings.getHideAdultContent()
         ])
 
         if (isMounted) {
           console.log('Fetched initial download path:', path)
           console.log('Fetched initial download speed limit:', downloadLimit)
           console.log('Fetched initial upload speed limit:', uploadLimit)
+          console.log('Fetched initial hide adult content setting:', hideAdult)
           setDownloadPathState(path)
           setDownloadSpeedLimitState(downloadLimit)
           setUploadSpeedLimitState(uploadLimit)
+          setHideAdultContentState(hideAdult)
         }
       } catch (err) {
         console.error('Error fetching settings:', err)
@@ -99,15 +103,33 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, [])
 
+  // Function to update hide adult content setting
+  const setHideAdultContent = useCallback(async (hide: boolean): Promise<void> => {
+    try {
+      setIsLoading(true)
+      await window.api.settings.setHideAdultContent(hide)
+      setHideAdultContentState(hide)
+      setError(null)
+    } catch (err) {
+      console.error('Error setting hide adult content:', err)
+      setError('Failed to update adult content filter')
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   const value: SettingsContextType = {
     downloadPath,
     downloadSpeedLimit,
     uploadSpeedLimit,
+    hideAdultContent,
     isLoading,
     error,
     setDownloadPath,
     setDownloadSpeedLimit,
-    setUploadSpeedLimit
+    setUploadSpeedLimit,
+    setHideAdultContent
   }
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>

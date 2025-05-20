@@ -126,3 +126,7 @@ To perform type checking:
 ```bash
 pnpm typecheck
 ```
+
+
+---
+![](https://badges.pufler.dev/visits/jimzrt/ApprenticeVR)
