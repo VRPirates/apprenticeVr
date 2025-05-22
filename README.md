@@ -129,4 +129,4 @@ pnpm typecheck
 
 
 ---
-![](https://badges.pufler.dev/visits/jimzrt/ApprenticeVR)
+![](https://badges.pufler.dev/visits/jimzrt/apprenticeVr)
