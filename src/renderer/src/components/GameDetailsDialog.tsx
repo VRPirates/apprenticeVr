@@ -41,15 +41,13 @@ const useStyles = makeStyles({
   dialogContentLayout: {
     display: 'grid',
     gridTemplateColumns: '150px 1fr',
-    gap: tokens.spacingHorizontalL,
-    marginTop: tokens.spacingVerticalL,
-    marginBottom: tokens.spacingVerticalXL,
+    gap: tokens.spacingHorizontalM,
     alignItems: 'start'
   },
   detailsColumn: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalL
+    gap: tokens.spacingVerticalM
   },
   infoSection: {
     display: 'flex',
@@ -58,7 +56,7 @@ const useStyles = makeStyles({
   },
   badgesAndInfoContainer: {
     display: 'flex',
-    gap: tokens.spacingHorizontalL,
+    gap: tokens.spacingHorizontalM,
     alignItems: 'center',
     marginTop: tokens.spacingVerticalS,
     flexWrap: 'wrap'
@@ -79,8 +77,8 @@ const useStyles = makeStyles({
     gap: tokens.spacingVerticalM
   },
   noteSection: {
-    marginTop: tokens.spacingVerticalL,
-    marginBottom: tokens.spacingVerticalL
+    marginTop: tokens.spacingVerticalM,
+    marginBottom: tokens.spacingVerticalM
   },
   noteTitle: {
     marginBottom: tokens.spacingVerticalS,
@@ -121,8 +119,8 @@ const useStyles = makeStyles({
     minWidth: 'unset'
   },
   trailerSection: {
-    marginTop: tokens.spacingVerticalL,
-    marginBottom: tokens.spacingVerticalL
+    marginTop: tokens.spacingVerticalM,
+    marginBottom: tokens.spacingVerticalM
   },
   youtubeContainer: {
     position: 'relative',
@@ -144,8 +142,8 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalS
   },
   progressSection: {
-    marginTop: tokens.spacingVerticalL,
-    marginBottom: tokens.spacingVerticalL
+    marginTop: tokens.spacingVerticalM,
+    marginBottom: tokens.spacingVerticalM
   }
 })
 
