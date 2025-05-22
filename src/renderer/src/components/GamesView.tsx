@@ -300,13 +300,17 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   }, [selectedDevice, loadPackages, dialogGame, games])
 
   useEffect(() => {
-    if (dialogGame) {
-      const updatedGame = games.find((game) => game.id === dialogGame.id)
+    setDialogGame((dialogGame) => {
+      if (!dialogGame) return null
+      const updatedGame = games.find(
+        (game) => game.id === dialogGame.id && game.releaseName === dialogGame.releaseName
+      )
       if (updatedGame) {
-        setDialogGame(updatedGame)
+        return updatedGame
       }
-    }
-  }, [dialogGame, games])
+      return null
+    })
+  }, [games])
 
   const downloadStatusMap = useMemo(() => {
     const map = new Map<string, { status: string; progress: number }>()
