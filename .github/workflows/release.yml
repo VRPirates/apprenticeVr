@@ -68,9 +68,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # electron-builder might need this for some operations
         run: ${{ steps.build_details.outputs.BUILD_COMMAND }}
 
-      - name: List output directory (for debugging)
-        run: |
-          ls -la dist/ || echo "dist directory not found or empty"
+      # - name: List output directory (for debugging)
+      #   run: |
+      #     ls -la dist/ || echo "dist directory not found or empty"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
