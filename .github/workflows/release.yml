@@ -51,16 +51,16 @@ jobs:
 
           if [ "$RUNNER_OS" == "Windows" ]; then
             echo "BUILD_COMMAND=pnpm run build && pnpm exec electron-builder --win --publish never" >> $GITHUB_OUTPUT
-            # Example: dist/apprenticevr-${VERSION}-setup.exe
-            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}-setup.exe" >> $GITHUB_OUTPUT
+            # Windows builds both x64 and ia32, with architecture in filename
+            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}-setup-*.exe ${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}-portable-*.exe" >> $GITHUB_OUTPUT
           elif [ "$RUNNER_OS" == "macOS" ]; then
             echo "BUILD_COMMAND=pnpm run build && pnpm exec electron-builder --mac --publish never" >> $GITHUB_OUTPUT
-            # Example: dist/apprenticevr-${VERSION}*.dmg. Using a glob for flexibility with arch in filename.
-            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}*.dmg" >> $GITHUB_OUTPUT
+            # Mac builds both x64 (Intel) and arm64 (Apple Silicon) with architecture in filename
+            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}-*.dmg" >> $GITHUB_OUTPUT
           elif [ "$RUNNER_OS" == "Linux" ]; then
             echo "BUILD_COMMAND=pnpm run build && pnpm exec electron-builder --linux --publish never" >> $GITHUB_OUTPUT
-            # Example: dist/apprenticevr-${VERSION}*.AppImage. Using a glob for flexibility.
-            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}*.AppImage" >> $GITHUB_OUTPUT
+            # Linux builds multiple formats and architectures
+            echo "ARTIFACT_PATH=${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}-*.AppImage ${OUTPUT_DIR}/${PRODUCT_NAME}-${VERSION}-*.deb" >> $GITHUB_OUTPUT
           fi
 
       - name: Build application
@@ -68,9 +68,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # electron-builder might need this for some operations
         run: ${{ steps.build_details.outputs.BUILD_COMMAND }}
 
-      # - name: List output directory (for debugging)
-      #   run: |
-      #     ls -R dist || echo "dist directory not found or empty"
+      - name: List output directory (for debugging)
+        run: |
+          ls -la dist/ || echo "dist directory not found or empty"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -91,10 +91,10 @@ jobs:
         with:
           path: artifacts # All artifacts will be downloaded into the 'artifacts' directory
 
-      # - name: List downloaded artifacts (for debugging)
-      #   run: |
-      #     ls -R artifacts
-      #     echo "Tag for release: ${{ github.ref_name }}"
+      - name: List downloaded artifacts (for debugging)
+        run: |
+          ls -R artifacts
+          echo "Tag for release: ${{ github.ref_name }}"
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -103,13 +103,13 @@ jobs:
         with:
           tag_name: v${{ needs.build.outputs.package_version }}
           name: Release v${{ needs.build.outputs.package_version }}
-          # body: |
-          #   Automated release for version ${{ needs.build.outputs.package_version }}.
+          body: |
+            Automated release for version ${{ needs.build.outputs.package_version }}.
 
-          #   **Assets:**
-          #   - Windows Installer
-          #   - macOS Installer
-          #   - Linux AppImage (or other configured Linux packages)
+            **Assets:**
+            - **Windows**: NSIS Installer and Portable versions (x64 and ia32)
+            - **macOS**: DMG installers for Intel (x64) and Apple Silicon (arm64)
+            - **Linux**: AppImage, DEB packages (x64 and arm64)
           draft: false
           prerelease: false # Set to true if you want to mark releases as pre-releases
           files: | # Globs to find the downloaded artifacts
