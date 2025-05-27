@@ -91,10 +91,10 @@ jobs:
         with:
           path: artifacts # All artifacts will be downloaded into the 'artifacts' directory
 
-      - name: List downloaded artifacts (for debugging)
-        run: |
-          ls -R artifacts
-          echo "Tag for release: ${{ github.ref_name }}"
+      # - name: List downloaded artifacts (for debugging)
+      #   run: |
+      #     ls -R artifacts
+      #     echo "Tag for release: ${{ github.ref_name }}"
 
       - name: Create Release and Upload Assets
         uses: softprops/action-gh-release@v2
@@ -103,13 +103,6 @@ jobs:
         with:
           tag_name: v${{ needs.build.outputs.package_version }}
           name: Release v${{ needs.build.outputs.package_version }}
-          body: |
-            Automated release for version ${{ needs.build.outputs.package_version }}.
-
-            **Assets:**
-            - **Windows**: NSIS Installer and Portable versions (x64 and ia32)
-            - **macOS**: DMG installers for Intel (x64) and Apple Silicon (arm64)
-            - **Linux**: AppImage and DEB packages (x64 and arm64)
           draft: false
           prerelease: false # Set to true if you want to mark releases as pre-releases
           files: | # Globs to find the downloaded artifacts
