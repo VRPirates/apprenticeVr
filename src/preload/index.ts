@@ -88,8 +88,8 @@ const api = {
   downloads: {
     getQueue: (): Promise<DownloadItem[]> => typedIpcRenderer.invoke('download:get-queue'),
     addToQueue: (game: GameInfo): Promise<boolean> => typedIpcRenderer.invoke('download:add', game),
-    removeFromQueue: (releaseName: string): void =>
-      typedIpcRenderer.send('download:remove', releaseName),
+    removeFromQueue: (releaseName: string): Promise<void> =>
+      typedIpcRenderer.invoke('download:remove', releaseName),
     cancelUserRequest: (releaseName: string): void =>
       typedIpcRenderer.send('download:cancel', releaseName),
     retryDownload: (releaseName: string): void =>

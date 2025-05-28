@@ -202,7 +202,7 @@ export interface GameAPIRenderer
 export interface DownloadAPI {
   getQueue: () => Promise<DownloadItem[]>
   addToQueue: (game: GameInfo) => Promise<boolean>
-  removeFromQueue: (releaseName: string) => void
+  removeFromQueue: (releaseName: string) => Promise<void>
   cancelUserRequest: (releaseName: string) => void
   retryDownload: (releaseName: string) => void
   deleteDownloadedFiles: (releaseName: string) => Promise<boolean>

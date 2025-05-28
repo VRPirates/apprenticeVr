@@ -63,12 +63,12 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
     }
   }, [])
 
-  const removeFromQueue = useCallback((releaseName: string): void => {
+  const removeFromQueue = useCallback(async (releaseName: string): Promise<void> => {
     console.log(`Context: Removing ${releaseName} from queue...`)
     // Optimistic update? Maybe not necessary as main process handles it
     // setQueue(prev => prev.filter(item => item.releaseName !== releaseName));
     try {
-      window.api.downloads.removeFromQueue(releaseName)
+      await window.api.downloads.removeFromQueue(releaseName)
     } catch (err) {
       console.error('Error removing game from download queue via IPC:', err)
       setError(`Failed to remove item from queue.`)

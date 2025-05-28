@@ -51,6 +51,7 @@ export interface IPCChannels {
   // Download related channels
   'download:get-queue': DefineChannel<[], DownloadItem[]>
   'download:add': DefineChannel<[game: GameInfo], boolean>
+  'download:remove': DefineChannel<[releaseName: string], void>
   'download:delete-files': DefineChannel<[releaseName: string], boolean>
   'download:install-from-completed': DefineChannel<[releaseName: string, deviceId: string], void>
 
@@ -86,7 +87,6 @@ export interface IPCChannels {
 export interface IPCSendChannels {
   'adb:start-tracking-devices': void
   'adb:stop-tracking-devices': void
-  'download:remove': string
   'download:cancel': string
   'download:retry': string
   'download:set-download-path': string

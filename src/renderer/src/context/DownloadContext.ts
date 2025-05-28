@@ -6,7 +6,7 @@ export interface DownloadContextType {
   isLoading: boolean
   error: string | null
   addToQueue: (game: GameInfo) => Promise<boolean>
-  removeFromQueue: (releaseName: string) => void
+  removeFromQueue: (releaseName: string) => Promise<void>
   cancelDownload: (releaseName: string) => void
   retryDownload: (releaseName: string) => void
   deleteFiles: (releaseName: string) => Promise<boolean>

@@ -292,9 +292,10 @@ app.whenReady().then(async () => {
     uploadService.cancelUpload(packageName)
   })
 
-  typedIpcMain.on('download:remove', (_event, releaseName) =>
-    downloadService.removeFromQueue(releaseName)
-  )
+  typedIpcMain.handle('download:remove', async (_event, releaseName) => {
+    console.log(`[IPC] Removing from download queue: ${releaseName}`)
+    await downloadService.removeFromQueue(releaseName)
+  })
 
   typedIpcMain.on('download:cancel', (_event, releaseName) =>
     downloadService.cancelUserRequest(releaseName)

@@ -133,7 +133,7 @@ class DownloadService extends EventEmitter implements DownloadAPI {
     return Promise.resolve(true)
   }
 
-  public removeFromQueue(releaseName: string): void {
+  public async removeFromQueue(releaseName: string): Promise<void> {
     const item = this.queueManager.findItem(releaseName)
     if (!item) return
 
@@ -150,12 +150,14 @@ class DownloadService extends EventEmitter implements DownloadAPI {
         error: undefined
       })
       if (updated) this.debouncedEmitUpdate()
-    } else {
-      const removed = this.queueManager.removeItem(releaseName)
-      if (removed) {
-        console.log(`[Service] Removed ${releaseName} from queue (status: ${item.status}).`)
-        this.emitUpdate()
-      }
+    }
+
+    await this.deleteDownloadedFiles(releaseName)
+
+    const removed = this.queueManager.removeItem(releaseName)
+    if (removed) {
+      console.log(`[Service] Removed ${releaseName} from queue (status: ${item.status}).`)
+      this.emitUpdate()
     }
   }
 

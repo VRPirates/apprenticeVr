@@ -362,7 +362,7 @@ const DownloadsView: React.FC<DownloadsViewProps> = ({ onClose }) => {
                       aria-label="Remove from list and delete files"
                       size="small"
                       appearance="subtle"
-                      onClick={() => removeFromQueue(item.releaseName)}
+                      onClick={async () => await removeFromQueue(item.releaseName)}
                       title="Remove from list and delete files"
                     />
                   )}
