@@ -31,7 +31,8 @@ import {
   ArrowUpRegular,
   InfoRegular,
   CheckmarkCircleRegular,
-  VideoRegular
+  VideoRegular,
+  BroomRegular as UninstallIcon
 } from '@fluentui/react-icons'
 import placeholderImage from '../assets/images/game-placeholder.png'
 import YouTube from 'react-youtube'
@@ -153,7 +154,8 @@ interface GameDetailsDialogProps {
   onClose: () => void
   downloadStatusMap: Map<string, { status: string; progress: number }>
   onInstall: (game: GameInfo) => void
-  onReinstall: (game: GameInfo) => void
+  onUninstall: (game: GameInfo) => Promise<void>
+  onReinstall: (game: GameInfo) => Promise<void>
   onUpdate: (game: GameInfo) => Promise<void>
   onRetry: (game: GameInfo) => void
   onCancelDownload: (game: GameInfo) => void
@@ -171,6 +173,7 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
   onClose,
   downloadStatusMap,
   onInstall,
+  onUninstall,
   onReinstall,
   onUpdate,
   onRetry,
@@ -339,6 +342,14 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
             </Button>
             <Button
               appearance="danger"
+              icon={<UninstallIcon />}
+              onClick={() => onUninstall(currentGame)}
+              disabled={!isConnected || isBusy}
+            >
+              Uninstall
+            </Button>
+            <Button
+              appearance="danger"
               icon={<DeleteRegular />}
               onClick={handleDeleteRequest}
               disabled={!isConnected || isBusy}
@@ -357,6 +368,14 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
               disabled={!isConnected || isBusy}
             >
               Reinstall
+            </Button>
+            <Button
+              appearance="danger"
+              icon={<UninstallIcon />}
+              onClick={() => onUninstall(currentGame)}
+              disabled={!isConnected || isBusy}
+            >
+              Uninstall
             </Button>
             <Button
               appearance="danger"

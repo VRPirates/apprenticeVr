@@ -1,5 +1,7 @@
 import React from 'react'
 import { useDownload } from '../hooks/useDownload'
+import { useAdb } from '../hooks/useAdb'
+import { DownloadItem } from '@shared/types'
 import {
   makeStyles,
   tokens,
@@ -7,15 +9,20 @@ import {
   Text,
   Button,
   ProgressBar,
-  Image
+  Image,
+  Badge
 } from '@fluentui/react-components'
 import {
   DeleteRegular,
   DismissRegular as CloseIcon,
-  ArrowCounterclockwiseRegular as RetryIcon
+  ArrowCounterclockwiseRegular as RetryIcon,
+  ArrowDownloadRegular as DownloadInstallIcon,
+  BroomRegular as UninstallIcon
 } from '@fluentui/react-icons'
 import { formatDistanceToNow } from 'date-fns'
 import placeholderImage from '../assets/images/game-placeholder.png'
+import { useGames } from '@renderer/hooks/useGames'
+import { useGameDialog } from '@renderer/hooks/useGameDialog'
 
 const useStyles = makeStyles({
   root: {
@@ -40,7 +47,17 @@ const useStyles = makeStyles({
   },
   gameInfo: {
     display: 'flex',
-    flexDirection: 'column'
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalXXS,
+    cursor: 'pointer'
+  },
+  gameNameRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS
+  },
+  installedBadge: {
+    fontSize: tokens.fontSizeBase100
   },
   progressStatus: {
     display: 'flex',
@@ -54,7 +71,10 @@ const useStyles = makeStyles({
   },
   actions: {
     display: 'flex',
-    gap: tokens.spacingHorizontalS
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalXS,
+    marginTop: tokens.spacingVerticalXS,
+    alignItems: 'flex-end'
   },
   errorText: {
     color: tokens.colorPaletteRedForeground1,
@@ -66,10 +86,18 @@ const useStyles = makeStyles({
   }
 })
 
-const DownloadsView: React.FC = () => {
+interface DownloadsViewProps {
+  onClose: () => void
+}
+
+const DownloadsView: React.FC<DownloadsViewProps> = ({ onClose }) => {
   console.log('[DownloadsView] Rendering')
   const styles = useStyles()
   const { queue, isLoading, error, removeFromQueue, cancelDownload, retryDownload } = useDownload()
+  const { selectedDevice, isConnected, loadPackages } = useAdb()
+  const { games } = useGames()
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_, setDialogGame] = useGameDialog()
 
   const formatAddedTime = (timestamp: number): string => {
     try {
@@ -78,6 +106,53 @@ const DownloadsView: React.FC = () => {
       console.error('Error formatting date:', e)
       return 'Invalid date'
     }
+  }
+
+  const handleInstallFromCompleted = (releaseName: string): void => {
+    if (!releaseName || !selectedDevice) {
+      console.error('Missing releaseName or selectedDevice for install from completed action')
+      window.alert('Cannot start installation: Missing required information.')
+      return
+    }
+    console.log(`Requesting install from completed for ${releaseName} on ${selectedDevice}`)
+    window.api.downloads.installFromCompleted(releaseName, selectedDevice).catch((err) => {
+      console.error('Error triggering install from completed:', err)
+      window.alert('Failed to start installation. Please check the main process logs.')
+    })
+  }
+
+  const handleUninstall = async (item: DownloadItem): Promise<void> => {
+    const game = games.find((g) => g.releaseName === item.releaseName)
+    if (!game || !game.packageName || !selectedDevice) {
+      console.error('Cannot uninstall: Missing game data, package name, or selected device')
+      window.alert('Cannot uninstall: Missing required information.')
+      return
+    }
+
+    const confirmUninstall = window.confirm(
+      `Are you sure you want to uninstall ${game.name} (${game.packageName})? This will remove the app and its data from the device.`
+    )
+
+    if (confirmUninstall) {
+      console.log(`Uninstalling ${game.packageName} from ${selectedDevice}`)
+      try {
+        const success = await window.api.adb.uninstallPackage(selectedDevice, game.packageName)
+        if (success) {
+          console.log('Uninstall successful')
+          await loadPackages()
+        } else {
+          console.error('Uninstall failed')
+          window.alert('Failed to uninstall the game.')
+        }
+      } catch (err) {
+        console.error('Error during uninstall:', err)
+        window.alert('An error occurred during uninstallation.')
+      }
+    }
+  }
+
+  const isInstalled = (releaseName: string): boolean => {
+    return games.some((game) => game.releaseName === releaseName && game.isInstalled)
   }
 
   if (isLoading) {
@@ -114,8 +189,33 @@ const DownloadsView: React.FC = () => {
                   fit="cover"
                 />
                 {/* Game Info */}
-                <div className={styles.gameInfo}>
-                  <Text weight="semibold">{item.gameName}</Text>
+                <div
+                  className={styles.gameInfo}
+                  onClick={() => {
+                    let gameToOpen = games.find((g) => g.releaseName === item.releaseName)
+                    if (!gameToOpen) {
+                      console.log('Game not found by release name, trying by package name')
+                      gameToOpen = games.find((g) => g.packageName === item.packageName)
+                    }
+                    if (gameToOpen) {
+                      setDialogGame(gameToOpen)
+                    }
+                    onClose()
+                  }}
+                >
+                  <div className={styles.gameNameRow}>
+                    <Text weight="semibold">{item.gameName}</Text>
+                    {isInstalled(item.releaseName) && (
+                      <Badge
+                        appearance="filled"
+                        color="success"
+                        size="small"
+                        className={styles.installedBadge}
+                      >
+                        Installed
+                      </Badge>
+                    )}
+                  </div>
                   <Text size={200} style={{ color: tokens.colorNeutralForeground2 }}>
                     {item.releaseName}
                   </Text>
@@ -183,6 +283,41 @@ const DownloadsView: React.FC = () => {
                         </Text>
                       )}
                     </>
+                  )}
+
+                  {/* Install/Uninstall Buttons */}
+                  {item.status === 'Completed' && !isInstalled(item.releaseName) && (
+                    <Button
+                      icon={<DownloadInstallIcon />}
+                      aria-label="Install game"
+                      size="small"
+                      appearance="primary"
+                      onClick={() => handleInstallFromCompleted(item.releaseName)}
+                      disabled={!isConnected || !selectedDevice}
+                      title={
+                        !isConnected || !selectedDevice ? 'Connect a device to install' : 'Install'
+                      }
+                    >
+                      Install
+                    </Button>
+                  )}
+
+                  {item.status === 'Completed' && isInstalled(item.releaseName) && (
+                    <Button
+                      icon={<UninstallIcon />}
+                      aria-label="Uninstall game"
+                      size="small"
+                      appearance="outline"
+                      onClick={() => handleUninstall(item)}
+                      disabled={!isConnected || !selectedDevice}
+                      title={
+                        !isConnected || !selectedDevice
+                          ? 'Connect a device to uninstall'
+                          : 'Uninstall'
+                      }
+                    >
+                      Uninstall
+                    </Button>
                   )}
                 </div>
                 {/* Actions */}

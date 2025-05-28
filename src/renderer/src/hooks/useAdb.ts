@@ -1,6 +1,5 @@
 import { useContext } from 'react'
-import { AdbContext } from '../context/AdbContext'
-import { AdbContextType } from '@shared/types'
+import { AdbContext, AdbContextType } from '../context/AdbContext'
 
 export const useAdb = (): AdbContextType => {
   const context = useContext(AdbContext)

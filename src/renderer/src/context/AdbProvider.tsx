@@ -1,7 +1,6 @@
 import React, { useEffect, useState, ReactNode, useCallback } from 'react'
-import { AdbContextType, DeviceInfo, PackageInfo } from '@shared/types'
-import { AdbContext } from './AdbContext'
-// import { useDependency } from '@renderer/hooks/useDependency'
+import { DeviceInfo, PackageInfo } from '@shared/types'
+import { AdbContext, AdbContextType } from './AdbContext'
 
 interface AdbProviderProps {
   children: ReactNode

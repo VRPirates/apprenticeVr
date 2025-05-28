@@ -41,6 +41,7 @@ import {
 } from '@fluentui/react-icons'
 import { UploadProvider } from '@renderer/context/UploadProvider'
 import { useUpload } from '@renderer/hooks/useUpload'
+import { GameDialogProvider } from '@renderer/context/GameDialogProvider'
 
 enum AppView {
   DEVICE_LIST,
@@ -186,12 +187,8 @@ const MainContent: React.FC<MainContentProps> = ({
 
   return (
     <>
-      <AdbProvider>
-        <GamesProvider>
-          <UploadGamesDialog />
-          {renderCurrentView()}
-        </GamesProvider>
-      </AdbProvider>
+      <UploadGamesDialog />
+      {renderCurrentView()}
     </>
   )
 }
@@ -361,153 +358,159 @@ const AppLayout: React.FC = () => {
 
   return (
     <FluentProvider theme={currentTheme}>
-      <div className={styles.root}>
-        <div className={styles.header}>
-          <div className={styles.headerContent}>
-            <img alt="logo" className={styles.logo} src={electronLogo} />
-            <Title1>Apprentice VR</Title1>
-          </div>
-          <div className={styles.headerActions}>
-            {currentView !== AppView.DEVICE_LIST && (
-              <>
-                <Button
-                  onClick={() => {
-                    console.log('[AppLayout] Downloads button clicked')
-                    setIsDownloadsOpen(true)
-                  }}
-                  icon={downloadButtonIcon}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '12px'
-                  }}
-                >
-                  {downloadButtonText}
-                </Button>
+      <AdbProvider>
+        <GamesProvider>
+          <GameDialogProvider>
+            <div className={styles.root}>
+              <div className={styles.header}>
+                <div className={styles.headerContent}>
+                  <img alt="logo" className={styles.logo} src={electronLogo} />
+                  <Title1>Apprentice VR</Title1>
+                </div>
+                <div className={styles.headerActions}>
+                  {currentView !== AppView.DEVICE_LIST && (
+                    <>
+                      <Button
+                        onClick={() => {
+                          console.log('[AppLayout] Downloads button clicked')
+                          setIsDownloadsOpen(true)
+                        }}
+                        icon={downloadButtonIcon}
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '12px'
+                        }}
+                      >
+                        {downloadButtonText}
+                      </Button>
 
-                <Button
-                  onClick={() => {
-                    console.log('[AppLayout] Uploads button clicked')
-                    setIsUploadsOpen(true)
-                  }}
-                  icon={uploadButtonIcon}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '12px'
-                  }}
-                >
-                  {uploadButtonText}
-                </Button>
+                      <Button
+                        onClick={() => {
+                          console.log('[AppLayout] Uploads button clicked')
+                          setIsUploadsOpen(true)
+                        }}
+                        icon={uploadButtonIcon}
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: '12px'
+                        }}
+                      >
+                        {uploadButtonText}
+                      </Button>
 
-                <TabList
-                  selectedValue={activeTab}
-                  onTabSelect={(_, data) => setActiveTab(data.value as ActiveTab)}
-                  appearance="subtle"
-                  className={styles.tabs}
-                >
-                  <Tab value="games" icon={<DesktopRegular />}>
-                    Games
-                  </Tab>
-                  <Tab value="settings" icon={<SettingsRegular />}>
-                    Settings
-                  </Tab>
-                </TabList>
-              </>
-            )}
-            <Switch
-              label={isDarkMode ? 'Dark mode' : 'Light mode'}
-              checked={isDarkMode}
-              onChange={handleThemeChange}
-            />
-          </div>
-        </div>
+                      <TabList
+                        selectedValue={activeTab}
+                        onTabSelect={(_, data) => setActiveTab(data.value as ActiveTab)}
+                        appearance="subtle"
+                        className={styles.tabs}
+                      >
+                        <Tab value="games" icon={<DesktopRegular />}>
+                          Games
+                        </Tab>
+                        <Tab value="settings" icon={<SettingsRegular />}>
+                          Settings
+                        </Tab>
+                      </TabList>
+                    </>
+                  )}
+                  <Switch
+                    label={isDarkMode ? 'Dark mode' : 'Light mode'}
+                    checked={isDarkMode}
+                    onChange={handleThemeChange}
+                  />
+                </div>
+              </div>
 
-        <div className={styles.mainContent} id="mainContent">
-          <MainContent
-            currentView={currentView}
-            activeTab={activeTab}
-            onDeviceConnected={handleDeviceConnected}
-            onSkipConnection={handleSkipConnection}
-            onBackToDeviceList={handleBackToDeviceList}
-          />
-        </div>
-
-        {/* Add UpdateNotification component here - it manages its own visibility */}
-        <UpdateNotification />
-
-        <Drawer
-          type="overlay"
-          separator
-          open={isDownloadsOpen}
-          onOpenChange={(_, { open }) => setIsDownloadsOpen(open)}
-          position="end"
-          style={{ width: '700px' }}
-          mountNode={mountNodeRef.current}
-        >
-          <DrawerHeader>
-            <DrawerHeaderTitle
-              action={
-                <Button
-                  appearance="subtle"
-                  aria-label="Close"
-                  icon={<CloseIcon />}
-                  onClick={() => setIsDownloadsOpen(false)}
+              <div className={styles.mainContent} id="mainContent">
+                <MainContent
+                  currentView={currentView}
+                  activeTab={activeTab}
+                  onDeviceConnected={handleDeviceConnected}
+                  onSkipConnection={handleSkipConnection}
+                  onBackToDeviceList={handleBackToDeviceList}
                 />
-              }
-            >
-              Downloads
-            </DrawerHeaderTitle>
-          </DrawerHeader>
-          <DrawerBody>
-            <div>
-              <DownloadsView />
-            </div>
-          </DrawerBody>
-        </Drawer>
+              </div>
 
-        <Drawer
-          type="overlay"
-          separator
-          open={isUploadsOpen}
-          onOpenChange={(_, { open }) => setIsUploadsOpen(open)}
-          position="end"
-          style={{ width: '700px' }}
-          mountNode={mountNodeRef.current}
-        >
-          <DrawerHeader>
-            <DrawerHeaderTitle
-              action={
-                <Button
-                  appearance="subtle"
-                  aria-label="Close"
-                  icon={<CloseIcon />}
-                  onClick={() => setIsUploadsOpen(false)}
-                />
-              }
-            >
-              Uploads
-            </DrawerHeaderTitle>
-          </DrawerHeader>
-          <DrawerBody>
-            <div>
-              <UploadsView />
+              {/* Add UpdateNotification component here - it manages its own visibility */}
+              <UpdateNotification />
+
+              <Drawer
+                type="overlay"
+                separator
+                open={isDownloadsOpen}
+                onOpenChange={(_, { open }) => setIsDownloadsOpen(open)}
+                position="end"
+                style={{ width: '700px' }}
+                mountNode={mountNodeRef.current}
+              >
+                <DrawerHeader>
+                  <DrawerHeaderTitle
+                    action={
+                      <Button
+                        appearance="subtle"
+                        aria-label="Close"
+                        icon={<CloseIcon />}
+                        onClick={() => setIsDownloadsOpen(false)}
+                      />
+                    }
+                  >
+                    Downloads
+                  </DrawerHeaderTitle>
+                </DrawerHeader>
+                <DrawerBody>
+                  <div>
+                    <DownloadsView onClose={() => setIsDownloadsOpen(false)} />
+                  </div>
+                </DrawerBody>
+              </Drawer>
+
+              <Drawer
+                type="overlay"
+                separator
+                open={isUploadsOpen}
+                onOpenChange={(_, { open }) => setIsUploadsOpen(open)}
+                position="end"
+                style={{ width: '700px' }}
+                mountNode={mountNodeRef.current}
+              >
+                <DrawerHeader>
+                  <DrawerHeaderTitle
+                    action={
+                      <Button
+                        appearance="subtle"
+                        aria-label="Close"
+                        icon={<CloseIcon />}
+                        onClick={() => setIsUploadsOpen(false)}
+                      />
+                    }
+                  >
+                    Uploads
+                  </DrawerHeaderTitle>
+                </DrawerHeader>
+                <DrawerBody>
+                  <div>
+                    <UploadsView />
+                  </div>
+                </DrawerBody>
+              </Drawer>
             </div>
-          </DrawerBody>
-        </Drawer>
-      </div>
-      <div
-        id="portal-parent"
-        style={{
-          zIndex: 1000,
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          pointerEvents: 'none'
-        }}
-      >
-        <div ref={mountNodeRef} id="portal" style={{ pointerEvents: 'auto' }}></div>
-      </div>
+            <div
+              id="portal-parent"
+              style={{
+                zIndex: 1000,
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                pointerEvents: 'none'
+              }}
+            >
+              <div ref={mountNodeRef} id="portal" style={{ pointerEvents: 'auto' }}></div>
+            </div>
+          </GameDialogProvider>
+        </GamesProvider>
+      </AdbProvider>
     </FluentProvider>
   )
 }

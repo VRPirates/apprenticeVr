@@ -41,6 +41,7 @@ import {
 } from '@fluentui/react-icons'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import GameDetailsDialog from './GameDetailsDialog'
+import { useGameDialog } from '@renderer/hooks/useGameDialog'
 
 // Column width constants
 const COLUMN_WIDTHS = {
@@ -246,7 +247,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [activeFilter, setActiveFilter] = useState<FilterType>('all')
   const [isLoading, setIsLoading] = useState<boolean>(false)
-  const [dialogGame, setDialogGame] = useState<GameInfo | null>(null)
+  const [dialogGame, setDialogGame] = useGameDialog()
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false)
   const [tableWidth, setTableWidth] = useState<number>(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
@@ -297,20 +298,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       console.log('[GamesView] Cleaning up installation completed listener.')
       unsubscribe()
     }
-  }, [selectedDevice, loadPackages, dialogGame, games])
-
-  useEffect(() => {
-    setDialogGame((dialogGame) => {
-      if (!dialogGame) return null
-      const updatedGame = games.find(
-        (game) => game.id === dialogGame.id && game.releaseName === dialogGame.releaseName
-      )
-      if (updatedGame) {
-        return updatedGame
-      }
-      return null
-    })
-  }, [games])
+  }, [selectedDevice, loadPackages, games])
 
   const downloadStatusMap = useMemo(() => {
     const map = new Map<string, { status: string; progress: number }>()
@@ -642,12 +630,19 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     setIsDialogOpen(true)
   }
 
+  useEffect(() => {
+    if (dialogGame) {
+      console.log('Dialog game:', dialogGame)
+      setIsDialogOpen(true)
+    }
+  }, [dialogGame])
+
   const handleCloseDialog = useCallback((): void => {
     setIsDialogOpen(false)
     setTimeout(() => {
       setDialogGame(null)
     }, 300)
-  }, [])
+  }, [setDialogGame])
 
   const handleInstall = (game: GameInfo): void => {
     if (!game) return
@@ -663,6 +658,40 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       .catch((err) => {
         console.error('Error adding to queue:', err)
       })
+  }
+
+  const handleUninstall = async (game: GameInfo): Promise<void> => {
+    if (!game || !game.packageName || !selectedDevice) {
+      console.error(
+        'Uninstall action aborted: Missing game data, package name, or selectedDevice.',
+        {
+          game,
+          selectedDevice
+        }
+      )
+      window.alert('Cannot start uninstall: Essential information is missing.')
+      return
+    }
+
+    console.log(`Uninstall: Starting for ${game.name} (${game.packageName}) on ${selectedDevice}.`)
+    setIsLoading(true)
+
+    try {
+      const success = await window.api.adb.uninstallPackage(selectedDevice, game.packageName)
+      if (success) {
+        console.log(`Uninstall: Successfully uninstalled ${game.packageName}.`)
+      } else {
+        console.error(`Uninstall: Failed to uninstall ${game.packageName}.`)
+        window.alert('Failed to uninstall the game.')
+      }
+    } catch (error) {
+      console.error(`Uninstall: Error during process for ${game.name}:`, error)
+      window.alert(
+        `An error occurred during the uninstall process for ${game.name}. Please check logs.`
+      )
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleReinstall = async (game: GameInfo): Promise<void> => {
@@ -1097,6 +1126,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                 onClose={handleCloseDialog}
                 downloadStatusMap={downloadStatusMap}
                 onInstall={handleInstall}
+                onUninstall={handleUninstall}
                 onReinstall={handleReinstall}
                 onUpdate={handleUpdate}
                 onRetry={handleRetry}
