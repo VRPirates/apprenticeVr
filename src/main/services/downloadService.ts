@@ -386,6 +386,7 @@ class DownloadService extends EventEmitter implements DownloadAPI {
 
       const updated = this.queueManager.updateItem(releaseName, {
         status: 'Queued',
+        downloadPath: this.downloadsPath,
         progress: 0,
         extractProgress: undefined,
         error: undefined,
