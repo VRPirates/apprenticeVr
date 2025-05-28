@@ -20,7 +20,6 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
       .getQueue()
       .then((initialQueue) => {
         if (isMounted) {
-          console.log('Fetched initial download queue:', initialQueue)
           setQueue(initialQueue)
         }
       })
@@ -37,7 +36,6 @@ export const DownloadProvider: React.FC<DownloadProviderProps> = ({ children }) 
       })
 
     const removeUpdateListener = window.api.downloads.onQueueUpdated((updatedQueue) => {
-      console.log('[DownloadProvider] Received queue update:', JSON.stringify(updatedQueue))
       setQueue(updatedQueue)
       setError(null)
     })

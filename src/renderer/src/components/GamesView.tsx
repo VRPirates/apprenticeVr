@@ -295,7 +295,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     })
 
     return () => {
-      console.log('[GamesView] Cleaning up installation completed listener.')
       unsubscribe()
     }
   }, [selectedDevice, loadPackages, games])
@@ -632,7 +631,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
 
   useEffect(() => {
     if (dialogGame) {
-      console.log('Dialog game:', dialogGame)
       setIsDialogOpen(true)
     }
   }, [dialogGame])

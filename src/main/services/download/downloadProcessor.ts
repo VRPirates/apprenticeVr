@@ -204,7 +204,6 @@ export class DownloadProcessor {
           }
           return
         }
-        console.log(`[DownProc] Rclone output: ${data.toString()}`)
         outputBuffer += data.toString()
         const lines = outputBuffer.split(/\r\n|\n|\r/).filter((line) => line.length > 0)
 

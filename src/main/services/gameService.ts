@@ -244,7 +244,6 @@ class GameService extends EventEmitter implements GamesAPI {
       if (rcloneProcess.stdout) {
         rcloneProcess.stdout.on('data', (data) => {
           const output = data.toString()
-          console.log('Rclone output:', output)
 
           // Try to parse progress information from rclone output
           // Example pattern: "Transferred: 5.584M / 10.000 MBytes, 56%, 1.000 MBytes/s, ETA 0s"

@@ -11,7 +11,13 @@ import updateService from './services/updateService'
 import { typedIpcMain } from '@shared/ipc-utils'
 import settingsService from './services/settingsService'
 import { typedWebContentsSend } from '@shared/ipc-utils'
+import log from 'electron-log/main'
 
+log.initialize()
+log.errorHandler.startCatching({
+  showDialog: false
+})
+Object.assign(console, log.functions)
 // Fix for certain Linux distributions - force GTK version 3
 // https://github.com/electron/electron/issues/46538
 app.commandLine.appendSwitch('gtk-version', '3')
