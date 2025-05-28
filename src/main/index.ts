@@ -12,6 +12,10 @@ import { typedIpcMain } from '@shared/ipc-utils'
 import settingsService from './services/settingsService'
 import { typedWebContentsSend } from '@shared/ipc-utils'
 
+// Fix for certain Linux distributions - force GTK version 3
+// https://github.com/electron/electron/issues/46538
+app.commandLine.appendSwitch('gtk-version', '3')
+
 let mainWindow: BrowserWindow | null = null
 
 // Listener for download service events to forward to renderer
