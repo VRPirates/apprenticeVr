@@ -91,7 +91,6 @@ interface DownloadsViewProps {
 }
 
 const DownloadsView: React.FC<DownloadsViewProps> = ({ onClose }) => {
-  console.log('[DownloadsView] Rendering')
   const styles = useStyles()
   const { queue, isLoading, error, removeFromQueue, cancelDownload, retryDownload } = useDownload()
   const { selectedDevice, isConnected, loadPackages } = useAdb()

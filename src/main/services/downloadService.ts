@@ -162,15 +162,46 @@ class DownloadService extends EventEmitter implements DownloadAPI {
   }
 
   private async processQueue(): Promise<void> {
-    if (this.isProcessing) return
+    if (this.isProcessing) {
+      // Safety check: if isProcessing is true but no active downloads/extractions exist,
+      // it might be stuck due to a race condition or error. Reset it.
+      const activeItems = this.queueManager
+        .getQueue()
+        .filter(
+          (item) =>
+            this.downloadProcessor.isDownloadActive(item.releaseName) ||
+            this.extractionProcessor.isExtractionActive(item.releaseName)
+        )
+
+      console.log(
+        `[Service ProcessQueue] isProcessing=true, checking active operations:`,
+        activeItems.map((item) => `${item.releaseName}(${item.status})`)
+      )
+
+      if (activeItems.length === 0) {
+        console.warn(
+          '[Service ProcessQueue] isProcessing was stuck with no active operations, resetting it'
+        )
+        this.isProcessing = false
+      } else {
+        console.log(
+          `[Service ProcessQueue] Found ${activeItems.length} active operations, staying in processing mode`
+        )
+        return
+      }
+    }
+
     const nextItem = this.queueManager.findNextQueuedItem()
     if (!nextItem) {
       this.isProcessing = false
+      console.log('[Service ProcessQueue] No queued items found, setting isProcessing=false')
       return
     }
 
     this.isProcessing = true
-    console.log(`[Service ProcessQueue] Processing next item: ${nextItem.releaseName}`)
+    console.log(
+      `[Service ProcessQueue] Processing next item: ${nextItem.releaseName}, setting isProcessing=true`
+    )
 
     let targetDeviceId: string | null = null
     try {
@@ -338,10 +369,35 @@ class DownloadService extends EventEmitter implements DownloadAPI {
     }
 
     console.log(
-      `[Service cancelUserRequest] User requesting cancel for ${releaseName}, status: ${item.status}`
+      `[Service cancelUserRequest] User requesting cancel for ${releaseName}, status: ${item.status}, isProcessing: ${this.isProcessing}`
     )
+
     if (item.status === 'Downloading' || item.status === 'Queued') {
       this.downloadProcessor.cancelDownload(releaseName, 'Cancelled')
+
+      // Only reset isProcessing if this was the only active operation
+      if (this.isProcessing) {
+        const allItems = this.queueManager.getQueue()
+        const otherActiveOperations = allItems.filter(
+          (queueItem) =>
+            queueItem.releaseName !== releaseName &&
+            (this.downloadProcessor.isDownloadActive(queueItem.releaseName) ||
+              this.extractionProcessor.isExtractionActive(queueItem.releaseName))
+        )
+
+        if (otherActiveOperations.length === 0) {
+          console.log(
+            `[Service cancelUserRequest] Resetting isProcessing flag - no other active operations after cancelling ${releaseName}`
+          )
+          this.isProcessing = false
+          // Continue processing the queue for other items
+          this.processQueue()
+        } else {
+          console.log(
+            `[Service cancelUserRequest] Not resetting isProcessing flag - ${otherActiveOperations.length} other operations are still active`
+          )
+        }
+      }
     } else if (item.status === 'Extracting') {
       this.extractionProcessor.cancelExtraction(releaseName)
       const updated = this.queueManager.updateItem(releaseName, {
@@ -351,6 +407,30 @@ class DownloadService extends EventEmitter implements DownloadAPI {
         error: undefined
       })
       if (updated) this.debouncedEmitUpdate()
+
+      // Only reset isProcessing if this was the only active operation
+      if (this.isProcessing) {
+        const allItems = this.queueManager.getQueue()
+        const otherActiveOperations = allItems.filter(
+          (queueItem) =>
+            queueItem.releaseName !== releaseName &&
+            (this.downloadProcessor.isDownloadActive(queueItem.releaseName) ||
+              this.extractionProcessor.isExtractionActive(queueItem.releaseName))
+        )
+
+        if (otherActiveOperations.length === 0) {
+          console.log(
+            `[Service cancelUserRequest] Resetting isProcessing flag - no other active operations after cancelling extraction of ${releaseName}`
+          )
+          this.isProcessing = false
+          // Continue processing the queue for other items
+          this.processQueue()
+        } else {
+          console.log(
+            `[Service cancelUserRequest] Not resetting isProcessing flag - ${otherActiveOperations.length} other operations are still active`
+          )
+        }
+      }
     } else if (item.status === 'Installing') {
       console.warn(
         `[Service cancelUserRequest] Cancellation requested for ${releaseName} during 'Installing' state - Not supported.`
@@ -360,6 +440,7 @@ class DownloadService extends EventEmitter implements DownloadAPI {
         `[Service cancelUserRequest] Cannot cancel ${releaseName} - status: ${item.status}`
       )
     }
+
     return Promise.resolve()
   }
 
