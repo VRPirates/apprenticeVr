@@ -1,6 +1,5 @@
 import { join } from 'path'
 import { promises as fs, readFileSync } from 'fs'
-import axios from 'axios'
 import { execa } from 'execa'
 import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
@@ -189,10 +188,21 @@ class GameService extends EventEmitter implements GamesAPI {
 
   private async fetchVrpPublicInfo(): Promise<void> {
     try {
-      const response = await axios.get('https://vrpirates.wiki/downloads/vrp-public.json', {
-        timeout: 10000
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000)
+
+      const response = await fetch('https://vrpirates.wiki/downloads/vrp-public.json', {
+        signal: controller.signal
       })
-      this.vrpConfig = response.data as VrpConfig
+
+      clearTimeout(timeoutId)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      this.vrpConfig = data as VrpConfig
 
       console.log('VRP Config loaded - baseUri:', !!this.vrpConfig?.baseUri)
 
