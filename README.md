@@ -65,6 +65,15 @@ xattr -c /Applications/apprenticevr.app
 
 After running this command, you should be able to open ApprenticeVR without any issues.
 
+## Logs
+
+By default, it writes logs to the following locations:
+
+ - **on Linux:** `~/.config/apprenticevr/logs/main.log`
+ - **on macOS:** `~/Library/Logs/apprenticevr/main.log`
+ - **on Windows:** `%USERPROFILE%\AppData\Roaming\apprenticevr\logs\main.log`
+
+**Note:** When opening an issue, please include the latest log output from the appropriate log file above to help with debugging and troubleshooting.
 
 ## Recommended IDE Setup
 
