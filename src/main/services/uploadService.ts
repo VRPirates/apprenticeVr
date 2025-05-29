@@ -9,6 +9,7 @@ import dependencyService from './dependencyService'
 import gameService from './gameService'
 import { ServiceStatus, UploadPreparationProgress, UploadStatus, UploadItem } from '@shared/types'
 import { typedWebContentsSend } from '@shared/ipc-utils'
+import SevenZip from 'node-7z'
 
 // Enum for stages to track overall progress
 enum UploadStage {
@@ -482,51 +483,38 @@ class UploadService extends EventEmitter {
 
       console.log(`Creating zip archive at ${zipFilePath}...`)
 
-      const compression = execa(sevenZipPath, ['a', zipFilePath, '.', '-bsp1'], {
-        cwd: packageFolderPath,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        all: true,
-        buffer: false,
-        windowsHide: true
-      })
+      await new Promise<void>((resolve, reject) => {
+        const myStream = SevenZip.add(zipFilePath, '.', {
+          $bin: sevenZipPath,
+          workingDir: packageFolderPath,
+          $progress: true
+        })
 
-      if (!compression.all || !compression.stdout || !compression.stderr) {
-        throw new Error('Could not capture compression output streams')
-      }
+        if (!myStream) {
+          throw new Error('Failed to start 7zip compression process.')
+        }
 
-      // Set up progress tracking
-      let lastProgress = 0
+        // Set up progress tracking
+        let lastProgress = 0
 
-      compression.stdout?.setEncoding('utf8')
-      // Listen to stdout for progress updates (this is where 7zip writes progress)
-      compression.stdout.on('data', (chunk: Buffer) => {
-        const lines = chunk.toString().split(/\r?\n/)
-        for (const line of lines) {
-          const matches = line.matchAll(/(\d{1,3})%/g)
-          for (const match of matches) {
-            const percent = parseInt(match[1], 10)
-            if (!isNaN(percent) && percent > lastProgress) {
-              lastProgress = percent
-              console.log(`[Compression progress]: ${percent}%`)
-              this.updateProgress(packageName, UploadStage.Compressing, percent)
-            }
+        myStream.on('progress', (progress) => {
+          if (progress.percent > lastProgress) {
+            lastProgress = progress.percent
+            console.log(`[Compression progress]: ${progress.percent}%`)
+            this.updateProgress(packageName, UploadStage.Compressing, progress.percent)
           }
-        }
+        })
+
+        myStream.on('end', () => {
+          console.log(`[Compression complete]: ${zipFilePath}`)
+          resolve()
+        })
+
+        myStream.on('error', (error) => {
+          console.error(`[Compression error]: ${error}`)
+          reject(error)
+        })
       })
-
-      // Listen to stderr for errors
-      compression.stderr.on('data', (data: Buffer) => {
-        const chunk = data.toString()
-        console.log(`[7zip stderr]: ${chunk}`)
-
-        // Check for error messages
-        if (chunk.includes('ERROR:')) {
-          console.error(`[UploadService] Compression error: ${chunk}`)
-        }
-      })
-
-      // Wait for the compression to complete
-      await compression
 
       this.updateProgress(packageName, UploadStage.Compressing, 100)
 

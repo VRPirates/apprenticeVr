@@ -37,7 +37,7 @@ class DownloadService extends EventEmitter implements DownloadAPI {
 
     this.queueManager = new QueueManager()
     this.adbService = adbService
-    this.debouncedEmitUpdate = debounce(this.emitUpdate.bind(this), 300)
+    this.debouncedEmitUpdate = debounce(this.emitUpdate.bind(this), 100)
     this.downloadProcessor = new DownloadProcessor(this.queueManager, this.debouncedEmitUpdate)
     this.extractionProcessor = new ExtractionProcessor(this.queueManager, this.debouncedEmitUpdate)
     this.installationProcessor = new InstallationProcessor(

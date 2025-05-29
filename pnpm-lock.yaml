@@ -27,8 +27,8 @@ importers:
         specifier: ^9.10.7
         version: 9.10.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@modelcontextprotocol/sdk':
-        specifier: ^1.12.0
-        version: 1.12.0
+        specifier: ^1.12.1
+        version: 1.12.1
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -68,6 +68,9 @@ importers:
       match-sorter:
         specifier: ^8.0.2
         version: 8.0.2
+      node-7z:
+        specifier: ^3.0.0
+        version: 3.0.0
       node-wget-fetch:
         specifier: ^1.1.3
         version: 1.1.3(encoding@0.1.13)
@@ -95,13 +98,16 @@ importers:
         version: 3.1.0(eslint@9.27.0)(typescript@5.8.3)
       '@electron-toolkit/tsconfig':
         specifier: ^1.0.1
-        version: 1.0.1(@types/node@22.15.24)
+        version: 1.0.1(@types/node@22.15.26)
       '@types/bluebird':
         specifier: ^3.5.42
         version: 3.5.42
       '@types/node':
-        specifier: ^22.15.24
-        version: 22.15.24
+        specifier: ^22.15.26
+        version: 22.15.26
+      '@types/node-7z':
+        specifier: ^2.1.10
+        version: 2.1.10
       '@types/react':
         specifier: ^19.1.6
         version: 19.1.6
@@ -116,7 +122,7 @@ importers:
         version: 2.10.3
       '@vitejs/plugin-react':
         specifier: ^4.5.0
-        version: 4.5.0(vite@6.3.5(@types/node@22.15.24))
+        version: 4.5.0(vite@6.3.5(@types/node@22.15.26))
       electron:
         specifier: ^36.3.2
         version: 36.3.2
@@ -125,7 +131,7 @@ importers:
         version: 26.0.12(bluebird@3.7.2)(electron-builder-squirrel-windows@25.1.8)
       electron-vite:
         specifier: ^3.1.0
-        version: 3.1.0(vite@6.3.5(@types/node@22.15.24))
+        version: 3.1.0(vite@6.3.5(@types/node@22.15.26))
       eslint:
         specifier: ^9.27.0
         version: 9.27.0
@@ -152,7 +158,7 @@ importers:
         version: 5.8.3
       vite:
         specifier: ^6.3.5
-        version: 6.3.5(@types/node@22.15.24)
+        version: 6.3.5(@types/node@22.15.26)
 
 packages:
 
@@ -1143,8 +1149,8 @@ packages:
     resolution: {integrity: sha512-9QOtNffcOF/c1seMCDnjckb3R9WHcG34tky+FHpNKKCW0wc/scYLwMtO+ptyGUfMW0/b/n4qRiALlaFHc9Oj7Q==}
     engines: {node: '>= 10.0.0'}
 
-  '@modelcontextprotocol/sdk@1.12.0':
-    resolution: {integrity: sha512-m//7RlINx1F3sz3KqwY1WWzVgTcYX52HYk4bJ1hkBXV3zccAEth+jRvG8DBRrdaQuRsPAJOx2MH3zaHNCKL7Zg==}
+  '@modelcontextprotocol/sdk@1.12.1':
+    resolution: {integrity: sha512-KG1CZhZfWg+u8pxeM/mByJDScJSrjjxLc8fwQqbsS8xCjBmQfMNEBTotYdNanKekepnfRI85GtgQlctLFpcYPw==}
     engines: {node: '>=18'}
 
   '@nodelib/fs.scandir@2.1.5':
@@ -1360,8 +1366,11 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node@22.15.24':
-    resolution: {integrity: sha512-w9CZGm9RDjzTh/D+hFwlBJ3ziUaVw7oufKA3vOFSOZlzmW9AkZnfjPb+DLnrV6qtgL/LNmP0/2zBNCFHL3F0ng==}
+  '@types/node-7z@2.1.10':
+    resolution: {integrity: sha512-LdfuQcGAKsLafyM96+F8VekToCuGQnFy9DMM0UdS6f5pEnaP5kAixp3TQPc1NJU4C6IwLwnednktYBjp/z2LRw==}
+
+  '@types/node@22.15.26':
+    resolution: {integrity: sha512-lgISkNrqdQ5DAzjBhnDNGKDuXDNo7/1V4FhNzsKREhWLZTOELQAptuAnJMzHtUl1qyEBBy9lNBKQ9WjyiSloTw==}
 
   '@types/plist@3.0.5':
     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
@@ -2893,6 +2902,12 @@ packages:
   lodash.defaults@4.2.0:
     resolution: {integrity: sha512-qjxPLHd3r5DnsdGacqOMU6pb/avJzdh9tFX2ymgoZE27BmjXrNy/y4LoaiTeAb+O3gL8AfpJGtqfX/ae2leYYQ==}
 
+  lodash.defaultsdeep@4.6.1:
+    resolution: {integrity: sha512-3j8wdDzYuWO3lM3Reg03MuQR957t287Rpcxp1njpEa8oDrikb+FwGdW3n+FELh/A6qib6yPit0j/pv9G/yeAqA==}
+
+  lodash.defaultto@4.14.0:
+    resolution: {integrity: sha512-G6tizqH6rg4P5j32Wy4Z3ZIip7OfG8YWWlPFzUFGcYStH1Ld0l1tWs6NevEQNEDnO1M3NZYjuHuraaFSN5WqeQ==}
+
   lodash.difference@4.5.0:
     resolution: {integrity: sha512-dS2j+W26TQ7taQBGN8Lbbq04ssV3emRw4NY58WErlTO29pIqS0HmoT5aJ9+TUQ1N3G+JOZSji4eugsWwGp9yPA==}
 
@@ -2901,6 +2916,12 @@ packages:
 
   lodash.flatten@4.4.0:
     resolution: {integrity: sha512-C5N2Z3DgnnKr0LOpv/hKCgKdb7ZZwafIrsesve6lmzvZIRZRGaZ/l6Q8+2W7NaT+ZwO3fFlSCzCzrDCFdJfZ4g==}
+
+  lodash.flattendeep@4.4.0:
+    resolution: {integrity: sha512-uHaJFihxmJcEX3kT4I23ABqKKalJ/zDrDg0lsFtc1h+3uw49SIJ5beyhx5ExVRti3AvKoOJngIj7xz3oylPdWQ==}
+
+  lodash.isempty@4.4.0:
+    resolution: {integrity: sha512-oKMuF3xEeqDltrGMfDxAPGIVMSSRv8tbRSODbrs4KGsRRLEhrW8N8Rd4DRgB2+621hY8A8XwwrTVhXWpxFvMzg==}
 
   lodash.isequal@4.5.0:
     resolution: {integrity: sha512-pDo3lu8Jhfjqls6GkMgpahsF9kCyayhgykjyLMNFTKWrpVdAQtYyB4muAMWozBB4ig/dtWAmsMxLEI8wuz+DYQ==}
@@ -2911,6 +2932,9 @@ packages:
 
   lodash.merge@4.6.2:
     resolution: {integrity: sha512-0KpjqXRVvrYyCsX1swR/XTK0va6VQkQM6MNo7PqW77ByjAhoARA8EfrP1N4+KlKj8YS0ZUCtRT/YUuhyYDujIQ==}
+
+  lodash.negate@3.0.2:
+    resolution: {integrity: sha512-JGJYYVslKYC0tRMm/7igfdHulCjoXjoganRNWM8AgS+RXfOvFnPkOveDhPI65F9aAypCX9QEEQoBqWf7Q6uAeA==}
 
   lodash.union@4.6.0:
     resolution: {integrity: sha512-c4pB2CdGrGdjMKYLA+XiRDO7Y0PRQbm/Gzg8qMj+QH+pFVAoTp5sBpO0odL3FjoPCGjK96p6qsP+yQoiLoOBcw==}
@@ -3094,6 +3118,10 @@ packages:
   negotiator@1.0.0:
     resolution: {integrity: sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg==}
     engines: {node: '>= 0.6'}
+
+  node-7z@3.0.0:
+    resolution: {integrity: sha512-KIznWSxIkOYO/vOgKQfJEaXd7rgoFYKZbaurainCEdMhYc7V7mRHX+qdf2HgbpQFcdJL/Q6/XOPrDLoBeTfuZA==}
+    engines: {node: '>=10'}
 
   node-abi@3.75.0:
     resolution: {integrity: sha512-OhYaY5sDsIka7H7AtijtI9jwGYLyl29eQn/W623DiN/MIv5sUqc4g7BIDThX+gb7di9f6xK02nkp8sdfFWZLTg==}
@@ -4249,9 +4277,9 @@ snapshots:
     dependencies:
       electron: 36.3.2
 
-  '@electron-toolkit/tsconfig@1.0.1(@types/node@22.15.24)':
+  '@electron-toolkit/tsconfig@1.0.1(@types/node@22.15.26)':
     dependencies:
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
 
   '@electron-toolkit/utils@4.0.0(electron@36.3.2)':
     dependencies:
@@ -5713,7 +5741,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@modelcontextprotocol/sdk@1.12.0':
+  '@modelcontextprotocol/sdk@1.12.1':
     dependencies:
       ajv: 6.12.6
       content-type: 1.0.5
@@ -5877,7 +5905,7 @@ snapshots:
     dependencies:
       '@types/http-cache-semantics': 4.0.4
       '@types/keyv': 3.1.4
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
       '@types/responselike': 1.0.3
 
   '@types/debug@4.1.12':
@@ -5888,7 +5916,7 @@ snapshots:
 
   '@types/fs-extra@9.0.13':
     dependencies:
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
 
   '@types/http-cache-semantics@4.0.4': {}
 
@@ -5896,17 +5924,21 @@ snapshots:
 
   '@types/keyv@3.1.4':
     dependencies:
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
 
   '@types/ms@2.1.0': {}
 
-  '@types/node@22.15.24':
+  '@types/node-7z@2.1.10':
+    dependencies:
+      '@types/node': 22.15.26
+
+  '@types/node@22.15.26':
     dependencies:
       undici-types: 6.21.0
 
   '@types/plist@3.0.5':
     dependencies:
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
       xmlbuilder: 15.1.1
     optional: true
 
@@ -5920,7 +5952,7 @@ snapshots:
 
   '@types/responselike@1.0.3':
     dependencies:
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
 
   '@types/verror@1.10.11':
     optional: true
@@ -5929,7 +5961,7 @@ snapshots:
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
     optional: true
 
   '@types/yt-search@2.10.3': {}
@@ -6011,7 +6043,7 @@ snapshots:
       '@typescript-eslint/types': 8.31.1
       eslint-visitor-keys: 4.2.0
 
-  '@vitejs/plugin-react@4.5.0(vite@6.3.5(@types/node@22.15.24))':
+  '@vitejs/plugin-react@4.5.0(vite@6.3.5(@types/node@22.15.26))':
     dependencies:
       '@babel/core': 7.27.1
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.27.1)
@@ -6019,7 +6051,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.9
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 6.3.5(@types/node@22.15.24)
+      vite: 6.3.5(@types/node@22.15.26)
     transitivePeerDependencies:
       - supports-color
 
@@ -6881,7 +6913,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron-vite@3.1.0(vite@6.3.5(@types/node@22.15.24)):
+  electron-vite@3.1.0(vite@6.3.5(@types/node@22.15.26)):
     dependencies:
       '@babel/core': 7.27.1
       '@babel/plugin-transform-arrow-functions': 7.27.1(@babel/core@7.27.1)
@@ -6889,14 +6921,14 @@ snapshots:
       esbuild: 0.25.3
       magic-string: 0.30.17
       picocolors: 1.1.1
-      vite: 6.3.5(@types/node@22.15.24)
+      vite: 6.3.5(@types/node@22.15.26)
     transitivePeerDependencies:
       - supports-color
 
   electron@36.3.2:
     dependencies:
       '@electron/get': 2.0.3
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
@@ -7896,17 +7928,27 @@ snapshots:
 
   lodash.defaults@4.2.0: {}
 
+  lodash.defaultsdeep@4.6.1: {}
+
+  lodash.defaultto@4.14.0: {}
+
   lodash.difference@4.5.0: {}
 
   lodash.escaperegexp@4.1.2: {}
 
   lodash.flatten@4.4.0: {}
 
+  lodash.flattendeep@4.4.0: {}
+
+  lodash.isempty@4.4.0: {}
+
   lodash.isequal@4.5.0: {}
 
   lodash.isplainobject@4.0.6: {}
 
   lodash.merge@4.6.2: {}
+
+  lodash.negate@3.0.2: {}
 
   lodash.union@4.6.0: {}
 
@@ -8076,6 +8118,18 @@ snapshots:
   negotiator@0.6.4: {}
 
   negotiator@1.0.0: {}
+
+  node-7z@3.0.0:
+    dependencies:
+      debug: 4.4.0
+      lodash.defaultsdeep: 4.6.1
+      lodash.defaultto: 4.14.0
+      lodash.flattendeep: 4.4.0
+      lodash.isempty: 4.4.0
+      lodash.negate: 3.0.2
+      normalize-path: 3.0.0
+    transitivePeerDependencies:
+      - supports-color
 
   node-abi@3.75.0:
     dependencies:
@@ -9022,7 +9076,7 @@ snapshots:
       extsprintf: 1.4.1
     optional: true
 
-  vite@6.3.5(@types/node@22.15.24):
+  vite@6.3.5(@types/node@22.15.26):
     dependencies:
       esbuild: 0.25.3
       fdir: 6.4.4(picomatch@4.0.2)
@@ -9031,7 +9085,7 @@ snapshots:
       rollup: 4.40.1
       tinyglobby: 0.2.13
     optionalDependencies:
-      '@types/node': 22.15.24
+      '@types/node': 22.15.26
       fsevents: 2.3.3
 
   wcwidth@1.0.1:

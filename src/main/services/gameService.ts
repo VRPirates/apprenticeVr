@@ -8,6 +8,7 @@ import { GameInfo, ServiceStatus, GamesAPI, BlacklistEntry } from '@shared/types
 import EventEmitter from 'events'
 import { typedWebContentsSend } from '@shared/ipc-utils'
 import yts from 'yt-search'
+import SevenZip from 'node-7z'
 
 interface VrpConfig {
   baseUri: string
@@ -322,93 +323,38 @@ class GameService extends EventEmitter implements GamesAPI {
         // Base64 decode the password
         const decodedPassword = Buffer.from(this.vrpConfig.password, 'base64').toString('utf-8')
         console.log('Successfully decoded password for extraction')
+        console.log('Using node-7z to extract archive start')
 
-        // Get the appropriate 7z path based on platform
-        const sevenZipPath = dependencyService.get7zPath()
-
-        // Get the main window to send progress updates
         const mainWindow = BrowserWindow.getAllWindows()[0]
 
-        // Execute 7z using execa with progress reporting
-        const sevenZipProcess = execa(
-          sevenZipPath,
-          [
-            'x', // extract with full paths
-            archive, // archive to extract
-            `-o${this.dataPath}`, // output directory
-            `-p${decodedPassword}`, // password for extraction
-            '-y' // yes to all prompts
-          ],
-          {
-            stdio: ['ignore', 'pipe', 'pipe']
-          }
-        )
+        await new Promise<void>((resolve, reject) => {
+          const myStream = SevenZip.extractFull(archive, this.dataPath, {
+            $bin: dependencyService.get7zPath(),
+            password: decodedPassword,
+            $progress: true
+          })
 
-        let totalFiles = 0
-        let extractedFiles = 0
-        let wrongPassword = false
-
-        // Process stdout for progress information
-        if (sevenZipProcess.stdout) {
-          sevenZipProcess.stdout.on('data', (data) => {
-            const output = data.toString()
-            console.log('7z output:', output)
-
-            // Check for wrong password
-            if (output.includes('Wrong password')) {
-              wrongPassword = true
-            }
-
-            // Try to get total files count
-            const totalMatch = output.match(/(\d+) files?/i)
-            if (totalMatch && totalMatch[1] && totalFiles === 0) {
-              totalFiles = parseInt(totalMatch[1], 10)
-            }
-
-            // Track extracting progress
-            if (output.includes('Extracting')) {
-              extractedFiles++
-              if (totalFiles > 0) {
-                const progressPercentage = Math.min(
-                  Math.round((extractedFiles / totalFiles) * 100),
-                  99
-                )
-
-                // Send progress to renderer process if we have a valid window
-                if (mainWindow && !mainWindow.isDestroyed()) {
-                  typedWebContentsSend.send(mainWindow, 'games:download-progress', {
-                    packageName: 'meta',
-                    stage: 'extract',
-                    progress: progressPercentage
-                  })
-                }
-              }
+          myStream.on('progress', function (progress) {
+            console.log('Extraction progress:', progress)
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              typedWebContentsSend.send(mainWindow, 'games:download-progress', {
+                packageName: 'meta',
+                stage: 'extract',
+                progress: progress.percent
+              })
             }
           })
-        }
 
-        // Process stderr for errors
-        if (sevenZipProcess.stderr) {
-          sevenZipProcess.stderr.on('data', (data) => {
-            const error = data.toString()
-            console.error('7z error:', error)
-
-            // Check for wrong password in stderr as well
-            if (error.includes('Wrong password')) {
-              wrongPassword = true
-            }
+          myStream.on('end', function () {
+            console.log('Extraction complete')
+            resolve() // Resolve the Promise when extraction is complete
           })
-        }
 
-        // Wait for process to complete
-        const result = await sevenZipProcess
-
-        if (result.exitCode !== 0) {
-          if (wrongPassword) {
-            throw new Error('Extraction failed: Wrong password for archive')
-          }
-          throw new Error(`7z failed with exit code ${result.exitCode}: ${result.stderr}`)
-        }
+          myStream.on('error', function (error) {
+            console.error('Extraction error:', error)
+            reject(error) // Reject the Promise if there's an error
+          })
+        })
 
         console.log('Extraction complete')
 
@@ -711,12 +657,6 @@ class GameService extends EventEmitter implements GamesAPI {
   async removeFromBlacklist(packageName: string): Promise<boolean> {
     // Check if the game is in the internal blacklist (can't be removed)
     if (INTERNAL_BLACKLIST_GAMES.includes(packageName)) {
-      return false
-    }
-
-    // Check if game is in the original blacklist (can't be removed directly)
-    if (this.blacklistGames.includes(packageName)) {
-      console.warn(`Cannot remove ${packageName} as it's in the original blacklist`)
       return false
     }
 
