@@ -149,6 +149,8 @@ export class DownloadProcessor {
     const source = `:http:/${gameNameHash}`
 
     let rcloneProcess: ReturnType<typeof execa> | null = null
+    // Get the appropriate null config path based on platform
+    const nullConfigPath = process.platform === 'win32' ? 'NUL' : '/dev/null'
 
     try {
       rcloneProcess = execa(
@@ -157,6 +159,8 @@ export class DownloadProcessor {
           'copy',
           source,
           downloadPath,
+          '--config',
+          nullConfigPath,
           '--http-url',
           this.vrpConfig.baseUri,
           '--no-check-certificate',

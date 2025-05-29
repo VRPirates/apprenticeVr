@@ -219,6 +219,9 @@ class GameService extends EventEmitter implements GamesAPI {
       // Get the main window to send progress updates
       const mainWindow = BrowserWindow.getAllWindows()[0]
 
+      // Get the appropriate null config path based on platform
+      const nullConfigPath = process.platform === 'win32' ? 'NUL' : '/dev/null'
+
       // Execute rclone using execa with progress reporting
       const rcloneProcess = execa(
         rclonePath,
@@ -226,6 +229,8 @@ class GameService extends EventEmitter implements GamesAPI {
           'sync',
           `:http:/meta.7z`,
           destination,
+          '--config',
+          nullConfigPath,
           '--http-url',
           baseUri,
           '--tpslimit',
