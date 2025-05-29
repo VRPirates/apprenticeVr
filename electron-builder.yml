@@ -49,6 +49,8 @@ mac:
   extendInfo:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+    - CFBundleName: apprenticevr
+    - CFBundleDisplayName: apprenticevr
   notarize: false
   icon: build/icon.icns
 dmg:
