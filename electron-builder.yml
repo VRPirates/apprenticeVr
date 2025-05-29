@@ -2,6 +2,7 @@ appId: com.apprenticevr
 productName: apprenticevr
 directories:
   buildResources: build
+icon: build/icon
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -49,6 +50,7 @@ mac:
     - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
+  icon: build/icon.icns
 dmg:
   artifactName: ${name}-${version}-${arch}.${ext}
 linux:
