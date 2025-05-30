@@ -363,6 +363,10 @@ app.whenReady().then(async () => {
   typedIpcMain.handle('settings:set-hide-adult-content', (_event, hide) =>
     settingsService.setHideAdultContent(hide)
   )
+  typedIpcMain.handle('settings:get-color-scheme', () => settingsService.getColorScheme())
+  typedIpcMain.handle('settings:set-color-scheme', (_event, scheme) =>
+    settingsService.setColorScheme(scheme)
+  )
 
   // --- Dialog Handlers ---
   typedIpcMain.handle('dialog:show-directory-picker', async () => {

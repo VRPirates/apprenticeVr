@@ -174,7 +174,11 @@ const api = {
     getHideAdultContent: (): Promise<boolean> =>
       typedIpcRenderer.invoke('settings:get-hide-adult-content'),
     setHideAdultContent: (hide: boolean): Promise<void> =>
-      typedIpcRenderer.invoke('settings:set-hide-adult-content', hide)
+      typedIpcRenderer.invoke('settings:set-hide-adult-content', hide),
+    getColorScheme: (): Promise<'light' | 'dark'> =>
+      typedIpcRenderer.invoke('settings:get-color-scheme'),
+    setColorScheme: (scheme: 'light' | 'dark'): Promise<void> =>
+      typedIpcRenderer.invoke('settings:set-color-scheme', scheme)
   } satisfies SettingsAPIRenderer,
   // Add dialog API
   dialog: {

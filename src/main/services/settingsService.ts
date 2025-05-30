@@ -1,5 +1,5 @@
 import { Settings, SettingsAPI } from '@shared/types'
-import { app } from 'electron'
+import { app, nativeTheme } from 'electron'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import EventEmitter from 'events'
@@ -17,7 +17,8 @@ class SettingsService extends EventEmitter implements SettingsAPI {
       downloadPath: join(app.getPath('userData'), 'downloads'),
       downloadSpeedLimit: 0,
       uploadSpeedLimit: 0,
-      hideAdultContent: true // Default to hiding adult content
+      hideAdultContent: true,
+      colorScheme: nativeTheme.shouldUseDarkColors ? 'dark' : 'light'
     }
 
     // Load settings from disk
@@ -62,6 +63,16 @@ class SettingsService extends EventEmitter implements SettingsAPI {
     this.settings.hideAdultContent = hide
     this.saveSettings()
     this.emit('hide-adult-content-changed', hide)
+  }
+
+  getColorScheme(): 'light' | 'dark' {
+    return this.settings.colorScheme
+  }
+
+  setColorScheme(scheme: 'light' | 'dark'): void {
+    this.settings.colorScheme = scheme
+    this.saveSettings()
+    this.emit('color-scheme-changed', scheme)
   }
 
   private loadSettings(): void {

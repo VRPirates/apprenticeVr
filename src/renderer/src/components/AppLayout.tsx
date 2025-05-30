@@ -42,6 +42,7 @@ import {
 import { UploadProvider } from '@renderer/context/UploadProvider'
 import { useUpload } from '@renderer/hooks/useUpload'
 import { GameDialogProvider } from '@renderer/context/GameDialogProvider'
+import { useSettings } from '@renderer/hooks/useSettings'
 
 enum AppView {
   DEVICE_LIST,
@@ -196,9 +197,7 @@ const MainContent: React.FC<MainContentProps> = ({
 const AppLayout: React.FC = () => {
   const [currentView, setCurrentView] = useState<AppView>(AppView.DEVICE_LIST)
   const [activeTab, setActiveTab] = useState<ActiveTab>('games')
-  const [isDarkMode, setIsDarkMode] = useState(
-    window.matchMedia('(prefers-color-scheme: dark)').matches
-  )
+  const { colorScheme, setColorScheme } = useSettings()
   const [isDownloadsOpen, setIsDownloadsOpen] = useState(false)
   const [isUploadsOpen, setIsUploadsOpen] = useState(false)
   const mountNodeRef = useRef<HTMLDivElement>(null)
@@ -221,22 +220,20 @@ const AppLayout: React.FC = () => {
   useEffect(() => {
     const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handleChange = (e: MediaQueryListEvent): void => {
-      setIsDarkMode(e.matches)
+      setColorScheme(e.matches ? 'dark' : 'light')
     }
 
     darkModeMediaQuery.addEventListener('change', handleChange)
-    // Set initial state
-    setIsDarkMode(darkModeMediaQuery.matches)
 
     return () => {
       darkModeMediaQuery.removeEventListener('change', handleChange)
     }
-  }, [])
+  }, [setColorScheme])
 
-  const currentTheme = isDarkMode ? teamsDarkTheme : teamsLightTheme
+  const currentTheme = colorScheme === 'dark' ? teamsDarkTheme : teamsLightTheme
 
-  const handleThemeChange = (_ev, data): void => {
-    setIsDarkMode(data.checked)
+  const handleThemeChange = (_ev, data: { checked: boolean }): void => {
+    setColorScheme(data.checked ? 'dark' : 'light')
   }
 
   const downloadQueueProgress = useMemo(() => {
@@ -414,8 +411,8 @@ const AppLayout: React.FC = () => {
                     </>
                   )}
                   <Switch
-                    label={isDarkMode ? 'Dark mode' : 'Light mode'}
-                    checked={isDarkMode}
+                    label={colorScheme === 'dark' ? 'Dark mode' : 'Light mode'}
+                    checked={colorScheme === 'dark'}
                     onChange={handleThemeChange}
                   />
                 </div>

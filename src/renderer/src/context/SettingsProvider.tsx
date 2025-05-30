@@ -10,6 +10,9 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   const [downloadSpeedLimit, setDownloadSpeedLimitState] = useState<number>(0)
   const [uploadSpeedLimit, setUploadSpeedLimitState] = useState<number>(0)
   const [hideAdultContent, setHideAdultContentState] = useState<boolean>(true)
+  const [colorScheme, setColorSchemeState] = useState<'light' | 'dark'>(
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  )
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -19,11 +22,12 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
 
     const loadSettings = async (): Promise<void> => {
       try {
-        const [path, downloadLimit, uploadLimit, hideAdult] = await Promise.all([
+        const [path, downloadLimit, uploadLimit, hideAdult, colorScheme] = await Promise.all([
           window.api.settings.getDownloadPath(),
           window.api.settings.getDownloadSpeedLimit(),
           window.api.settings.getUploadSpeedLimit(),
-          window.api.settings.getHideAdultContent()
+          window.api.settings.getHideAdultContent(),
+          window.api.settings.getColorScheme()
         ])
 
         if (isMounted) {
@@ -35,6 +39,7 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
           setDownloadSpeedLimitState(downloadLimit)
           setUploadSpeedLimitState(uploadLimit)
           setHideAdultContentState(hideAdult)
+          setColorSchemeState(colorScheme)
         }
       } catch (err) {
         console.error('Error fetching settings:', err)
@@ -119,17 +124,34 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
     }
   }, [])
 
+  const setColorScheme = useCallback(async (scheme: 'light' | 'dark'): Promise<void> => {
+    try {
+      setIsLoading(true)
+      await window.api.settings.setColorScheme(scheme)
+      setColorSchemeState(scheme)
+      setError(null)
+    } catch (err) {
+      console.error('Error setting color scheme:', err)
+      setError('Failed to update color scheme')
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   const value: SettingsContextType = {
     downloadPath,
     downloadSpeedLimit,
     uploadSpeedLimit,
     hideAdultContent,
+    colorScheme,
     isLoading,
     error,
     setDownloadPath,
     setDownloadSpeedLimit,
     setUploadSpeedLimit,
-    setHideAdultContent
+    setHideAdultContent,
+    setColorScheme
   }
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>

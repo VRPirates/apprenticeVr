@@ -78,6 +78,8 @@ export interface IPCChannels {
   'settings:set-upload-speed-limit': DefineChannel<[limit: number], void>
   'settings:get-hide-adult-content': DefineChannel<[], boolean>
   'settings:set-hide-adult-content': DefineChannel<[hide: boolean], void>
+  'settings:get-color-scheme': DefineChannel<[], 'light' | 'dark'>
+  'settings:set-color-scheme': DefineChannel<[scheme: 'light' | 'dark'], void>
 
   // Dialog related channels
   'dialog:show-directory-picker': DefineChannel<[], string | null>

@@ -254,6 +254,7 @@ export interface Settings {
   downloadSpeedLimit: number
   uploadSpeedLimit: number
   hideAdultContent: boolean
+  colorScheme: 'light' | 'dark'
 }
 
 export interface SettingsAPI {
@@ -265,6 +266,8 @@ export interface SettingsAPI {
   setUploadSpeedLimit: (limit: number) => void
   getHideAdultContent: () => boolean
   setHideAdultContent: (hide: boolean) => void
+  getColorScheme: () => 'light' | 'dark'
+  setColorScheme: (scheme: 'light' | 'dark') => void
 }
 
 export interface SettingsAPIRenderer
@@ -279,6 +282,8 @@ export interface SettingsAPIRenderer
       setUploadSpeedLimit: (limit: number) => Promise<void>
       getHideAdultContent: () => Promise<boolean>
       setHideAdultContent: (hide: boolean) => Promise<void>
+      getColorScheme: () => Promise<'light' | 'dark'>
+      setColorScheme: (scheme: 'light' | 'dark') => Promise<void>
     }
   > {}
 
