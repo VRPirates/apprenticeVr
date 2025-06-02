@@ -161,6 +161,8 @@ export interface AdbAPI {
   uninstallPackage: (serial: string, packageName: string) => Promise<boolean>
   startTrackingDevices: (mainWindow?: BrowserWindow) => void
   stopTrackingDevices: () => void
+  getUserName: (serial: string) => Promise<string>
+  setUserName: (serial: string, name: string) => Promise<void>
 }
 
 export interface DependencyAPI {

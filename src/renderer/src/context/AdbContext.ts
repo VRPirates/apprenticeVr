@@ -10,10 +10,14 @@ export interface AdbContextType {
   error: string | null
   packages: PackageInfo[]
   loadingPackages: boolean
+  userName: string
+  loadingUserName: boolean
   connectToDevice: (serial: string) => Promise<boolean>
   refreshDevices: () => Promise<void>
   disconnectDevice: () => void
   loadPackages: () => Promise<void>
+  getUserName: () => Promise<string>
+  setUserName: (name: string) => Promise<void>
 }
 
 export const AdbContext = createContext<AdbContextType | undefined>(undefined)

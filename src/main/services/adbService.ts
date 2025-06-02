@@ -363,61 +363,27 @@ class AdbService extends EventEmitter implements AdbAPI {
     }
   }
 
-  // async getPackageVersionCode(serial: string, packageName: string): Promise<number | null> {
-  //   // First, check if we have this package info in the cache
-  //   const deviceCache = this.packageCache.get(serial)
-  //   if (deviceCache && deviceCache.has(packageName)) {
-  //     return deviceCache.get(packageName)!.versionCode
-  //   }
+  async getUserName(serial: string): Promise<string> {
+    if (!this.client) {
+      throw new Error('[ADB Service] adb service not initialized!')
+    }
+    const userName = (await this.runShellCommand(serial, 'settings get global username')) ?? ''
+    console.log('[ADB Service] User name:', userName)
+    const trimmedUserName = userName.trim()
+    if (trimmedUserName === '' || trimmedUserName === 'null') {
+      return '[Unset]'
+    }
+    return trimmedUserName
+  }
 
-  //   // If not in cache, fall back to the original method
-  //   if (!this.client) {
-  //     throw new Error('adb service not initialized!')
-  //   }
-  //   try {
-  //     const deviceClient = this.client.getDevice(serial)
-  //     const command = `dumpsys package ${packageName} | grep versionCode`
-  //     const output = await deviceClient.shell(command)
-  //     const result = await Adb.util.readAll(output)
-  //     const resultString = result.toString().trim()
-
-  //     // Extract the versionCode number (e.g., "    versionCode=723 minSdk=23 targetSdk=23")
-  //     const match = resultString.match(/versionCode=(\d+)/)
-
-  //     if (match && match[1]) {
-  //       const versionCode = parseInt(match[1], 10)
-
-  //       // Update the cache if we have an entry for this device
-  //       if (deviceCache) {
-  //         deviceCache.set(packageName, { packageName, versionCode })
-  //         this.packageCache.set(serial, deviceCache)
-  //       }
-
-  //       return versionCode
-  //     }
-
-  //     console.warn(`Could not find versionCode for ${packageName} in output: "${resultString}"`)
-  //     // Check if the package was found at all
-  //     if (resultString.includes('Unable to find package')) {
-  //       console.warn(`Package ${packageName} not found on device ${serial} during version check.`)
-  //     }
-  //     return null
-  //   } catch (error) {
-  //     console.error(
-  //       `Error getting version code for package ${packageName} on device ${serial}:`,
-  //       error
-  //     )
-  //     // Handle specific errors like package not found if ADB command itself fails
-  //     if (
-  //       error instanceof Error &&
-  //       (error.message.includes('closed') || error.message.includes('Failure'))
-  //     ) {
-  //       // Could indicate device disconnected or adb issue
-  //       console.warn(`ADB command failed for ${packageName}, possibly disconnected?`)
-  //     }
-  //     return null
-  //   }
-  // }
+  async setUserName(serial: string, name: string): Promise<void> {
+    if (!this.client) {
+      throw new Error('[ADB Service] adb service not initialized!')
+    }
+    const deviceClient = this.client.getDevice(serial)
+    console.log('[ADB Service] Setting user name:', name)
+    await deviceClient.shell(`settings put global username "${name.trim()}"`)
+  }
 
   async installPackage(
     serial: string,
@@ -425,10 +391,10 @@ class AdbService extends EventEmitter implements AdbAPI {
     options?: { flags?: string[] }
   ): Promise<boolean> {
     if (!this.client) {
-      throw new Error('adb service not initialized!')
+      throw new Error('[ADB Service] adb service not initialized!')
     }
     console.log(
-      `Attempting to install ${apkPath} on ${serial}${options?.flags ? ` with flags: ${options.flags.join(' ')}` : ''}...`
+      `[ADB Service] Attempting to install ${apkPath} on ${serial}${options?.flags ? ` with flags: ${options.flags.join(' ')}` : ''}...`
     )
     const deviceClient = this.client.getDevice(serial)
 
@@ -501,23 +467,27 @@ class AdbService extends EventEmitter implements AdbAPI {
         }
 
         if (output?.includes('Success')) {
-          console.log(`Successfully installed ${apkPath} with flags. Output: ${output}`)
+          console.log(
+            `[ADB Service] Successfully installed ${apkPath} with flags. Output: ${output}`
+          )
           return true
         } else {
           console.error(
-            `Installation of ${apkPath} with flags failed or success not confirmed. Output: ${output || 'No output'}`
+            `[ADB Service] Installation of ${apkPath} with flags failed or success not confirmed. Output: ${output || 'No output'}`
           )
           // Attempt to extract common failure reasons
           if (output?.includes('INSTALL_FAILED_UPDATE_INCOMPATIBLE')) {
             console.error(
-              'Detailed error: INSTALL_FAILED_UPDATE_INCOMPATIBLE. Signatures might still mismatch or other issue.'
+              '[ADB Service] Detailed error: INSTALL_FAILED_UPDATE_INCOMPATIBLE. Signatures might still mismatch or other issue.'
             )
           } else if (output?.includes('INSTALL_FAILED_VERSION_DOWNGRADE')) {
             console.error(
-              'Detailed error: INSTALL_FAILED_VERSION_DOWNGRADE. Cannot downgrade versions with these flags.'
+              '[ADB Service] Detailed error: INSTALL_FAILED_VERSION_DOWNGRADE. Cannot downgrade versions with these flags.'
             )
           } else if (output?.includes('INSTALL_FAILED_ALREADY_EXISTS')) {
-            console.error('Detailed error: INSTALL_FAILED_ALREADY_EXISTS. Package already exists.')
+            console.error(
+              '[ADB Service] Detailed error: INSTALL_FAILED_ALREADY_EXISTS. Package already exists.'
+            )
           }
           return false
         }
@@ -542,18 +512,20 @@ class AdbService extends EventEmitter implements AdbAPI {
       try {
         const success = await deviceClient.install(apkPath)
         if (success) {
-          console.log(`Successfully installed ${apkPath} using adbkit.install.`)
+          console.log(`[ADB Service] Successfully installed ${apkPath} using adbkit.install.`)
         } else {
-          console.error(`Installation of ${apkPath} reported failure by adbkit.install.`)
+          console.error(
+            `[ADB Service] Installation of ${apkPath} reported failure by adbkit.install.`
+          )
         }
         return success
       } catch (error) {
         console.error(
-          `Error installing package ${apkPath} on device ${serial} (adbkit.install):`,
+          `[ADB Service] Error installing package ${apkPath} on device ${serial} (adbkit.install):`,
           error
         )
         if (error instanceof Error && error.message.includes('INSTALL_FAILED')) {
-          console.error(`Install failed with code: ${error.message}`)
+          console.error(`[ADB Service] Install failed with code: ${error.message}`)
         }
         return false
       }
@@ -562,18 +534,21 @@ class AdbService extends EventEmitter implements AdbAPI {
 
   async runShellCommand(serial: string, command: string): Promise<string | null> {
     if (!this.client) {
-      throw new Error('adb service not initialized!')
+      throw new Error('[ADB Service] adb service not initialized!')
     }
-    console.log(`Running command on ${serial}: ${command}`)
+    console.log(`[ADB Service] Running command on ${serial}: ${command}`)
     try {
       const deviceClient = this.client.getDevice(serial)
       const stream = await deviceClient.shell(command)
       const outputBuffer = await Adb.util.readAll(stream)
       const output = outputBuffer.toString().trim()
-      console.log(`Command output: ${output}`)
+      console.log(`[ADB Service] Command output: ${output}`)
       return output
     } catch (error) {
-      console.error(`Error running shell command "${command}" on device ${serial}:`, error)
+      console.error(
+        `[ADB Service] Error running shell command "${command}" on device ${serial}:`,
+        error
+      )
       return null
     }
   }
@@ -672,7 +647,7 @@ class AdbService extends EventEmitter implements AdbAPI {
 
   async pushFileOrFolder(serial: string, localPath: string, remotePath: string): Promise<boolean> {
     if (!this.client) {
-      throw new Error('adb service not initialized!')
+      throw new Error('[ADB Service] adb service not initialized!')
     }
 
     // let finalRemotePath = remotePath // Will be determined in the try block
@@ -720,16 +695,21 @@ class AdbService extends EventEmitter implements AdbAPI {
       } else {
         // It's a file
         console.log(
-          `Pushing file ${localPath} to ${serial}:${finalRemotePath}... (original remote: ${remotePath.replace(/\\/g, '/') /* Log normalized path here too for clarity */})`
+          `[ADB Service] Pushing file ${localPath} to ${serial}:${finalRemotePath}... (original remote: ${remotePath.replace(/\\/g, '/') /* Log normalized path here too for clarity */})`
         )
         const transfer = await deviceClient.push(localPath, finalRemotePath)
         return new Promise<boolean>((resolve, reject) => {
           transfer.on('end', () => {
-            console.log(`Successfully pushed file ${localPath} to ${finalRemotePath}.`)
+            console.log(
+              `[ADB Service] Successfully pushed file ${localPath} to ${finalRemotePath}.`
+            )
             resolve(true)
           })
           transfer.on('error', (err) => {
-            console.error(`Error pushing file ${localPath} to ${finalRemotePath}:`, err)
+            console.error(
+              `[ADB Service] Error pushing file ${localPath} to ${finalRemotePath}:`,
+              err
+            )
             reject(err) // This will be caught by the outer catch block
           })
         })
@@ -756,75 +736,77 @@ class AdbService extends EventEmitter implements AdbAPI {
 
   async pullFile(serial: string, remotePath: string, localPath: string): Promise<boolean> {
     if (!this.client) {
-      throw new Error('adb service not initialized!')
+      throw new Error('[ADB Service] adb service not initialized!')
     }
     console.log(`Pulling ${serial}:${remotePath} to ${localPath}...`)
     try {
       const deviceClient = this.client.getDevice(serial)
       const transfer = await deviceClient.pull(remotePath)
-      console.warn(`pullFile implementation is incomplete - needs fs to save stream.`)
       const stream = fs.createWriteStream(localPath)
       await new Promise((resolve, reject) => {
         transfer.pipe(stream)
         transfer.on('end', resolve)
         transfer.on('error', reject)
       })
-      console.log(`Successfully pulled ${remotePath} to ${localPath}.`)
+      console.log(`[ADB Service] Successfully pulled ${remotePath} to ${localPath}.`)
       return false // Return false until fully implemented
     } catch (error) {
-      console.error(`Error pulling ${remotePath} from ${serial}:`, error)
+      console.error(`[ADB Service] Error pulling ${remotePath} from ${serial}:`, error)
       return false
     }
   }
 
   async uninstallPackage(serial: string, packageName: string): Promise<boolean> {
     if (!this.client) {
-      throw new Error('adb service not initialized!')
+      throw new Error('[ADB Service] adb service not initialized!')
     }
-    console.log(`Attempting to uninstall ${packageName} from ${serial}...`)
+    console.log(`[ADB Service] Attempting to uninstall ${packageName} from ${serial}...`)
     try {
       const deviceClient = this.client.getDevice(serial)
 
       // 1. Uninstall the package
-      console.log(`Running: pm uninstall ${packageName}`)
+      console.log(`[ADB Service] Running: pm uninstall ${packageName}`)
       await deviceClient.uninstall(packageName)
-      console.log(`Successfully uninstalled ${packageName}.`)
+      console.log(`[ADB Service] Successfully uninstalled ${packageName}.`)
 
       // 2. Remove OBB directory (ignore errors)
       const obbPath = `/sdcard/Android/obb/${packageName}`
-      console.log(`Running: rm -r ${obbPath} || true`)
+      console.log(`[ADB Service] Running: rm -r ${obbPath} || true`)
       try {
         await deviceClient.shell(`rm -r ${obbPath}`)
-        console.log(`Successfully removed ${obbPath} (if it existed).`)
+        console.log(`[ADB Service] Successfully removed ${obbPath} (if it existed).`)
       } catch (obbError) {
         // Check if error is because the directory doesn't exist (common case)
         if (obbError instanceof Error && obbError.message.includes('No such file or directory')) {
-          console.log(`OBB directory ${obbPath} did not exist.`)
+          console.log(`[ADB Service] OBB directory ${obbPath} did not exist.`)
         } else {
           // Log other potential errors but continue
-          console.warn(`Could not remove OBB directory ${obbPath}:`, obbError)
+          console.warn(`[ADB Service] Could not remove OBB directory ${obbPath}:`, obbError)
         }
       }
 
       // 3. Remove Data directory (ignore errors)
       const dataPath = `/sdcard/Android/data/${packageName}`
-      console.log(`Running: rm -r ${dataPath} || true`)
+      console.log(`[ADB Service] Running: rm -r ${dataPath} || true`)
       try {
         await deviceClient.shell(`rm -r ${dataPath}`)
-        console.log(`Successfully removed ${dataPath} (if it existed).`)
+        console.log(`[ADB Service] Successfully removed ${dataPath} (if it existed).`)
       } catch (dataError) {
         if (dataError instanceof Error && dataError.message.includes('No such file or directory')) {
-          console.log(`Data directory ${dataPath} did not exist.`)
+          console.log(`[ADB Service] Data directory ${dataPath} did not exist.`)
         } else {
-          console.warn(`Could not remove Data directory ${dataPath}:`, dataError)
+          console.warn(`[ADB Service] Could not remove Data directory ${dataPath}:`, dataError)
         }
       }
 
-      console.log(`Uninstall process completed for ${packageName}.`)
+      console.log(`[ADB Service] Uninstall process completed for ${packageName}.`)
 
       return true
     } catch (error) {
-      console.error(`Error uninstalling package ${packageName} on device ${serial}:`, error)
+      console.error(
+        `[ADB Service] Error uninstalling package ${packageName} on device ${serial}:`,
+        error
+      )
       // Rethrow or return false based on how you want to handle errors upstream
       return false
     }
@@ -832,7 +814,7 @@ class AdbService extends EventEmitter implements AdbAPI {
 
   public async getApplicationLabel(serial: string, packageName: string): Promise<string | null> {
     if (!this.client) {
-      throw new Error('adb service not initialized!')
+      throw new Error('[ADB Service] adb service not initialized!')
     }
     const aaptRemotePath = '/data/local/tmp/aapt'
 

@@ -14,6 +14,8 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [packages, setPackages] = useState<PackageInfo[]>([])
   const [loadingPackages, setLoadingPackages] = useState<boolean>(false)
+  const [userName, setUserNameState] = useState<string>('')
+  const [loadingUserName, setLoadingUserName] = useState<boolean>(false)
   // const dependencyContext = useDependency()
   // const [isInitialLoadComplete, setIsInitialLoadComplete] = useState<boolean>(false)
   const selectedDeviceDetails = devices.find((device) => device.id === selectedDevice) ?? null
@@ -115,14 +117,52 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     }
   }, [selectedDevice])
 
+  const getUserName = useCallback(async (): Promise<string> => {
+    console.log('Getting user name for device:', selectedDevice)
+    if (!selectedDevice) return ''
+
+    try {
+      setLoadingUserName(true)
+      const userName = await window.api.adb.getUserName(selectedDevice)
+      setUserNameState(userName)
+      return userName
+    } catch (err) {
+      console.error('Error getting user name:', err)
+      return ''
+    } finally {
+      setLoadingUserName(false)
+    }
+  }, [selectedDevice])
+
+  const setUserName = useCallback(
+    async (name: string): Promise<void> => {
+      console.log('Setting user name for device:', selectedDevice)
+      if (!selectedDevice) return
+
+      try {
+        setLoadingUserName(true)
+        await window.api.adb.setUserName(selectedDevice, name)
+        setUserNameState(name)
+      } catch (err) {
+        console.error('Error setting user name:', err)
+        throw err
+      } finally {
+        setLoadingUserName(false)
+      }
+    },
+    [selectedDevice]
+  )
+
   // Load packages when device is connected
   useEffect(() => {
     if (isConnected && selectedDevice) {
       loadPackages()
+      getUserName()
     } else {
       setPackages([])
+      setUserNameState('')
     }
-  }, [isConnected, selectedDevice, loadPackages])
+  }, [isConnected, selectedDevice, loadPackages, getUserName])
 
   const refreshDevices = async (): Promise<void> => {
     try {
@@ -161,6 +201,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     setSelectedDevice(null)
     setIsConnected(false)
     setPackages([])
+    setUserNameState('')
   }
 
   const value = {
@@ -171,11 +212,15 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     error,
     packages,
     loadingPackages,
+    userName,
+    loadingUserName,
     connectToDevice,
     refreshDevices,
     disconnectDevice,
     loadPackages,
-    selectedDeviceDetails
+    selectedDeviceDetails,
+    getUserName,
+    setUserName
   } satisfies AdbContextType
 
   // if (!isInitialLoadComplete) {

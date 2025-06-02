@@ -3,7 +3,6 @@ import { BlacklistEntry, GameInfo, UploadCandidate } from '@shared/types'
 import { GamesContext } from './GamesContext'
 import { useAdb } from '../hooks/useAdb'
 import { useDependency } from '../hooks/useDependency'
-import { useSettings } from '../hooks/useSettings'
 
 interface GamesProviderProps {
   children: ReactNode
@@ -42,7 +41,6 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     selectedDeviceDetails
   } = useAdb()
   const dependencyContext = useDependency()
-  const { hideAdultContent } = useSettings()
 
   const addGameToBlacklist = useCallback(
     async (packageName: string, version?: number | 'any'): Promise<void> => {
@@ -153,12 +151,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   const games = useMemo((): GameInfo[] => {
     const installedSet = new Set(installedPackages.map((pkg) => pkg.packageName))
 
-    // First filter out adult games if the setting is enabled
-    const filteredGames = hideAdultContent
-      ? rawGames.filter((game) => !game.name.includes('(18+)'))
-      : rawGames
-
-    return filteredGames.map((game) => {
+    return rawGames.map((game) => {
       const isInstalled = game.packageName ? installedSet.has(game.packageName) : false
       let deviceVersionCode: number | undefined = undefined
       let hasUpdate = false
@@ -185,7 +178,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
         hasUpdate
       }
     })
-  }, [rawGames, installedPackages, hideAdultContent])
+  }, [rawGames, installedPackages])
 
   const localGames = useMemo((): GameInfo[] => {
     return installedPackages.map((game) => ({

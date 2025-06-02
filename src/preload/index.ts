@@ -61,7 +61,11 @@ const api = {
       return () => typedIpcRenderer.removeListener('adb:installation-completed', listener)
     },
     getApplicationLabel: (serial: string, packageName: string): Promise<string | null> =>
-      typedIpcRenderer.invoke('adb:get-application-label', serial, packageName)
+      typedIpcRenderer.invoke('adb:get-application-label', serial, packageName),
+    getUserName: (serial: string): Promise<string> =>
+      typedIpcRenderer.invoke('adb:get-user-name', serial),
+    setUserName: (serial: string, name: string): Promise<void> =>
+      typedIpcRenderer.invoke('adb:set-user-name', serial, name)
   } satisfies AdbAPIRenderer,
   games: {
     getGames: (): Promise<GameInfo[]> => typedIpcRenderer.invoke('games:get-games'),

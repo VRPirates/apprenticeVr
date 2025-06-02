@@ -37,7 +37,9 @@ import {
   CheckmarkCircleRegular,
   DesktopRegular,
   BatteryChargeRegular,
-  StorageRegular
+  StorageRegular,
+  PersonRegular,
+  EditRegular
 } from '@fluentui/react-icons'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import GameDetailsDialog from './GameDetailsDialog'
@@ -220,7 +222,10 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     isConnected,
     disconnectDevice,
     isLoading: adbLoading,
-    loadPackages
+    loadPackages,
+    userName,
+    loadingUserName,
+    setUserName
   } = useAdb()
   const {
     games,
@@ -252,6 +257,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [tableWidth, setTableWidth] = useState<number>(0)
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
+  const [isEditingUserName, setIsEditingUserName] = useState<boolean>(false)
+  const [editUserNameValue, setEditUserNameValue] = useState<string>('')
 
   const counts = useMemo(() => {
     const total = games.length
@@ -682,6 +689,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
         console.error(`Uninstall: Failed to uninstall ${game.packageName}.`)
         window.alert('Failed to uninstall the game.')
       }
+      await loadPackages()
     } catch (error) {
       console.error(`Uninstall: Error during process for ${game.name}:`, error)
       window.alert(
@@ -898,6 +906,28 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     [deleteFiles, handleCloseDialog]
   )
 
+  const handleEditUserName = useCallback(() => {
+    setEditUserNameValue(userName)
+    setIsEditingUserName(true)
+  }, [userName])
+
+  const handleSaveUserName = useCallback(async () => {
+    if (!editUserNameValue.trim()) return
+
+    try {
+      await setUserName(editUserNameValue.trim())
+      setIsEditingUserName(false)
+    } catch (error) {
+      console.error('Error setting user name:', error)
+      window.alert('Failed to set user name. Please try again.')
+    }
+  }, [editUserNameValue, setUserName])
+
+  const handleCancelEditUserName = useCallback(() => {
+    setIsEditingUserName(false)
+    setEditUserNameValue('')
+  }, [])
+
   const isBusy = adbLoading || loadingGames || isLoading
 
   return (
@@ -907,7 +937,68 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
           <Button appearance="subtle" icon={<ArrowLeftRegular />} onClick={onBackToDevices}>
             Back to devices selection
           </Button>
-          <Title2>{selectedDeviceDetails?.friendlyModelName || 'Games'}</Title2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
+            <Title2>{selectedDeviceDetails?.friendlyModelName || 'Games'}</Title2>
+            {isConnected && (
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS }}
+              >
+                {isEditingUserName ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: tokens.spacingHorizontalXS
+                    }}
+                  >
+                    <Input
+                      value={editUserNameValue}
+                      onChange={(e) => setEditUserNameValue(e.target.value)}
+                      placeholder="Enter user name"
+                      size="small"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleSaveUserName()
+                        } else if (e.key === 'Escape') {
+                          handleCancelEditUserName()
+                        }
+                      }}
+                      autoFocus
+                    />
+                    <Button
+                      appearance="subtle"
+                      size="small"
+                      onClick={handleSaveUserName}
+                      disabled={loadingUserName || !editUserNameValue.trim()}
+                    >
+                      {loadingUserName ? <Spinner size="tiny" /> : 'Save'}
+                    </Button>
+                    <Button
+                      appearance="subtle"
+                      size="small"
+                      onClick={handleCancelEditUserName}
+                      disabled={loadingUserName}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Badge
+                    appearance="outline"
+                    icon={<PersonRegular />}
+                    style={{ cursor: 'pointer' }}
+                    onClick={handleEditUserName}
+                    title="Click to edit user name"
+                  >
+                    {userName || 'Set user name'}
+                    <EditRegular
+                      style={{ marginLeft: tokens.spacingHorizontalXXS, fontSize: '12px' }}
+                    />
+                  </Badge>
+                )}
+              </div>
+            )}
+          </div>
           {selectedDeviceDetails && (
             <div className={styles.deviceInfoBar}>
               {selectedDeviceDetails?.batteryLevel !== null && (

@@ -189,30 +189,30 @@ app.whenReady().then(async () => {
 
   // --- ADB Handlers ---
   typedIpcMain.handle('adb:list-devices', async () => await adbService.listDevices())
-
   typedIpcMain.handle('adb:connect-device', async (_event, serial) => {
     return await adbService.connectDevice(serial)
   })
-
   typedIpcMain.handle(
     'adb:get-installed-packages',
     async (_event, serial) => await adbService.getInstalledPackages(serial)
   )
-
   typedIpcMain.handle('adb:uninstallPackage', async (_event, serial, packageName) => {
     console.log(`IPC adb:uninstallPackage called for ${packageName} on ${serial}`)
     return await adbService.uninstallPackage(serial, packageName)
   })
-
   typedIpcMain.on('adb:start-tracking-devices', () => {
     if (mainWindow) adbService.startTrackingDevices(mainWindow)
     else console.error('Cannot start tracking devices, mainWindow is not available.')
   })
-
   typedIpcMain.on('adb:stop-tracking-devices', () => adbService.stopTrackingDevices())
-
   typedIpcMain.handle('adb:get-application-label', async (_event, serial, packageName) => {
     return await adbService.getApplicationLabel(serial, packageName)
+  })
+  typedIpcMain.handle('adb:get-user-name', async (_event, serial) => {
+    return await adbService.getUserName(serial)
+  })
+  typedIpcMain.handle('adb:set-user-name', async (_event, serial, name) => {
+    return await adbService.setUserName(serial, name)
   })
 
   // --- Game Handlers ---

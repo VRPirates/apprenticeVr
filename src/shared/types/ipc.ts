@@ -36,6 +36,8 @@ export interface IPCChannels {
   'adb:get-installed-packages': DefineChannel<[serial: string], PackageInfo[]>
   'adb:uninstallPackage': DefineChannel<[serial: string, packageName: string], boolean>
   'adb:get-application-label': DefineChannel<[serial: string, packageName: string], string | null>
+  'adb:get-user-name': DefineChannel<[serial: string], string>
+  'adb:set-user-name': DefineChannel<[serial: string, name: string], void>
 
   // Game related channels
   'games:get-games': DefineChannel<[], GameInfo[]>
