@@ -24,10 +24,12 @@ import {
   FolderOpenRegular,
   CheckmarkCircleRegular,
   InfoRegular,
-  DeleteRegular
+  DeleteRegular,
+  ShareRegular
 } from '@fluentui/react-icons'
 import { useSettings } from '../hooks/useSettings'
 import { useGames } from '../hooks/useGames'
+import { useLogs } from '../hooks/useLogs'
 
 // Supported speed units with conversion factors to KB/s
 const SPEED_UNITS = [
@@ -54,9 +56,6 @@ const useStyles = makeStyles({
     flexDirection: 'column',
     gap: tokens.spacingVerticalL
   },
-  headerSection: {
-    marginBottom: tokens.spacingVerticalL
-  },
   headerTitle: {
     marginBottom: tokens.spacingVerticalXS
   },
@@ -64,9 +63,6 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground2,
     display: 'block',
     marginBottom: tokens.spacingVerticalL
-  },
-  section: {
-    marginBottom: tokens.spacingVerticalXL
   },
   card: {
     width: '100%',
@@ -258,6 +254,81 @@ const BlacklistSettings: React.FC = () => {
             )}
           </>
         )}
+      </div>
+    </Card>
+  )
+}
+
+const LogUploadSettings: React.FC = () => {
+  const styles = useStyles()
+  const {
+    isUploading,
+    uploadError,
+    uploadSuccess,
+    shareableUrl,
+    uploadCurrentLog,
+    clearUploadState
+  } = useLogs()
+
+  const handleUploadLog = async (): Promise<void> => {
+    clearUploadState()
+    await uploadCurrentLog()
+  }
+
+  const handleCopyUrl = (): void => {
+    if (shareableUrl) {
+      navigator.clipboard.writeText(shareableUrl)
+    }
+  }
+
+  return (
+    <Card className={styles.card}>
+      <CardHeader description={<Subtitle1 weight="semibold">Log Upload</Subtitle1>} />
+      <div className={styles.cardContent}>
+        <Text>Upload the current log file to transfer.sh for sharing with support</Text>
+
+        <div className={styles.formRow}>
+          <Button
+            onClick={handleUploadLog}
+            appearance="primary"
+            size="large"
+            disabled={isUploading}
+            icon={<ShareRegular />}
+          >
+            {isUploading ? 'Uploading...' : 'Upload Current Log'}
+          </Button>
+        </div>
+
+        {uploadError && <Text className={styles.error}>{uploadError}</Text>}
+
+        {uploadSuccess && shareableUrl && (
+          <div className={styles.success}>
+            <CheckmarkCircleRegular />
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}
+            >
+              <Text>Log uploaded successfully!</Text>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}
+              >
+                <Input
+                  value={shareableUrl}
+                  readOnly
+                  style={{ flexGrow: 1, fontFamily: 'monospace', fontSize: '12px' }}
+                />
+                <Button onClick={handleCopyUrl} size="small" appearance="secondary">
+                  Copy URL
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Text className={styles.hint}>
+          <InfoRegular />
+          The uploaded log file will be available for 7 days and can be shared with support for
+          troubleshooting
+        </Text>
       </div>
     </Card>
   )
@@ -560,15 +631,15 @@ const Settings: React.FC = () => {
   return (
     <div className={styles.root}>
       <div className={styles.contentContainer}>
-        <div className={styles.headerSection}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalM }}>
-            <Title2 className={styles.headerTitle}>Application Settings</Title2>
-            {isLoading && <Spinner size="large" label="Loading settings..." />}
-          </div>
-          <Text as="p" className={styles.headerSubtitle}>
-            Configure application preferences and manage your downloads
-          </Text>
+        <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalM }}>
+          <Title2 className={styles.headerTitle}>Application Settings</Title2>
+          {isLoading && <Spinner size="large" label="Loading settings..." />}
         </div>
+        <Text as="p" className={styles.headerSubtitle}>
+          Configure application preferences and manage your downloads
+        </Text>
+
+        <LogUploadSettings />
 
         <Card className={styles.card}>
           <CardHeader description={<Subtitle1 weight="semibold">Download Settings</Subtitle1>} />

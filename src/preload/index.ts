@@ -16,7 +16,8 @@ import {
   UploadItem,
   UpdateInfo,
   UpdateAPIRenderer,
-  DependencyAPIRenderer
+  DependencyAPIRenderer,
+  LogsAPIRenderer
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -176,6 +177,10 @@ const api = {
     setColorScheme: (scheme: 'light' | 'dark'): Promise<void> =>
       typedIpcRenderer.invoke('settings:set-color-scheme', scheme)
   } satisfies SettingsAPIRenderer,
+  // Logs APIs
+  logs: {
+    uploadCurrentLog: (): Promise<string | null> => typedIpcRenderer.invoke('logs:upload-current')
+  } satisfies LogsAPIRenderer,
   // Add dialog API
   dialog: {
     showDirectoryPicker: (): Promise<string | null> =>

@@ -7,7 +7,8 @@ import {
   SettingsAPIRenderer,
   UploadAPIRenderer,
   UpdateAPIRenderer,
-  DependencyAPIRenderer
+  DependencyAPIRenderer,
+  LogsAPIRenderer
 } from '@shared/types'
 
 declare global {
@@ -21,6 +22,7 @@ declare global {
       settings: SettingsAPIRenderer
       uploads: UploadAPIRenderer
       updates: UpdateAPIRenderer
+      logs: LogsAPIRenderer
       dialog: {
         showDirectoryPicker: () => Promise<string | null>
       }

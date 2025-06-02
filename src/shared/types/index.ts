@@ -283,4 +283,11 @@ export interface SettingsAPIRenderer
     }
   > {}
 
+// Logs API
+export interface LogsAPI {
+  uploadCurrentLog: () => Promise<string | null>
+}
+
+export interface LogsAPIRenderer extends LogsAPI {}
+
 export type ServiceStatus = 'NOT_INITIALIZED' | 'INITIALIZING' | 'INITIALIZED' | 'ERROR'

@@ -79,6 +79,9 @@ export interface IPCChannels {
   'settings:get-color-scheme': DefineChannel<[], 'light' | 'dark'>
   'settings:set-color-scheme': DefineChannel<[scheme: 'light' | 'dark'], void>
 
+  // Log upload related channels
+  'logs:upload-current': DefineChannel<[], string | null>
+
   // Dialog related channels
   'dialog:show-directory-picker': DefineChannel<[], string | null>
 }

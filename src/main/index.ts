@@ -8,11 +8,15 @@ import gameService from './services/gameService'
 import downloadService from './services/downloadService'
 import uploadService from './services/uploadService'
 import updateService from './services/updateService'
+import logsService from './services/logsService'
 import { typedIpcMain } from '@shared/ipc-utils'
 import settingsService from './services/settingsService'
 import { typedWebContentsSend } from '@shared/ipc-utils'
 import log from 'electron-log/main'
 
+log.transports.file.resolvePathFn = () => {
+  return logsService.getLogFilePath()
+}
 log.initialize()
 log.errorHandler.startCatching({
   showDialog: false
@@ -362,6 +366,17 @@ app.whenReady().then(async () => {
   typedIpcMain.handle('settings:set-color-scheme', (_event, scheme) =>
     settingsService.setColorScheme(scheme)
   )
+
+  // --- Logs Handlers ---
+  typedIpcMain.handle('logs:upload-current', async () => {
+    console.log('[IPC] Log upload requested')
+    try {
+      return await logsService.uploadCurrentLog()
+    } catch (error) {
+      console.error('[IPC Handler Error] Log upload failed:', error)
+      return null
+    }
+  })
 
   // --- Dialog Handlers ---
   typedIpcMain.handle('dialog:show-directory-picker', async () => {
