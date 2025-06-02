@@ -21,8 +21,8 @@ importers:
         specifier: ^9.64.0
         version: 9.64.0(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-icons':
-        specifier: ^2.0.301
-        version: 2.0.301(react@19.1.0)
+        specifier: ^2.0.302
+        version: 2.0.302(react@19.1.0)
       '@fluentui/react-popover':
         specifier: ^9.10.7
         version: 9.10.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
@@ -92,19 +92,19 @@ importers:
     devDependencies:
       '@electron-toolkit/eslint-config-prettier':
         specifier: ^3.0.0
-        version: 3.0.0(eslint@9.27.0)(prettier@3.5.3)
+        version: 3.0.0(eslint@9.28.0)(prettier@3.5.3)
       '@electron-toolkit/eslint-config-ts':
         specifier: ^3.1.0
-        version: 3.1.0(eslint@9.27.0)(typescript@5.8.3)
+        version: 3.1.0(eslint@9.28.0)(typescript@5.8.3)
       '@electron-toolkit/tsconfig':
         specifier: ^1.0.1
-        version: 1.0.1(@types/node@22.15.26)
+        version: 1.0.1(@types/node@22.15.29)
       '@types/bluebird':
         specifier: ^3.5.42
         version: 3.5.42
       '@types/node':
-        specifier: ^22.15.26
-        version: 22.15.26
+        specifier: ^22.15.29
+        version: 22.15.29
       '@types/node-7z':
         specifier: ^2.1.10
         version: 2.1.10
@@ -122,7 +122,7 @@ importers:
         version: 2.10.3
       '@vitejs/plugin-react':
         specifier: ^4.5.0
-        version: 4.5.0(vite@6.3.5(@types/node@22.15.26))
+        version: 4.5.0(vite@6.3.5(@types/node@22.15.29))
       electron:
         specifier: ^36.3.2
         version: 36.3.2
@@ -131,19 +131,19 @@ importers:
         version: 26.0.12(bluebird@3.7.2)(electron-builder-squirrel-windows@25.1.8)
       electron-vite:
         specifier: ^3.1.0
-        version: 3.1.0(vite@6.3.5(@types/node@22.15.26))
+        version: 3.1.0(vite@6.3.5(@types/node@22.15.29))
       eslint:
-        specifier: ^9.27.0
-        version: 9.27.0
+        specifier: ^9.28.0
+        version: 9.28.0
       eslint-plugin-react:
         specifier: ^7.37.5
-        version: 7.37.5(eslint@9.27.0)
+        version: 7.37.5(eslint@9.28.0)
       eslint-plugin-react-hooks:
         specifier: ^5.2.0
-        version: 5.2.0(eslint@9.27.0)
+        version: 5.2.0(eslint@9.28.0)
       eslint-plugin-react-refresh:
         specifier: ^0.4.20
-        version: 0.4.20(eslint@9.27.0)
+        version: 0.4.20(eslint@9.28.0)
       prettier:
         specifier: ^3.5.3
         version: 3.5.3
@@ -158,7 +158,7 @@ importers:
         version: 5.8.3
       vite:
         specifier: ^6.3.5
-        version: 6.3.5(@types/node@22.15.26)
+        version: 6.3.5(@types/node@22.15.29)
 
 packages:
 
@@ -539,8 +539,8 @@ packages:
     resolution: {integrity: sha512-I9XlJawFdSMvWjDt6wksMCrgns5ggLNfFwFvnShsleWruvXM514Qxk8V246efTw+eo9JABvVz+u3q2RiAowKxQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  '@eslint/js@9.27.0':
-    resolution: {integrity: sha512-G5JD9Tu5HJEu4z2Uo4aHY2sLV64B7CDMXxFzqzjl3NKd6RVzSXNoE80jk7Y0lJkTTkjiIhBAqmlYwjuBY3tvpA==}
+  '@eslint/js@9.28.0':
+    resolution: {integrity: sha512-fnqSjGWd/CoIp4EXIxWVK/sHA6DOHN4+8Ix2cX5ycOY7LG0UY8nHCU5pIp2eaE1Mc7Qd8kHspYNzYXT2ojPLzg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
   '@eslint/object-schema@2.1.6':
@@ -716,8 +716,8 @@ packages:
       react: '>=16.14.0 <19.0.0'
       react-dom: '>=16.14.0 <19.0.0'
 
-  '@fluentui/react-icons@2.0.301':
-    resolution: {integrity: sha512-5fC7LntTyqt63AV91ZlnzJ5671l9zG12TDq17nN/Zwdng+5ZE4ICOBvQuXJVGLLu7kIY+9+qip6sr3ttmby5OQ==}
+  '@fluentui/react-icons@2.0.302':
+    resolution: {integrity: sha512-NK8w51dvucc6bu9oNoFZTWhXVelZ93JKnQbUH4Po344NJiBnzblv5ey4Vxz2SJj7T2t3oYBE+kb/ixTxwbxlaQ==}
     peerDependencies:
       react: '>=16.8.0 <19.0.0'
 
@@ -1369,8 +1369,8 @@ packages:
   '@types/node-7z@2.1.10':
     resolution: {integrity: sha512-LdfuQcGAKsLafyM96+F8VekToCuGQnFy9DMM0UdS6f5pEnaP5kAixp3TQPc1NJU4C6IwLwnednktYBjp/z2LRw==}
 
-  '@types/node@22.15.26':
-    resolution: {integrity: sha512-lgISkNrqdQ5DAzjBhnDNGKDuXDNo7/1V4FhNzsKREhWLZTOELQAptuAnJMzHtUl1qyEBBy9lNBKQ9WjyiSloTw==}
+  '@types/node@22.15.29':
+    resolution: {integrity: sha512-LNdjOkUDlU1RZb8e1kOIUpN1qQUlzGkEtbVNo53vbrwDg5om6oduhm4SiUaPW5ASTXhAiP0jInWG8Qx9fVlOeQ==}
 
   '@types/plist@3.0.5':
     resolution: {integrity: sha512-E6OCaRmAe4WDmWNsL/9RMqdkkzDCY1etutkflWk4c+AcjDU07Pcz1fQwTX0TQz+Pxqn9i4L1TU3UFpjnrcDgxA==}
@@ -2236,8 +2236,8 @@ packages:
     resolution: {integrity: sha512-UyLnSehNt62FFhSwjZlHmeokpRK59rcz29j+F1/aDgbkbRTk7wIc9XzdoasMUbRNKDM0qQt/+BJ4BrpFeABemw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
 
-  eslint@9.27.0:
-    resolution: {integrity: sha512-ixRawFQuMB9DZ7fjU3iGGganFDp3+45bPOdaRurcFHSXO1e/sYwUX/FtQZpLZJR6SjMoJH8hR2pPEAfDyCoU2Q==}
+  eslint@9.28.0:
+    resolution: {integrity: sha512-ocgh41VhRlf9+fVpe7QKzwLj9c92fDiqOj8Y3Sd4/ZmVA4Btx4PlUYPq4pp9JDyupkf1upbEXecxL2mwNV7jPQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     hasBin: true
     peerDependencies:
@@ -4253,21 +4253,21 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@electron-toolkit/eslint-config-prettier@3.0.0(eslint@9.27.0)(prettier@3.5.3)':
+  '@electron-toolkit/eslint-config-prettier@3.0.0(eslint@9.28.0)(prettier@3.5.3)':
     dependencies:
-      eslint: 9.27.0
-      eslint-config-prettier: 10.1.2(eslint@9.27.0)
-      eslint-plugin-prettier: 5.2.6(eslint-config-prettier@10.1.2(eslint@9.27.0))(eslint@9.27.0)(prettier@3.5.3)
+      eslint: 9.28.0
+      eslint-config-prettier: 10.1.2(eslint@9.28.0)
+      eslint-plugin-prettier: 5.2.6(eslint-config-prettier@10.1.2(eslint@9.28.0))(eslint@9.28.0)(prettier@3.5.3)
       prettier: 3.5.3
     transitivePeerDependencies:
       - '@types/eslint'
 
-  '@electron-toolkit/eslint-config-ts@3.1.0(eslint@9.27.0)(typescript@5.8.3)':
+  '@electron-toolkit/eslint-config-ts@3.1.0(eslint@9.28.0)(typescript@5.8.3)':
     dependencies:
       '@eslint/js': 9.26.0
-      eslint: 9.27.0
+      eslint: 9.28.0
       globals: 16.0.0
-      typescript-eslint: 8.31.1(eslint@9.27.0)(typescript@5.8.3)
+      typescript-eslint: 8.31.1(eslint@9.28.0)(typescript@5.8.3)
     optionalDependencies:
       typescript: 5.8.3
     transitivePeerDependencies:
@@ -4277,9 +4277,9 @@ snapshots:
     dependencies:
       electron: 36.3.2
 
-  '@electron-toolkit/tsconfig@1.0.1(@types/node@22.15.26)':
+  '@electron-toolkit/tsconfig@1.0.1(@types/node@22.15.29)':
     dependencies:
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
 
   '@electron-toolkit/utils@4.0.0(electron@36.3.2)':
     dependencies:
@@ -4481,9 +4481,9 @@ snapshots:
   '@esbuild/win32-x64@0.25.3':
     optional: true
 
-  '@eslint-community/eslint-utils@4.7.0(eslint@9.27.0)':
+  '@eslint-community/eslint-utils@4.7.0(eslint@9.28.0)':
     dependencies:
-      eslint: 9.27.0
+      eslint: 9.28.0
       eslint-visitor-keys: 3.4.3
 
   '@eslint-community/regexpp@4.12.1': {}
@@ -4518,7 +4518,7 @@ snapshots:
 
   '@eslint/js@9.26.0': {}
 
-  '@eslint/js@9.27.0': {}
+  '@eslint/js@9.28.0': {}
 
   '@eslint/object-schema@2.1.6': {}
 
@@ -4554,7 +4554,7 @@ snapshots:
     dependencies:
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-motion': 9.7.3(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-motion-components-preview': 0.5.0(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -4575,7 +4575,7 @@ snapshots:
     dependencies:
       '@fluentui/react-avatar': 9.7.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-button': 9.4.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-tabster': 9.24.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-theme': 9.1.24
@@ -4606,7 +4606,7 @@ snapshots:
     dependencies:
       '@fluentui/react-badge': 9.2.54(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-popover': 9.10.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -4625,7 +4625,7 @@ snapshots:
 
   '@fluentui/react-badge@9.2.54(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-theme': 9.1.24
@@ -4641,7 +4641,7 @@ snapshots:
     dependencies:
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-button': 9.4.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-link': 9.4.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -4659,7 +4659,7 @@ snapshots:
     dependencies:
       '@fluentui/keyboard-keys': 9.0.8
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-tabster': 9.24.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -4693,7 +4693,7 @@ snapshots:
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-button': 9.4.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-tabster': 9.24.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -4715,7 +4715,7 @@ snapshots:
   '@fluentui/react-checkbox@9.3.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)':
     dependencies:
       '@fluentui/react-field': 9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-label': 9.1.87(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -4755,7 +4755,7 @@ snapshots:
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-field': 9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-portal': 9.5.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-positioning': 9.17.0(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -4857,7 +4857,7 @@ snapshots:
       '@fluentui/keyboard-keys': 9.0.8
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-motion': 9.7.3(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-motion-components-preview': 0.5.0(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -4910,7 +4910,7 @@ snapshots:
   '@fluentui/react-field@9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)':
     dependencies:
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-label': 9.1.87(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -4925,7 +4925,7 @@ snapshots:
     transitivePeerDependencies:
       - scheduler
 
-  '@fluentui/react-icons@2.0.301(react@19.1.0)':
+  '@fluentui/react-icons@2.0.302(react@19.1.0)':
     dependencies:
       '@griffel/react': 1.5.30(react@19.1.0)
       react: 19.1.0
@@ -4946,7 +4946,7 @@ snapshots:
 
   '@fluentui/react-infobutton@9.0.0-beta.102(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)':
     dependencies:
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-label': 9.1.87(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-popover': 9.10.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
@@ -4964,7 +4964,7 @@ snapshots:
 
   '@fluentui/react-infolabel@9.2.1(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)':
     dependencies:
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-label': 9.1.87(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-popover': 9.10.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
@@ -5057,7 +5057,7 @@ snapshots:
       '@fluentui/keyboard-keys': 9.0.8
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-portal': 9.5.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-positioning': 9.17.0(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5077,7 +5077,7 @@ snapshots:
   '@fluentui/react-message-bar@9.4.8(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
       '@fluentui/react-button': 9.4.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-link': 9.4.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -5207,7 +5207,7 @@ snapshots:
 
   '@fluentui/react-provider@9.20.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-tabster': 9.24.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5241,7 +5241,7 @@ snapshots:
 
   '@fluentui/react-rating@9.1.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-tabster': 9.24.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5256,7 +5256,7 @@ snapshots:
 
   '@fluentui/react-search@9.1.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)':
     dependencies:
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-input': 9.5.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -5274,7 +5274,7 @@ snapshots:
   '@fluentui/react-select@9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)':
     dependencies:
       '@fluentui/react-field': 9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-theme': 9.1.24
@@ -5332,7 +5332,7 @@ snapshots:
     dependencies:
       '@fluentui/keyboard-keys': 9.0.8
       '@fluentui/react-field': 9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-theme': 9.1.24
@@ -5364,7 +5364,7 @@ snapshots:
     dependencies:
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-field': 9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-tabster': 9.24.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5382,7 +5382,7 @@ snapshots:
   '@fluentui/react-switch@9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)':
     dependencies:
       '@fluentui/react-field': 9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-label': 9.1.87(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -5405,7 +5405,7 @@ snapshots:
       '@fluentui/react-avatar': 9.7.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-checkbox': 9.3.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-radio': 9.3.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -5459,7 +5459,7 @@ snapshots:
       '@fluentui/react-combobox': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-field': 9.2.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-portal': 9.5.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-positioning': 9.17.0(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5482,7 +5482,7 @@ snapshots:
       '@fluentui/keyboard-keys': 9.0.8
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-avatar': 9.7.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-tabster': 9.24.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5502,7 +5502,7 @@ snapshots:
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-button': 9.4.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-popover': 9.10.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-shared-contexts': 9.23.1(@types/react@19.1.6)(react@19.1.0)
@@ -5557,7 +5557,7 @@ snapshots:
     dependencies:
       '@fluentui/keyboard-keys': 9.0.8
       '@fluentui/react-aria': 9.14.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-motion': 9.7.3(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-motion-components-preview': 0.5.0(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5618,7 +5618,7 @@ snapshots:
       '@fluentui/react-button': 9.4.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-checkbox': 9.3.7(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
       '@fluentui/react-context-selector': 9.1.76(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(scheduler@0.26.0)
-      '@fluentui/react-icons': 2.0.301(react@19.1.0)
+      '@fluentui/react-icons': 2.0.302(react@19.1.0)
       '@fluentui/react-jsx-runtime': 9.0.54(@types/react@19.1.6)(react@19.1.0)
       '@fluentui/react-motion': 9.7.3(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@fluentui/react-motion-components-preview': 0.5.0(@types/react-dom@19.1.5(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -5905,7 +5905,7 @@ snapshots:
     dependencies:
       '@types/http-cache-semantics': 4.0.4
       '@types/keyv': 3.1.4
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
       '@types/responselike': 1.0.3
 
   '@types/debug@4.1.12':
@@ -5916,7 +5916,7 @@ snapshots:
 
   '@types/fs-extra@9.0.13':
     dependencies:
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
 
   '@types/http-cache-semantics@4.0.4': {}
 
@@ -5924,21 +5924,21 @@ snapshots:
 
   '@types/keyv@3.1.4':
     dependencies:
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
 
   '@types/ms@2.1.0': {}
 
   '@types/node-7z@2.1.10':
     dependencies:
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
 
-  '@types/node@22.15.26':
+  '@types/node@22.15.29':
     dependencies:
       undici-types: 6.21.0
 
   '@types/plist@3.0.5':
     dependencies:
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
       xmlbuilder: 15.1.1
     optional: true
 
@@ -5952,7 +5952,7 @@ snapshots:
 
   '@types/responselike@1.0.3':
     dependencies:
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
 
   '@types/verror@1.10.11':
     optional: true
@@ -5961,20 +5961,20 @@ snapshots:
 
   '@types/yauzl@2.10.3':
     dependencies:
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
     optional: true
 
   '@types/yt-search@2.10.3': {}
 
-  '@typescript-eslint/eslint-plugin@8.31.1(@typescript-eslint/parser@8.31.1(eslint@9.27.0)(typescript@5.8.3))(eslint@9.27.0)(typescript@5.8.3)':
+  '@typescript-eslint/eslint-plugin@8.31.1(@typescript-eslint/parser@8.31.1(eslint@9.28.0)(typescript@5.8.3))(eslint@9.28.0)(typescript@5.8.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.1
-      '@typescript-eslint/parser': 8.31.1(eslint@9.27.0)(typescript@5.8.3)
+      '@typescript-eslint/parser': 8.31.1(eslint@9.28.0)(typescript@5.8.3)
       '@typescript-eslint/scope-manager': 8.31.1
-      '@typescript-eslint/type-utils': 8.31.1(eslint@9.27.0)(typescript@5.8.3)
-      '@typescript-eslint/utils': 8.31.1(eslint@9.27.0)(typescript@5.8.3)
+      '@typescript-eslint/type-utils': 8.31.1(eslint@9.28.0)(typescript@5.8.3)
+      '@typescript-eslint/utils': 8.31.1(eslint@9.28.0)(typescript@5.8.3)
       '@typescript-eslint/visitor-keys': 8.31.1
-      eslint: 9.27.0
+      eslint: 9.28.0
       graphemer: 1.4.0
       ignore: 5.3.2
       natural-compare: 1.4.0
@@ -5983,14 +5983,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.31.1(eslint@9.27.0)(typescript@5.8.3)':
+  '@typescript-eslint/parser@8.31.1(eslint@9.28.0)(typescript@5.8.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.31.1
       '@typescript-eslint/types': 8.31.1
       '@typescript-eslint/typescript-estree': 8.31.1(typescript@5.8.3)
       '@typescript-eslint/visitor-keys': 8.31.1
       debug: 4.4.0
-      eslint: 9.27.0
+      eslint: 9.28.0
       typescript: 5.8.3
     transitivePeerDependencies:
       - supports-color
@@ -6000,12 +6000,12 @@ snapshots:
       '@typescript-eslint/types': 8.31.1
       '@typescript-eslint/visitor-keys': 8.31.1
 
-  '@typescript-eslint/type-utils@8.31.1(eslint@9.27.0)(typescript@5.8.3)':
+  '@typescript-eslint/type-utils@8.31.1(eslint@9.28.0)(typescript@5.8.3)':
     dependencies:
       '@typescript-eslint/typescript-estree': 8.31.1(typescript@5.8.3)
-      '@typescript-eslint/utils': 8.31.1(eslint@9.27.0)(typescript@5.8.3)
+      '@typescript-eslint/utils': 8.31.1(eslint@9.28.0)(typescript@5.8.3)
       debug: 4.4.0
-      eslint: 9.27.0
+      eslint: 9.28.0
       ts-api-utils: 2.1.0(typescript@5.8.3)
       typescript: 5.8.3
     transitivePeerDependencies:
@@ -6027,13 +6027,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@8.31.1(eslint@9.27.0)(typescript@5.8.3)':
+  '@typescript-eslint/utils@8.31.1(eslint@9.28.0)(typescript@5.8.3)':
     dependencies:
-      '@eslint-community/eslint-utils': 4.7.0(eslint@9.27.0)
+      '@eslint-community/eslint-utils': 4.7.0(eslint@9.28.0)
       '@typescript-eslint/scope-manager': 8.31.1
       '@typescript-eslint/types': 8.31.1
       '@typescript-eslint/typescript-estree': 8.31.1(typescript@5.8.3)
-      eslint: 9.27.0
+      eslint: 9.28.0
       typescript: 5.8.3
     transitivePeerDependencies:
       - supports-color
@@ -6043,7 +6043,7 @@ snapshots:
       '@typescript-eslint/types': 8.31.1
       eslint-visitor-keys: 4.2.0
 
-  '@vitejs/plugin-react@4.5.0(vite@6.3.5(@types/node@22.15.26))':
+  '@vitejs/plugin-react@4.5.0(vite@6.3.5(@types/node@22.15.29))':
     dependencies:
       '@babel/core': 7.27.1
       '@babel/plugin-transform-react-jsx-self': 7.27.1(@babel/core@7.27.1)
@@ -6051,7 +6051,7 @@ snapshots:
       '@rolldown/pluginutils': 1.0.0-beta.9
       '@types/babel__core': 7.20.5
       react-refresh: 0.17.0
-      vite: 6.3.5(@types/node@22.15.26)
+      vite: 6.3.5(@types/node@22.15.29)
     transitivePeerDependencies:
       - supports-color
 
@@ -6913,7 +6913,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  electron-vite@3.1.0(vite@6.3.5(@types/node@22.15.26)):
+  electron-vite@3.1.0(vite@6.3.5(@types/node@22.15.29)):
     dependencies:
       '@babel/core': 7.27.1
       '@babel/plugin-transform-arrow-functions': 7.27.1(@babel/core@7.27.1)
@@ -6921,14 +6921,14 @@ snapshots:
       esbuild: 0.25.3
       magic-string: 0.30.17
       picocolors: 1.1.1
-      vite: 6.3.5(@types/node@22.15.26)
+      vite: 6.3.5(@types/node@22.15.29)
     transitivePeerDependencies:
       - supports-color
 
   electron@36.3.2:
     dependencies:
       '@electron/get': 2.0.3
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
       extract-zip: 2.0.1
     transitivePeerDependencies:
       - supports-color
@@ -7106,28 +7106,28 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
-  eslint-config-prettier@10.1.2(eslint@9.27.0):
+  eslint-config-prettier@10.1.2(eslint@9.28.0):
     dependencies:
-      eslint: 9.27.0
+      eslint: 9.28.0
 
-  eslint-plugin-prettier@5.2.6(eslint-config-prettier@10.1.2(eslint@9.27.0))(eslint@9.27.0)(prettier@3.5.3):
+  eslint-plugin-prettier@5.2.6(eslint-config-prettier@10.1.2(eslint@9.28.0))(eslint@9.28.0)(prettier@3.5.3):
     dependencies:
-      eslint: 9.27.0
+      eslint: 9.28.0
       prettier: 3.5.3
       prettier-linter-helpers: 1.0.0
       synckit: 0.11.4
     optionalDependencies:
-      eslint-config-prettier: 10.1.2(eslint@9.27.0)
+      eslint-config-prettier: 10.1.2(eslint@9.28.0)
 
-  eslint-plugin-react-hooks@5.2.0(eslint@9.27.0):
+  eslint-plugin-react-hooks@5.2.0(eslint@9.28.0):
     dependencies:
-      eslint: 9.27.0
+      eslint: 9.28.0
 
-  eslint-plugin-react-refresh@0.4.20(eslint@9.27.0):
+  eslint-plugin-react-refresh@0.4.20(eslint@9.28.0):
     dependencies:
-      eslint: 9.27.0
+      eslint: 9.28.0
 
-  eslint-plugin-react@7.37.5(eslint@9.27.0):
+  eslint-plugin-react@7.37.5(eslint@9.28.0):
     dependencies:
       array-includes: 3.1.8
       array.prototype.findlast: 1.2.5
@@ -7135,7 +7135,7 @@ snapshots:
       array.prototype.tosorted: 1.1.4
       doctrine: 2.1.0
       es-iterator-helpers: 1.2.1
-      eslint: 9.27.0
+      eslint: 9.28.0
       estraverse: 5.3.0
       hasown: 2.0.2
       jsx-ast-utils: 3.3.5
@@ -7158,15 +7158,15 @@ snapshots:
 
   eslint-visitor-keys@4.2.0: {}
 
-  eslint@9.27.0:
+  eslint@9.28.0:
     dependencies:
-      '@eslint-community/eslint-utils': 4.7.0(eslint@9.27.0)
+      '@eslint-community/eslint-utils': 4.7.0(eslint@9.28.0)
       '@eslint-community/regexpp': 4.12.1
       '@eslint/config-array': 0.20.0
       '@eslint/config-helpers': 0.2.2
       '@eslint/core': 0.14.0
       '@eslint/eslintrc': 3.3.1
-      '@eslint/js': 9.27.0
+      '@eslint/js': 9.28.0
       '@eslint/plugin-kit': 0.3.1
       '@humanfs/node': 0.16.6
       '@humanwhocodes/module-importer': 1.0.1
@@ -9003,12 +9003,12 @@ snapshots:
       possible-typed-array-names: 1.1.0
       reflect.getprototypeof: 1.0.10
 
-  typescript-eslint@8.31.1(eslint@9.27.0)(typescript@5.8.3):
+  typescript-eslint@8.31.1(eslint@9.28.0)(typescript@5.8.3):
     dependencies:
-      '@typescript-eslint/eslint-plugin': 8.31.1(@typescript-eslint/parser@8.31.1(eslint@9.27.0)(typescript@5.8.3))(eslint@9.27.0)(typescript@5.8.3)
-      '@typescript-eslint/parser': 8.31.1(eslint@9.27.0)(typescript@5.8.3)
-      '@typescript-eslint/utils': 8.31.1(eslint@9.27.0)(typescript@5.8.3)
-      eslint: 9.27.0
+      '@typescript-eslint/eslint-plugin': 8.31.1(@typescript-eslint/parser@8.31.1(eslint@9.28.0)(typescript@5.8.3))(eslint@9.28.0)(typescript@5.8.3)
+      '@typescript-eslint/parser': 8.31.1(eslint@9.28.0)(typescript@5.8.3)
+      '@typescript-eslint/utils': 8.31.1(eslint@9.28.0)(typescript@5.8.3)
+      eslint: 9.28.0
       typescript: 5.8.3
     transitivePeerDependencies:
       - supports-color
@@ -9076,7 +9076,7 @@ snapshots:
       extsprintf: 1.4.1
     optional: true
 
-  vite@6.3.5(@types/node@22.15.26):
+  vite@6.3.5(@types/node@22.15.29):
     dependencies:
       esbuild: 0.25.3
       fdir: 6.4.4(picomatch@4.0.2)
@@ -9085,7 +9085,7 @@ snapshots:
       rollup: 4.40.1
       tinyglobby: 0.2.13
     optionalDependencies:
-      '@types/node': 22.15.26
+      '@types/node': 22.15.29
       fsevents: 2.3.3
 
   wcwidth@1.0.1:
