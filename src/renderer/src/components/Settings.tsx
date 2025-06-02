@@ -18,15 +18,13 @@ import {
   TableHeaderCell,
   TableBody,
   TableCell,
-  TableCellLayout,
-  Switch
+  TableCellLayout
 } from '@fluentui/react-components'
 import {
   FolderOpenRegular,
   CheckmarkCircleRegular,
   InfoRegular,
-  DeleteRegular,
-  EyeOffRegular
+  DeleteRegular
 } from '@fluentui/react-icons'
 import { useSettings } from '../hooks/useSettings'
 import { useGames } from '../hooks/useGames'
@@ -271,13 +269,11 @@ const Settings: React.FC = () => {
     downloadPath,
     downloadSpeedLimit,
     uploadSpeedLimit,
-    hideAdultContent,
     isLoading,
     error,
     setDownloadPath,
     setDownloadSpeedLimit,
-    setUploadSpeedLimit,
-    setHideAdultContent
+    setUploadSpeedLimit
   } = useSettings()
   const [editedDownloadPath, setEditedDownloadPath] = useState(downloadPath)
 
@@ -689,49 +685,6 @@ const Settings: React.FC = () => {
                 Settings saved successfully
               </Text>
             )}
-          </div>
-        </Card>
-
-        <Card className={styles.card}>
-          <CardHeader
-            description={<Subtitle1 weight="semibold">Content Filters</Subtitle1>}
-          ></CardHeader>
-          <div className={styles.cardContent}>
-            <Text>Configure content filtering preferences</Text>
-
-            <div className={styles.formRow}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: tokens.spacingHorizontalM
-                }}
-              >
-                <Switch
-                  checked={hideAdultContent}
-                  onChange={(_, data) => setHideAdultContent(data.checked)}
-                  label={{
-                    children: (
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: tokens.spacingHorizontalXS
-                        }}
-                      >
-                        <EyeOffRegular />
-                        <span>Hide Adult Content</span>
-                      </div>
-                    )
-                  }}
-                />
-              </div>
-            </div>
-            <Text className={styles.hint}>
-              <InfoRegular />
-              When enabled, games marked as (18+) will be hidden from the game list
-            </Text>
           </div>
         </Card>
 

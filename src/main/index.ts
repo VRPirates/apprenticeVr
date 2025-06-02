@@ -357,12 +357,7 @@ app.whenReady().then(async () => {
   typedIpcMain.handle('settings:set-upload-speed-limit', (_event, limit) =>
     settingsService.setUploadSpeedLimit(limit)
   )
-  typedIpcMain.handle('settings:get-hide-adult-content', () =>
-    settingsService.getHideAdultContent()
-  )
-  typedIpcMain.handle('settings:set-hide-adult-content', (_event, hide) =>
-    settingsService.setHideAdultContent(hide)
-  )
+
   typedIpcMain.handle('settings:get-color-scheme', () => settingsService.getColorScheme())
   typedIpcMain.handle('settings:set-color-scheme', (_event, scheme) =>
     settingsService.setColorScheme(scheme)

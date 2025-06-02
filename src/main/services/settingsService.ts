@@ -55,16 +55,6 @@ class SettingsService extends EventEmitter implements SettingsAPI {
     this.emit('upload-speed-limit-changed', limit)
   }
 
-  getHideAdultContent(): boolean {
-    return this.settings.hideAdultContent
-  }
-
-  setHideAdultContent(hide: boolean): void {
-    this.settings.hideAdultContent = hide
-    this.saveSettings()
-    this.emit('hide-adult-content-changed', hide)
-  }
-
   getColorScheme(): 'light' | 'dark' {
     return this.settings.colorScheme
   }
