@@ -75,6 +75,78 @@ By default, it writes logs to the following locations:
 
 **Note:** When opening an issue, please include the latest log output from the appropriate log file above to help with debugging and troubleshooting.
 
+You can also upload the current log file in the settings menu and share the url.
+
+# Troubleshooting Guide
+
+If ApprenticeVR is unable to connect, follow the steps below to identify and resolve the issue:
+
+---
+
+## ✅ Use the Latest Version
+
+Make sure you're using the latest version of ApprenticeVR:  
+➡️ [https://github.com/jimzrt/appenticevr](https://github.com/jimzrt/appenticevr)
+
+---
+
+## 🌐 Check Network Access
+
+Ensure you can access the following URLs from your browser:
+
+- [https://raw.githubusercontent.com/](https://raw.githubusercontent.com/)  
+  (Should redirect to the GitHub homepage)
+
+- [https://downloads.rclone.org/](https://downloads.rclone.org/)
+
+- [https://vrpirates.wiki/](https://vrpirates.wiki/)
+
+- [https://go.vrpyourself.online/](https://go.vrpyourself.online/)  
+  ⛔ Getting a message like **"Sorry, you have been blocked"** means it's working!
+
+---
+
+## 🌍 Change DNS Settings
+
+Some ISPs block specific domains. Switch to a public, non-censoring DNS provider:
+
+- [Cloudflare DNS (1.1.1.1)](https://developers.cloudflare.com/1.1.1.1/setup/windows/)
+- [Google Public DNS (8.8.8.8)](https://developers.google.com/speed/public-dns/docs/using)
+- [OpenDNS](https://www.opendns.com/setupguide/)
+
+---
+
+## 🔐 Try a VPN
+
+If DNS changes don't help, your ISP might be blocking access. Use a VPN to bypass restrictions:
+
+- [ProtonVPN (free)](https://protonvpn.com/)
+- [1.1.1.1 VPN (free)](https://one.one.one.one/)
+- [Alternate VPN Example](https://gprivate.com/5yxo8)
+
+---
+
+## 🛡️ Router or Firewall Blocking?
+
+If a VPN works, but a direct connection doesn't, your router or antivirus/firewall may be blocking access.  
+Check out this guide for help:
+
+➡️ [https://rentry.co/ASUSRouterBlock](https://rentry.co/ASUSRouterBlock)
+
+You can either:
+
+- Continue using a VPN  
+- OR identify and whitelist the following domains in your router/firewall settings:
+  - `raw.githubusercontent.com`
+  - `downloads.rclone.org`
+  - `vrpirates.wiki`
+  - `go.vrpyourself.online`
+
+---
+
+If you're still stuck, feel free to open an issue or ask for help in the community. Happy VR-ing!
+
+
 ## Recommended IDE Setup
 
 - [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
