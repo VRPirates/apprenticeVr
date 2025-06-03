@@ -302,7 +302,7 @@ export class DownloadProcessor {
             // Mirror files are already extracted, no extraction needed
             return {
               success: true,
-              startExtraction: false,
+              startExtraction: true,
               finalState: this.queueManager.findItem(item.releaseName)
             }
           } catch (mirrorError: unknown) {

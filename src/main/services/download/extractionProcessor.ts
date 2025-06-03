@@ -4,6 +4,7 @@ import { QueueManager } from './queueManager'
 import dependencyService from '../dependencyService'
 import { DownloadItem, DownloadStatus } from '@shared/types'
 import SevenZip from 'node-7z'
+import mirrorService from '../mirrorService'
 
 // Type for VRP config - reuse or import
 interface VrpConfig {
@@ -199,6 +200,24 @@ export class ExtractionProcessor {
       console.error(`[ExtractProc] Error reading download dir ${downloadPath}:`, readDirError)
       this.updateItemStatus(item.releaseName, 'Error', 100, errorMsg.substring(0, 500))
       return false
+    }
+
+    const activeMirror = await mirrorService.getActiveMirror()
+    if (activeMirror) {
+      this.updateItemStatus(item.releaseName, 'Extracting', 100, undefined, undefined, undefined, 0)
+      await this.extractNestedArchives(downloadPath, item.releaseName)
+
+      // Update final status to Completed
+      this.updateItemStatus(
+        item.releaseName,
+        'Completed',
+        100,
+        undefined,
+        undefined,
+        undefined,
+        100
+      )
+      return true
     }
 
     const archivePart1 = files.find((f) => f.endsWith('.7z.001'))
