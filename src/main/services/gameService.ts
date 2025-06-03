@@ -4,6 +4,7 @@ import { execa } from 'execa'
 import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'fs'
 import dependencyService from './dependencyService'
+import mirrorService from './mirrorService'
 import { GameInfo, ServiceStatus, GamesAPI, BlacklistEntry } from '@shared/types'
 import EventEmitter from 'events'
 import { typedWebContentsSend } from '@shared/ipc-utils'
@@ -220,7 +221,10 @@ class GameService extends EventEmitter implements GamesAPI {
         throw new Error('baseUri not found in config')
       }
 
+      // Check if there's an active mirror to use
+      const activeMirror = await mirrorService.getActiveMirror()
       const baseUri = this.vrpConfig.baseUri
+      let rcloneArgs: string[]
 
       console.log(`Downloading meta.7z from ${baseUri}...`)
 
@@ -229,6 +233,100 @@ class GameService extends EventEmitter implements GamesAPI {
 
       // Get the main window to send progress updates
       const mainWindow = BrowserWindow.getAllWindows()[0]
+
+      if (activeMirror) {
+        console.log(`Using active mirror: ${activeMirror.name}`)
+
+        // Get the config file path and remote name
+        const configFilePath = mirrorService.getActiveMirrorConfigPath()
+        const remoteName = mirrorService.getActiveMirrorRemoteName()
+
+        if (!configFilePath || !remoteName) {
+          console.warn('Failed to get mirror config file path, falling back to public endpoint')
+          // Fall back to public endpoint logic below
+        } else {
+          try {
+            // Use mirror with direct config file reference
+            rcloneArgs = [
+              'sync',
+              `${remoteName}:/Quest Games/meta.7z`,
+              destination,
+              '--config',
+              configFilePath,
+              '--tpslimit',
+              '1.0',
+              '--tpslimit-burst',
+              '3',
+              '--no-check-certificate',
+              '--progress'
+            ]
+
+            // Execute rclone using execa with progress reporting
+            const rcloneProcess = execa(rclonePath, rcloneArgs, {
+              stdio: ['ignore', 'pipe', 'pipe']
+            })
+
+            // Process stdout for progress information
+            if (rcloneProcess.stdout) {
+              rcloneProcess.stdout.on('data', (data) => {
+                const output = data.toString()
+
+                // Try to parse progress information from rclone output
+                const progressPattern = /Transferred:.*?(\d+)%/
+                const match = output.match(progressPattern)
+
+                if (match && match[1]) {
+                  const progressPercentage = parseInt(match[1], 10)
+
+                  // Send progress to renderer process if we have a valid window
+                  if (mainWindow && !mainWindow.isDestroyed()) {
+                    typedWebContentsSend.send(mainWindow, 'games:download-progress', {
+                      packageName: 'meta',
+                      stage: 'download',
+                      progress: progressPercentage
+                    })
+                  }
+                }
+              })
+            }
+
+            // Process stderr for errors
+            if (rcloneProcess.stderr) {
+              rcloneProcess.stderr.on('data', (data) => {
+                console.error('Rclone error:', data.toString())
+              })
+            }
+
+            // Wait for process to complete
+            const result = await rcloneProcess
+
+            if (result.exitCode !== 0) {
+              console.error(
+                `Mirror download failed with exit code ${result.exitCode}, falling back to public endpoint`
+              )
+              throw new Error(`Mirror download failed: ${result.stderr}`)
+            }
+
+            console.log('Mirror download complete')
+
+            // Send 100% progress on completion
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              typedWebContentsSend.send(mainWindow, 'games:download-progress', {
+                packageName: 'meta',
+                stage: 'download',
+                progress: 100
+              })
+            }
+            return // Success with mirror
+          } catch (error) {
+            console.error('Failed to use mirror config file:', error)
+            // Fall through to public endpoint logic
+          }
+        }
+      }
+
+      // Fall back to public endpoint if no mirror or mirror failed
+      console.log('Using public endpoint for meta.7z download')
 
       // Get the appropriate null config path based on platform
       const nullConfigPath = process.platform === 'win32' ? 'NUL' : '/dev/null'
@@ -335,7 +433,6 @@ class GameService extends EventEmitter implements GamesAPI {
           })
 
           myStream.on('progress', function (progress) {
-            console.log('Extraction progress:', progress)
             if (mainWindow && !mainWindow.isDestroyed()) {
               typedWebContentsSend.send(mainWindow, 'games:download-progress', {
                 packageName: 'meta',

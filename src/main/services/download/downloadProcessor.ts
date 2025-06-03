@@ -4,6 +4,7 @@ import { execa, ExecaError } from 'execa'
 import crypto from 'crypto'
 import { QueueManager } from './queueManager'
 import dependencyService from '../dependencyService'
+import mirrorService from '../mirrorService'
 import settingsService from '../settingsService'
 import { DownloadItem } from '@shared/types'
 import { DownloadStatus } from '@shared/types'
@@ -142,13 +143,198 @@ export class DownloadProcessor {
 
     this.updateItemStatus(item.releaseName, 'Downloading', 0)
 
+    // Check if there's an active mirror to use
+    const activeMirror = await mirrorService.getActiveMirror()
+    let rcloneProcess: ReturnType<typeof execa> | null = null
+
+    if (activeMirror) {
+      console.log(`[DownProc] Using active mirror: ${activeMirror.name}`)
+
+      // Get the config file path and remote name
+      const configFilePath = mirrorService.getActiveMirrorConfigPath()
+      const remoteName = mirrorService.getActiveMirrorRemoteName()
+
+      if (!configFilePath || !remoteName) {
+        console.warn(
+          '[DownProc] Failed to get mirror config file path, falling back to public endpoint'
+        )
+        // Fall back to public endpoint logic below
+      } else {
+        try {
+          // Use mirror with direct config file reference
+          const source = `${remoteName}:/Quest Games/${item.releaseName}`
+
+          rcloneProcess = execa(
+            rclonePath,
+            [
+              'copy',
+              source,
+              downloadPath,
+              '--config',
+              configFilePath,
+              '--no-check-certificate',
+              '--progress',
+              '--stats=1s',
+              '--stats-one-line',
+              ...(settingsService.getDownloadSpeedLimit() > 0
+                ? [`--bwlimit`, `${settingsService.getDownloadSpeedLimit()}K`]
+                : []),
+              ...(settingsService.getUploadSpeedLimit() > 0
+                ? [`--tpslimit`, `${settingsService.getUploadSpeedLimit()}`]
+                : [])
+            ],
+            { all: true, buffer: false, windowsHide: true }
+          )
+
+          if (!rcloneProcess || !rcloneProcess.pid || !rcloneProcess.all) {
+            throw new Error('Failed to start rclone process with mirror.')
+          }
+
+          this.activeDownloads.set(item.releaseName, rcloneProcess)
+          this.queueManager.updateItem(item.releaseName, { pid: rcloneProcess.pid })
+
+          console.log(
+            `[DownProc] rclone process started for ${item.releaseName} with mirror PID: ${rcloneProcess.pid}`
+          )
+
+          const transferLineRegex = /, (\d+)%, /
+          const speedRegex = /, (\d+\.\d+ \S+?B\/s),/
+          const etaRegex = /, ETA (\S+)/
+
+          let outputBuffer = ''
+          rcloneProcess.all.on('data', (data: Buffer) => {
+            const currentItemState = this.queueManager.findItem(item.releaseName)
+            if (!currentItemState || currentItemState.status !== 'Downloading') {
+              console.warn(
+                `[DownProc] Item ${item.releaseName} state changed to ${currentItemState?.status} during mirror download. Stopping data processing.`
+              )
+              const proc = this.activeDownloads.get(item.releaseName)
+              if (proc) {
+                proc.all?.removeAllListeners()
+                proc.kill('SIGTERM')
+                this.activeDownloads.delete(item.releaseName)
+              }
+              return
+            }
+            outputBuffer += data.toString()
+            const lines = outputBuffer.split(/\r\n|\n|\r/).filter((line) => line.length > 0)
+
+            if (lines.length > 0) {
+              const lastLineComplete =
+                transferLineRegex.test(lines[lines.length - 1]) &&
+                etaRegex.test(lines[lines.length - 1])
+              const linesToProcess = lastLineComplete ? lines : lines.slice(0, -1)
+              outputBuffer = lastLineComplete ? '' : lines[lines.length - 1]
+
+              for (const line of linesToProcess) {
+                const progressMatch = line.match(transferLineRegex)
+                if (progressMatch && progressMatch[1]) {
+                  const currentProgress = parseInt(progressMatch[1], 10)
+                  if (currentProgress >= (currentItemState.progress ?? 0)) {
+                    const speedMatch = line.match(speedRegex)
+                    const etaMatch = line.match(etaRegex)
+                    const speed = speedMatch?.[1] || currentItemState.speed
+                    const eta = etaMatch?.[1] || currentItemState.eta
+                    this.updateItemStatus(
+                      item.releaseName,
+                      'Downloading',
+                      currentProgress,
+                      undefined,
+                      speed,
+                      eta
+                    )
+                  }
+                }
+                if (line.includes('Auth Error') || line.includes('authentication failed')) {
+                  console.error(
+                    `[DownProc] Rclone (${item.releaseName}): Auth Error/Failed with mirror`
+                  )
+                  this.cancelDownload(item.releaseName, 'Error', 'Auth failed with mirror')
+                }
+                if (line.includes("doesn't support hash type")) {
+                  console.warn(
+                    `[DownProc] Rclone (${item.releaseName}): Hash type not supported with mirror`
+                  )
+                }
+              }
+            }
+          })
+
+          try {
+            await rcloneProcess // Wait for the process to complete
+
+            // Check final state after mirror download completes
+            const finalItemState = this.queueManager.findItem(item.releaseName)
+            if (!finalItemState || finalItemState.status !== 'Downloading') {
+              console.log(
+                `[DownProc] Mirror download process for ${item.releaseName} finished, but final status is ${finalItemState?.status}. Not proceeding to extraction.`
+              )
+              // Clean up
+              if (this.activeDownloads.has(item.releaseName)) {
+                this.activeDownloads.delete(item.releaseName)
+                this.queueManager.updateItem(item.releaseName, { pid: undefined })
+              }
+              return { success: false, startExtraction: false, finalState: finalItemState }
+            }
+
+            console.log(
+              `[DownProc] Mirror download process finished successfully for ${item.releaseName}.`
+            )
+            this.activeDownloads.delete(item.releaseName)
+
+            // Mirror downloads are already extracted, so mark as completed
+            // this.queueManager.updateItem(item.releaseName, {
+            //   status: 'Completed',
+            //   progress: 100,
+            //   pid: undefined
+            // })
+            // this.debouncedEmitUpdate() // Update UI to reflect completion
+            this.updateItemStatus(
+              item.releaseName,
+              'Completed',
+              100,
+              undefined,
+              undefined,
+              undefined,
+              100
+            )
+
+            // Mirror files are already extracted, no extraction needed
+            return {
+              success: true,
+              startExtraction: false,
+              finalState: this.queueManager.findItem(item.releaseName)
+            }
+          } catch (mirrorError: unknown) {
+            console.error(
+              `[DownProc] Mirror download failed for ${item.releaseName}, falling back to public endpoint:`,
+              mirrorError
+            )
+
+            // Clean up mirror process
+            if (this.activeDownloads.has(item.releaseName)) {
+              this.activeDownloads.delete(item.releaseName)
+              this.queueManager.updateItem(item.releaseName, { pid: undefined })
+            }
+
+            // Don't return here, fall through to public endpoint logic
+          }
+        } catch (configError) {
+          console.error('[DownProc] Failed to use mirror config file:', configError)
+          // Fall through to public endpoint logic
+        }
+      }
+    }
+
+    // Fall back to public endpoint if no mirror or mirror failed
+    console.log(`[DownProc] Using public endpoint for ${item.releaseName}`)
+
     const gameNameHash = crypto
       .createHash('md5')
       .update(item.releaseName + '\n')
       .digest('hex')
     const source = `:http:/${gameNameHash}`
 
-    let rcloneProcess: ReturnType<typeof execa> | null = null
     // Get the appropriate null config path based on platform
     const nullConfigPath = process.platform === 'win32' ? 'NUL' : '/dev/null'
 

@@ -293,3 +293,58 @@ export interface LogsAPI {
 export interface LogsAPIRenderer extends LogsAPI {}
 
 export type ServiceStatus = 'NOT_INITIALIZED' | 'INITIALIZING' | 'INITIALIZED' | 'ERROR'
+
+// Mirror types - all mirrors use rclone
+export interface MirrorConfig {
+  id: string
+  name: string
+  type: string // rclone type (ftp, http, webdav, etc.)
+  host: string
+  port?: number
+  user?: string
+  pass?: string
+  path?: string
+  md5sum_command?: string
+  sha1sum_command?: string
+  // Additional rclone config options can be stored as key-value pairs
+  [key: string]: unknown
+}
+
+export interface Mirror {
+  id: string
+  name: string
+  config: MirrorConfig
+  isActive: boolean
+  lastTested?: Date
+  testStatus: 'untested' | 'testing' | 'success' | 'failed'
+  testError?: string
+  addedDate: Date
+}
+
+export interface MirrorTestResult {
+  id: string
+  success: boolean
+  responseTime?: number
+  error?: string
+  timestamp: Date
+}
+
+// Mirror API
+export interface MirrorAPI {
+  getMirrors: () => Promise<Mirror[]>
+  addMirror: (configFile: string) => Promise<boolean>
+  removeMirror: (id: string) => Promise<boolean>
+  setActiveMirror: (id: string) => Promise<boolean>
+  clearActiveMirror: () => Promise<boolean>
+  testMirror: (id: string) => Promise<MirrorTestResult>
+  testAllMirrors: () => Promise<MirrorTestResult[]>
+  getActiveMirror: () => Promise<Mirror | null>
+}
+
+export interface MirrorAPIRenderer extends MirrorAPI {
+  onMirrorTestProgress: (
+    callback: (id: string, status: 'testing' | 'success' | 'failed', error?: string) => void
+  ) => () => void
+  onMirrorsUpdated: (callback: (mirrors: Mirror[]) => void) => () => void
+  importFromFile: () => Promise<string | null>
+}

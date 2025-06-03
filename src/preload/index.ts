@@ -17,7 +17,9 @@ import {
   UpdateInfo,
   UpdateAPIRenderer,
   DependencyAPIRenderer,
-  LogsAPIRenderer
+  LogsAPIRenderer,
+  MirrorAPIRenderer,
+  Mirror
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -185,10 +187,43 @@ const api = {
   logs: {
     uploadCurrentLog: (): Promise<string | null> => typedIpcRenderer.invoke('logs:upload-current')
   } satisfies LogsAPIRenderer,
+  // Mirror APIs
+  mirrors: {
+    getMirrors: () => typedIpcRenderer.invoke('mirrors:get-mirrors'),
+    addMirror: (configContent: string) =>
+      typedIpcRenderer.invoke('mirrors:add-mirror', configContent),
+    removeMirror: (id: string) => typedIpcRenderer.invoke('mirrors:remove-mirror', id),
+    setActiveMirror: (id: string) => typedIpcRenderer.invoke('mirrors:set-active-mirror', id),
+    clearActiveMirror: () => typedIpcRenderer.invoke('mirrors:clear-active-mirror'),
+    testMirror: (id: string) => typedIpcRenderer.invoke('mirrors:test-mirror', id),
+    testAllMirrors: () => typedIpcRenderer.invoke('mirrors:test-all-mirrors'),
+    getActiveMirror: () => typedIpcRenderer.invoke('mirrors:get-active-mirror'),
+    importFromFile: () => typedIpcRenderer.invoke('mirrors:import-from-file'),
+    onMirrorTestProgress: (
+      callback: (id: string, status: 'testing' | 'success' | 'failed', error?: string) => void
+    ): (() => void) => {
+      const listener = (
+        _: IpcRendererEvent,
+        id: string,
+        status: 'testing' | 'success' | 'failed',
+        error?: string
+      ): void => callback(id, status, error)
+      typedIpcRenderer.on('mirrors:test-progress', listener)
+      return () => typedIpcRenderer.removeListener('mirrors:test-progress', listener)
+    },
+    onMirrorsUpdated: (callback: (mirrors: Mirror[]) => void): (() => void) => {
+      const listener = (_: IpcRendererEvent, mirrors: Mirror[]): void => callback(mirrors)
+      typedIpcRenderer.on('mirrors:mirrors-updated', listener)
+      return () => typedIpcRenderer.removeListener('mirrors:mirrors-updated', listener)
+    }
+  } satisfies MirrorAPIRenderer,
   // Add dialog API
   dialog: {
     showDirectoryPicker: (): Promise<string | null> =>
-      typedIpcRenderer.invoke('dialog:show-directory-picker')
+      typedIpcRenderer.invoke('dialog:show-directory-picker'),
+    showFilePicker: (options?: {
+      filters?: { name: string; extensions: string[] }[]
+    }): Promise<string | null> => typedIpcRenderer.invoke('dialog:show-file-picker', options)
   },
   // Dependency Status Listeners
   onDependencyProgress: (

@@ -23,12 +23,12 @@ import {
   tokens,
   shorthands,
   makeStyles,
-  Title2,
   Text,
   Input,
   Badge,
   ProgressBar,
-  Spinner
+  Spinner,
+  Title3
 } from '@fluentui/react-components'
 import {
   ArrowClockwiseRegular,
@@ -44,6 +44,7 @@ import {
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import GameDetailsDialog from './GameDetailsDialog'
 import { useGameDialog } from '@renderer/hooks/useGameDialog'
+import MirrorSelector from './MirrorSelector'
 
 // Column width constants
 const COLUMN_WIDTHS = {
@@ -105,7 +106,7 @@ const useStyles = makeStyles({
   headerLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: tokens.spacingHorizontalM
+    gap: tokens.spacingHorizontalS
   },
   deviceInfoBar: {
     display: 'flex',
@@ -850,41 +851,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     })
   }
 
-  const handleConfirmDelete = useCallback(
-    async (gameToDelete: GameInfo): Promise<void> => {
-      if (!selectedDevice || !gameToDelete.packageName) {
-        console.error('Cannot delete: Missing selected device or package name', {
-          selectedDevice,
-          packageName: gameToDelete.packageName
-        })
-        window.alert('Failed to uninstall: Missing device or package name.')
-        return
-      }
-      handleCloseDialog()
-      console.log(`Proceeding with uninstall for ${gameToDelete.packageName}...`)
-      setIsLoading(true)
-      try {
-        const success = await window.api.adb.uninstallPackage(
-          selectedDevice,
-          gameToDelete.packageName
-        )
-        if (success) {
-          console.log('Uninstall successful, refreshing package list...')
-          await loadPackages()
-        } else {
-          console.error('Uninstall failed.')
-          window.alert('Failed to uninstall the game.')
-        }
-      } catch (error) {
-        console.error('Error during uninstall IPC call:', error)
-        window.alert('An error occurred during uninstallation.')
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [selectedDevice, loadPackages, handleCloseDialog]
-  )
-
   const handleDeleteDownloaded = useCallback(
     async (game: GameInfo | null): Promise<void> => {
       if (!game || !game.releaseName) return
@@ -935,10 +901,10 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <Button appearance="subtle" icon={<ArrowLeftRegular />} onClick={onBackToDevices}>
-            Back to devices selection
+            Devices selection
           </Button>
           <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
-            <Title2>{selectedDeviceDetails?.friendlyModelName || 'Games'}</Title2>
+            <Title3>{selectedDeviceDetails?.friendlyModelName || 'Games'}</Title3>
             {isConnected && (
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS }}
@@ -1018,27 +984,37 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             </div>
           )}
         </div>
-        {isConnected ? (
-          <div className={styles.toolbarRight}>
-            <Text className={styles.connectedDeviceText}>
-              <CheckmarkCircleRegular />
-              Connected to: {selectedDevice}
-            </Text>
-            <Button
-              appearance="subtle"
-              icon={<PlugDisconnectedRegular />}
-              onClick={disconnectDevice}
-              title="Disconnect from device"
-            />
-          </div>
-        ) : (
-          <div className={styles.toolbarRight}>
-            <Text className={styles.deviceWarningText}>
-              <DismissRegular />
-              Not connected to a device
-            </Text>
-          </div>
-        )}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: tokens.spacingVerticalS,
+            alignItems: 'flex-end'
+          }}
+        >
+          <MirrorSelector />
+          {isConnected ? (
+            <div className={styles.toolbarRight}>
+              <Text className={styles.connectedDeviceText}>
+                <CheckmarkCircleRegular />
+                Connected to: {selectedDevice}
+              </Text>
+              <Button
+                appearance="subtle"
+                icon={<PlugDisconnectedRegular />}
+                onClick={disconnectDevice}
+                title="Disconnect from device"
+              />
+            </div>
+          ) : (
+            <div className={styles.toolbarRight}>
+              <Text className={styles.deviceWarningText}>
+                <DismissRegular />
+                Not connected to a device
+              </Text>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className={styles.tableContainer}>
@@ -1220,7 +1196,6 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                 onUpdate={handleUpdate}
                 onRetry={handleRetry}
                 onCancelDownload={handleCancelDownload}
-                onConfirmDelete={handleConfirmDelete}
                 onDeleteDownloaded={handleDeleteDownloaded}
                 onInstallFromCompleted={handleInstallFromCompleted}
                 getNote={getNote}

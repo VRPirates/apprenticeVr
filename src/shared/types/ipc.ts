@@ -9,7 +9,9 @@ import {
   UploadPreparationProgress,
   UpdateInfo,
   UpdateProgressInfo,
-  BlacklistEntry
+  BlacklistEntry,
+  Mirror,
+  MirrorTestResult
 } from './index'
 
 // Define types for all IPC channels between renderer and main
@@ -84,8 +86,23 @@ export interface IPCChannels {
   // Log upload related channels
   'logs:upload-current': DefineChannel<[], string | null>
 
+  // Mirror related channels
+  'mirrors:get-mirrors': DefineChannel<[], Mirror[]>
+  'mirrors:add-mirror': DefineChannel<[configContent: string], boolean>
+  'mirrors:remove-mirror': DefineChannel<[id: string], boolean>
+  'mirrors:set-active-mirror': DefineChannel<[id: string], boolean>
+  'mirrors:clear-active-mirror': DefineChannel<[], boolean>
+  'mirrors:test-mirror': DefineChannel<[id: string], MirrorTestResult>
+  'mirrors:test-all-mirrors': DefineChannel<[], MirrorTestResult[]>
+  'mirrors:get-active-mirror': DefineChannel<[], Mirror | null>
+  'mirrors:import-from-file': DefineChannel<[], string | null>
+
   // Dialog related channels
   'dialog:show-directory-picker': DefineChannel<[], string | null>
+  'dialog:show-file-picker': DefineChannel<
+    [options?: { filters?: { name: string; extensions: string[] }[] }],
+    string | null
+  >
 }
 
 // Types for send (no response) channels
@@ -121,4 +138,6 @@ export interface IPCEvents {
   'update:error': [error: Error]
   'update:download-progress': [progressInfo: UpdateProgressInfo]
   'update:update-downloaded': [updateInfo: UpdateInfo]
+  'mirrors:test-progress': [id: string, status: 'testing' | 'success' | 'failed', error?: string]
+  'mirrors:mirrors-updated': [mirrors: Mirror[]]
 }

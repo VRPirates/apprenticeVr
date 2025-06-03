@@ -8,7 +8,8 @@ import {
   UploadAPIRenderer,
   UpdateAPIRenderer,
   DependencyAPIRenderer,
-  LogsAPIRenderer
+  LogsAPIRenderer,
+  MirrorAPIRenderer
 } from '@shared/types'
 
 declare global {
@@ -23,8 +24,12 @@ declare global {
       uploads: UploadAPIRenderer
       updates: UpdateAPIRenderer
       logs: LogsAPIRenderer
+      mirrors: MirrorAPIRenderer
       dialog: {
         showDirectoryPicker: () => Promise<string | null>
+        showFilePicker: (options?: {
+          filters?: { name: string; extensions: string[] }[]
+        }) => Promise<string | null>
       }
       onDependencyProgress: (
         callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void

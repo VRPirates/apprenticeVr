@@ -285,7 +285,7 @@ const LogUploadSettings: React.FC = () => {
     <Card className={styles.card}>
       <CardHeader description={<Subtitle1 weight="semibold">Log Upload</Subtitle1>} />
       <div className={styles.cardContent}>
-        <Text>Upload the current log file to transfer.sh for sharing with support</Text>
+        <Text>Upload the current log file to https://filebin.net for sharing with support</Text>
 
         <div className={styles.formRow}>
           <Button

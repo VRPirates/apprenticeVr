@@ -9,10 +9,12 @@ import downloadService from './services/downloadService'
 import uploadService from './services/uploadService'
 import updateService from './services/updateService'
 import logsService from './services/logsService'
+import mirrorService from './services/mirrorService'
 import { typedIpcMain } from '@shared/ipc-utils'
 import settingsService from './services/settingsService'
 import { typedWebContentsSend } from '@shared/ipc-utils'
 import log from 'electron-log/main'
+import fs from 'fs/promises'
 
 log.transports.file.resolvePathFn = () => {
   return logsService.getLogFilePath()
@@ -104,6 +106,10 @@ function createWindow(): void {
             // Initialize Upload Service
             await uploadService.initialize()
             console.log('Upload Service initialized.')
+
+            // Initialize Mirror Service
+            await mirrorService.initialize()
+            console.log('Mirror Service initialized.')
 
             // Initialize Update Service
             if (mainWindow) {
@@ -378,6 +384,72 @@ app.whenReady().then(async () => {
     }
   })
 
+  // --- Mirror Handlers ---
+  typedIpcMain.handle('mirrors:get-mirrors', async () => {
+    return await mirrorService.getMirrors()
+  })
+
+  typedIpcMain.handle('mirrors:add-mirror', async (_event, configContent) => {
+    console.log('[IPC] Adding mirror from config content')
+    return await mirrorService.addMirror(configContent)
+  })
+
+  typedIpcMain.handle('mirrors:remove-mirror', async (_event, id) => {
+    console.log(`[IPC] Removing mirror: ${id}`)
+    return await mirrorService.removeMirror(id)
+  })
+
+  typedIpcMain.handle('mirrors:set-active-mirror', async (_event, id) => {
+    console.log(`[IPC] Setting active mirror: ${id}`)
+    return await mirrorService.setActiveMirror(id)
+  })
+
+  typedIpcMain.handle('mirrors:clear-active-mirror', async () => {
+    console.log('[IPC] Clearing active mirror')
+    return await mirrorService.clearActiveMirror()
+  })
+
+  typedIpcMain.handle('mirrors:test-mirror', async (_event, id) => {
+    console.log(`[IPC] Testing mirror: ${id}`)
+    return await mirrorService.testMirror(id)
+  })
+
+  typedIpcMain.handle('mirrors:test-all-mirrors', async () => {
+    console.log('[IPC] Testing all mirrors')
+    return await mirrorService.testAllMirrors()
+  })
+
+  typedIpcMain.handle('mirrors:get-active-mirror', async () => {
+    return await mirrorService.getActiveMirror()
+  })
+
+  typedIpcMain.handle('mirrors:import-from-file', async () => {
+    console.log('[IPC] Importing mirror config from file')
+    if (!mainWindow) return null
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      title: 'Select Mirror Config File',
+      filters: [
+        { name: 'Config Files', extensions: ['conf', 'ini', 'txt', 'config'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return null
+    }
+
+    try {
+      const configContent = await fs.readFile(filePaths[0], 'utf-8')
+      console.log(`[IPC] Successfully read config file: ${filePaths[0]}`)
+      return configContent
+    } catch (error) {
+      console.error(`[IPC] Failed to read config file ${filePaths[0]}:`, error)
+      return null
+    }
+  })
+
   // --- Dialog Handlers ---
   typedIpcMain.handle('dialog:show-directory-picker', async () => {
     if (!mainWindow) return null
@@ -386,6 +458,25 @@ app.whenReady().then(async () => {
       properties: ['openDirectory', 'createDirectory'],
       title: 'Select Download Folder',
       defaultPath: settingsService.getDownloadPath()
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return null
+    }
+
+    return filePaths[0]
+  })
+
+  typedIpcMain.handle('dialog:show-file-picker', async (_event, options) => {
+    if (!mainWindow) return null
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      title: 'Select Mirror Config File',
+      filters: options?.filters || [
+        { name: 'Config Files', extensions: ['conf', 'ini', 'txt'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
     })
 
     if (canceled || filePaths.length === 0) {

@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import { GameInfo } from '@shared/types'
 import {
   Dialog,
-  DialogTrigger,
   DialogSurface,
   DialogBody,
   DialogTitle,
-  DialogActions,
   Button,
   DialogContent,
   tokens,
@@ -159,7 +157,6 @@ interface GameDetailsDialogProps {
   onUpdate: (game: GameInfo) => Promise<void>
   onRetry: (game: GameInfo) => void
   onCancelDownload: (game: GameInfo) => void
-  onConfirmDelete: (game: GameInfo) => void
   onDeleteDownloaded: (game: GameInfo) => void
   onInstallFromCompleted: (game: GameInfo) => void
   getNote: (releaseName: string) => Promise<string | null>
@@ -178,7 +175,6 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
   onUpdate,
   onRetry,
   onCancelDownload,
-  onConfirmDelete,
   onDeleteDownloaded,
   onInstallFromCompleted,
   getNote,
@@ -187,7 +183,6 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
 }) => {
   const styles = useStyles()
   const { getTrailerVideoId: getTrailerVideoIdFromContext } = useGames()
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState<boolean>(false)
   const [currentGameNote, setCurrentGameNote] = useState<string | null>(null)
   const [loadingNote, setLoadingNote] = useState<boolean>(false)
   const [videoId, setVideoId] = useState<string | null>(null)
@@ -257,20 +252,6 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
       isMounted = false
     }
   }, [open, game, getTrailerVideoIdFromContext])
-
-  // Internal handler to request delete confirmation
-  const handleDeleteRequest = (): void => {
-    setIsDeleteConfirmOpen(true)
-  }
-
-  // Internal handler for confirming delete (calls prop)
-  const handleConfirmDeleteInternal = useCallback(() => {
-    if (game) {
-      // Don't close main dialog here, parent should handle it after action
-      onConfirmDelete(game)
-      setIsDeleteConfirmOpen(false) // Only close the confirmation dialog
-    }
-  }, [game, onConfirmDelete])
 
   // Helper function to render action buttons based on game state
   const renderActionButtons = (currentGame: GameInfo): React.ReactNode => {
@@ -348,14 +329,6 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
             >
               Uninstall
             </Button>
-            <Button
-              appearance="danger"
-              icon={<DeleteRegular />}
-              onClick={handleDeleteRequest}
-              disabled={!isConnected || isBusy}
-            >
-              Delete
-            </Button>
           </>
         )
       } else {
@@ -376,14 +349,6 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
               disabled={!isConnected || isBusy}
             >
               Uninstall
-            </Button>
-            <Button
-              appearance="danger"
-              icon={<DeleteRegular />}
-              onClick={handleDeleteRequest}
-              disabled={!isConnected || isBusy}
-            >
-              Delete
             </Button>
           </>
         )
@@ -426,7 +391,6 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
   }
 
   const handleClose = (): void => {
-    setIsDeleteConfirmOpen(false)
     onClose()
   }
 
@@ -638,33 +602,6 @@ const GameDetailsDialog: React.FC<GameDetailsDialogProps> = ({
 
               <div className={styles.actionsList}>{renderActionButtons(game)}</div>
             </DialogContent>
-          </DialogBody>
-        </DialogSurface>
-      </Dialog>
-
-      <Dialog
-        open={isDeleteConfirmOpen}
-        onOpenChange={(_e, data) => !data.open && setIsDeleteConfirmOpen(false)}
-        modalType="alert"
-      >
-        <DialogSurface mountNode={document.getElementById('portal')}>
-          <DialogBody>
-            <DialogTitle>Confirm Uninstall</DialogTitle>
-            <div className={styles.deleteConfirmText}>
-              Are you sure you want to uninstall
-              <strong> {game?.name} </strong>({game?.packageName})? This will also remove associated
-              OBB and Data files from the device.
-            </div>
-            <DialogActions>
-              <DialogTrigger disableButtonEnhancement>
-                <Button appearance="secondary" onClick={() => setIsDeleteConfirmOpen(false)}>
-                  Cancel
-                </Button>
-              </DialogTrigger>
-              <Button appearance="primary" onClick={handleConfirmDeleteInternal}>
-                Uninstall
-              </Button>
-            </DialogActions>
           </DialogBody>
         </DialogSurface>
       </Dialog>

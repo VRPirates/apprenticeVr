@@ -10,6 +10,7 @@ import { InstallationProcessor } from './download/installationProcessor'
 import { DownloadAPI, GameInfo, DownloadItem, DownloadStatus } from '@shared/types'
 import settingsService from './settingsService'
 import { typedWebContentsSend } from '@shared/ipc-utils'
+import mirrorService from './mirrorService'
 
 interface VrpConfig {
   baseUri?: string
@@ -54,6 +55,7 @@ class DownloadService extends EventEmitter implements DownloadAPI {
   async initialize(vrpConfig: VrpConfig): Promise<void> {
     if (this.isInitialized) return
     console.log('Initializing DownloadService...')
+
     this.downloadProcessor.setVrpConfig(vrpConfig)
     this.extractionProcessor.setVrpConfig(vrpConfig)
 
@@ -234,27 +236,38 @@ class DownloadService extends EventEmitter implements DownloadAPI {
         this.processQueue()
         return
       }
-      if (!downloadResult.startExtraction || !downloadResult.finalState) {
+      const itemAfterDownload = downloadResult.finalState
+      if (!itemAfterDownload) {
         console.log(
-          `[Service ProcessQueue] Download successful but extraction flag not set for ${nextItem.releaseName}.`
+          `[Service ProcessQueue] Download successful but no final state for ${nextItem.releaseName}.`
         )
         this.isProcessing = false
         this.processQueue()
         return
       }
-      const itemAfterDownload = downloadResult.finalState
 
-      console.log(
-        `[Service ProcessQueue] Download successful for ${itemAfterDownload.releaseName}. Starting extraction...`
-      )
-      const extractionSuccess = await this.extractionProcessor.startExtraction(itemAfterDownload)
-      if (!extractionSuccess) {
+      if ((await mirrorService.getActiveMirror())?.id === 'public') {
+        if (!downloadResult.startExtraction) {
+          console.log(
+            `[Service ProcessQueue] Download successful but extraction flag not set for ${nextItem.releaseName}.`
+          )
+          this.isProcessing = false
+          this.processQueue()
+          return
+        }
+
         console.log(
-          `[Service ProcessQueue] Extraction failed or was cancelled for ${itemAfterDownload.releaseName}.`
+          `[Service ProcessQueue] Download successful for ${itemAfterDownload.releaseName}. Starting extraction...`
         )
-        this.isProcessing = false
-        this.processQueue()
-        return
+        const extractionSuccess = await this.extractionProcessor.startExtraction(itemAfterDownload)
+        if (!extractionSuccess) {
+          console.log(
+            `[Service ProcessQueue] Extraction failed or was cancelled for ${itemAfterDownload.releaseName}.`
+          )
+          this.isProcessing = false
+          this.processQueue()
+          return
+        }
       }
       const itemAfterExtraction = this.queueManager.findItem(itemAfterDownload.releaseName)
       if (!itemAfterExtraction || itemAfterExtraction.status !== 'Completed') {
