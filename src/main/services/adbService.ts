@@ -86,6 +86,20 @@ class AdbService extends EventEmitter implements AdbAPI {
         ? QUEST_MODEL_NAMES[modelResult]
         : `Unknown Device (${manufacturerResult} ${modelResult})`
 
+      // Get IP address
+      let ipAddress: string | null = null
+      try {
+        const ipOutput = await device.shell('ip route')
+        const ipResult = (await Adb.util.readAll(ipOutput)).toString().trim()
+        // Parse IP from "192.168.178.0/24 dev wlan0 proto kernel scope link src 192.168.178.106"
+        const ipMatch = ipResult.match(/src\s+(\d+\.\d+\.\d+\.\d+)/)
+        if (ipMatch && ipMatch[1]) {
+          ipAddress = ipMatch[1]
+        }
+      } catch (ipError) {
+        console.warn(`Could not fetch IP address for ${serial}:`, ipError)
+      }
+
       // Get battery level
       let batteryLevel: number | null = null
       try {
@@ -128,7 +142,8 @@ class AdbService extends EventEmitter implements AdbAPI {
         batteryLevel,
         storageTotal,
         storageFree,
-        friendlyModelName
+        friendlyModelName,
+        ipAddress
       }
     } catch (error) {
       console.error(`Error getting details for device ${serial}:`, error)
@@ -159,7 +174,8 @@ class AdbService extends EventEmitter implements AdbAPI {
               batteryLevel: null,
               storageTotal: null,
               storageFree: null,
-              friendlyModelName: null
+              friendlyModelName: null,
+              ipAddress: null
             })
           })
         } else {
@@ -172,7 +188,8 @@ class AdbService extends EventEmitter implements AdbAPI {
             batteryLevel: null,
             storageTotal: null,
             storageFree: null,
-            friendlyModelName: null
+            friendlyModelName: null,
+            ipAddress: null
           })
         }
       }
@@ -207,7 +224,8 @@ class AdbService extends EventEmitter implements AdbAPI {
             batteryLevel: null,
             storageTotal: null,
             storageFree: null,
-            friendlyModelName: null
+            friendlyModelName: null,
+            ipAddress: null
           })
         }
         // Emit event for our internal listeners
@@ -225,7 +243,8 @@ class AdbService extends EventEmitter implements AdbAPI {
           batteryLevel: null,
           storageTotal: null,
           storageFree: null,
-          friendlyModelName: null
+          friendlyModelName: null,
+          ipAddress: null
         }
         this.emit('adb:device-added', extendedDevice)
         if (mainWindow) {
@@ -246,7 +265,8 @@ class AdbService extends EventEmitter implements AdbAPI {
         batteryLevel: null,
         storageTotal: null,
         storageFree: null,
-        friendlyModelName: null
+        friendlyModelName: null,
+        ipAddress: null
       } satisfies DeviceInfo
 
       this.emit('adb:device-removed', deviceInfo)
@@ -269,7 +289,8 @@ class AdbService extends EventEmitter implements AdbAPI {
             batteryLevel: null,
             storageTotal: null,
             storageFree: null,
-            friendlyModelName: null
+            friendlyModelName: null,
+            ipAddress: null
           })
         }
         this.emit('adb:device-changed', extendedDevice)
@@ -285,7 +306,8 @@ class AdbService extends EventEmitter implements AdbAPI {
           batteryLevel: null,
           storageTotal: null,
           storageFree: null,
-          friendlyModelName: null
+          friendlyModelName: null,
+          ipAddress: null
         }
         this.emit('adb:device-changed', extendedDevice)
         if (mainWindow) {
@@ -326,6 +348,70 @@ class AdbService extends EventEmitter implements AdbAPI {
     } catch (error) {
       console.error(`Error connecting to device ${serial}:`, error)
       return false
+    }
+  }
+
+  async connectTcpDevice(ipAddress: string, port: number = 5555): Promise<boolean> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
+    try {
+      console.log(`[ADB Service] Attempting to connect to TCP device ${ipAddress}:${port}...`)
+
+      // Use adb connect command
+      await this.client.connect(ipAddress, port)
+
+      // Verify connection by trying to get device properties
+      const deviceClient = this.client.getDevice(`${ipAddress}:${port}`)
+      await deviceClient.getProperties()
+
+      console.log(`[ADB Service] Successfully connected to TCP device ${ipAddress}:${port}`)
+      return true
+    } catch (error) {
+      console.error(`Error connecting to TCP device ${ipAddress}:${port}:`, error)
+      return false
+    }
+  }
+
+  async disconnectTcpDevice(ipAddress: string, port: number = 5555): Promise<boolean> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
+    try {
+      console.log(`[ADB Service] Attempting to disconnect from TCP device ${ipAddress}:${port}...`)
+
+      // Use adb disconnect command
+      await this.client.disconnect(ipAddress, port)
+
+      console.log(`[ADB Service] Successfully disconnected from TCP device ${ipAddress}:${port}`)
+      return true
+    } catch (error) {
+      console.error(`Error disconnecting from TCP device ${ipAddress}:${port}:`, error)
+      return false
+    }
+  }
+
+  async getDeviceIp(serial: string): Promise<string | null> {
+    if (!this.client) {
+      throw new Error('adb service not initialized!')
+    }
+    try {
+      const deviceClient = this.client.getDevice(serial)
+      const ipOutput = await deviceClient.shell('ip route')
+      const ipResult = (await Adb.util.readAll(ipOutput)).toString().trim()
+
+      // Parse IP from "192.168.178.0/24 dev wlan0 proto kernel scope link src 192.168.178.106"
+      const ipMatch = ipResult.match(/src\s+(\d+\.\d+\.\d+\.\d+)/)
+      if (ipMatch && ipMatch[1]) {
+        console.log(`[ADB Service] Found IP address for ${serial}: ${ipMatch[1]}`)
+        return ipMatch[1]
+      }
+
+      console.log(`[ADB Service] No IP address found for ${serial}`)
+      return null
+    } catch (error) {
+      console.error(`Error getting IP address for device ${serial}:`, error)
+      return null
     }
   }
 

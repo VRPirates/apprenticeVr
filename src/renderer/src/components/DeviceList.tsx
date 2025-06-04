@@ -1,5 +1,6 @@
 import React from 'react'
 import { useAdb } from '../hooks/useAdb'
+import { ExtendedDeviceInfo, hasBookmarkData, isWiFiBookmark } from '@shared/types'
 // Import Fluent UI components and icons
 import {
   Button,
@@ -12,7 +13,9 @@ import {
   makeStyles,
   tokens,
   shorthands,
-  Text
+  Text,
+  Input,
+  Field
 } from '@fluentui/react-components'
 import {
   DeviceMeetingRoomRegular,
@@ -22,7 +25,9 @@ import {
   StorageRegular,
   DismissCircleRegular,
   WarningRegular,
-  ErrorCircleRegular
+  ErrorCircleRegular,
+  BookmarkRegular,
+  Wifi1Regular
 } from '@fluentui/react-icons'
 
 interface DeviceListProps {
@@ -54,6 +59,20 @@ const useStyles = makeStyles({
     },
     cursor: 'default'
   },
+  wifiBookmarkDevice: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    ...shorthands.padding(tokens.spacingVerticalM, tokens.spacingHorizontalM),
+    backgroundColor: tokens.colorBrandBackground2,
+    ...shorthands.borderRadius(tokens.borderRadiusMedium),
+    ...shorthands.border('1px', 'solid', tokens.colorBrandStroke2),
+    marginTop: tokens.spacingVerticalXS,
+    ':hover': {
+      backgroundColor: tokens.colorBrandBackground2Hover
+    },
+    cursor: 'default'
+  },
   deviceInfo: {
     display: 'flex',
     alignItems: 'center',
@@ -70,6 +89,11 @@ const useStyles = makeStyles({
   deviceType: {
     color: tokens.colorNeutralForeground2,
     fontSize: tokens.fontSizeBase200
+  },
+  wifiDeviceType: {
+    color: tokens.colorBrandForeground2,
+    fontSize: tokens.fontSizeBase200,
+    fontWeight: tokens.fontWeightMedium
   },
   deviceDetailsLine: {
     display: 'flex',
@@ -112,15 +136,133 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
     isLoading,
     error,
     connectToDevice,
+    connectTcpDevice,
+    disconnectTcpDevice,
     refreshDevices,
     disconnectDevice
   } = useAdb()
   const styles = useStyles()
+  const [tcpIpAddress, setTcpIpAddress] = React.useState('')
+  const [tcpPort, setTcpPort] = React.useState('5555')
+  const [isTcpConnecting, setIsTcpConnecting] = React.useState(false)
+  const [connectingDeviceId, setConnectingDeviceId] = React.useState<string | null>(null)
+  const [connectionError, setConnectionError] = React.useState<string | null>(null)
+  const [lastFailedDeviceId, setLastFailedDeviceId] = React.useState<string | null>(null)
+
+  // Get all bookmarked IP addresses to check for duplicates
+  const bookmarkedIpAddresses = React.useMemo(() => {
+    return devices
+      .filter((device) => isWiFiBookmark(device) || hasBookmarkData(device))
+      .map((device) => {
+        if (isWiFiBookmark(device)) {
+          return device.ipAddress
+        }
+        if (hasBookmarkData(device)) {
+          return device.bookmarkData.ipAddress
+        }
+        return null
+      })
+      .filter((ip): ip is string => ip !== null)
+  }, [devices])
 
   const handleConnect = async (serial: string): Promise<void> => {
-    const success = await connectToDevice(serial)
-    if (success && onConnected) {
-      onConnected()
+    setConnectingDeviceId(serial)
+    setConnectionError(null)
+    setLastFailedDeviceId(null)
+    try {
+      const success = await connectToDevice(serial)
+      if (success && onConnected) {
+        onConnected()
+        setLastFailedDeviceId(null)
+      } else {
+        setConnectionError(`Failed to connect to device ${serial}`)
+        setLastFailedDeviceId(serial)
+      }
+    } catch {
+      setConnectionError('Connection failed')
+      setLastFailedDeviceId(serial)
+    } finally {
+      setConnectingDeviceId(null)
+    }
+  }
+
+  const handleTcpConnect = async (): Promise<void> => {
+    if (!tcpIpAddress.trim()) return
+
+    setIsTcpConnecting(true)
+    try {
+      const port = parseInt(tcpPort) || 5555
+      const deviceName = `${tcpIpAddress.trim()}:${port}`
+
+      // Add as bookmark instead of direct connect
+      const success = await window.api.wifiBookmarks.add(deviceName, tcpIpAddress.trim(), port)
+      if (success) {
+        // Clear the form and refresh to show the new bookmark
+        setTcpIpAddress('')
+        setTcpPort('5555')
+        refreshDevices()
+      }
+    } finally {
+      setIsTcpConnecting(false)
+    }
+  }
+
+  const handleBookmarkDevice = async (device: {
+    ipAddress?: string | null
+    friendlyModelName?: string | null
+    model?: string | null
+    id: string
+  }): Promise<void> => {
+    if (!device.ipAddress) return
+
+    const deviceName = device.friendlyModelName || device.model || device.id
+    const success = await window.api.wifiBookmarks.add(
+      `${deviceName} (${device.ipAddress})`,
+      device.ipAddress,
+      5555
+    )
+
+    if (success) {
+      refreshDevices()
+    }
+  }
+
+  const handleConnectBookmark = async (device: ExtendedDeviceInfo): Promise<void> => {
+    if (!hasBookmarkData(device)) return
+
+    const bookmarkData = device.bookmarkData
+    const deviceId = device.id
+    setConnectingDeviceId(deviceId)
+    setConnectionError(null)
+    setLastFailedDeviceId(null)
+    try {
+      // Use the AdbProvider's connectTcpDevice method to properly update connection state
+      const success = await connectTcpDevice(bookmarkData.ipAddress, bookmarkData.port)
+      if (success) {
+        // Update last connected time
+        await window.api.wifiBookmarks.updateLastConnected(bookmarkData.id)
+        setLastFailedDeviceId(null)
+        if (onConnected) {
+          onConnected()
+        }
+      } else {
+        setConnectionError(`Failed to connect to ${bookmarkData.ipAddress}:${bookmarkData.port}`)
+        setLastFailedDeviceId(deviceId)
+      }
+    } catch {
+      setConnectionError(`Connection to ${bookmarkData.ipAddress} failed`)
+      setLastFailedDeviceId(deviceId)
+    } finally {
+      setConnectingDeviceId(null)
+    }
+  }
+
+  const handleDeleteBookmark = async (device: ExtendedDeviceInfo): Promise<void> => {
+    if (!hasBookmarkData(device)) return
+
+    const success = await window.api.wifiBookmarks.remove(device.bookmarkData.id)
+    if (success) {
+      refreshDevices()
     }
   }
 
@@ -152,6 +294,39 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
         }
       />
 
+      {/* TCP Connection Section */}
+      <CardPreview
+        style={{
+          padding: tokens.spacingVerticalM,
+          borderBottom: `1px solid ${tokens.colorNeutralStroke2}`
+        }}
+      >
+        <Field label="Connect via TCP/IP">
+          <div style={{ display: 'flex', gap: tokens.spacingHorizontalS, alignItems: 'end' }}>
+            <Input
+              placeholder="IP Address (e.g., 192.168.1.100)"
+              value={tcpIpAddress}
+              onChange={(_, data) => setTcpIpAddress(data.value)}
+              style={{ flex: 1 }}
+            />
+            <Input
+              placeholder="Port"
+              value={tcpPort}
+              onChange={(_, data) => setTcpPort(data.value)}
+              style={{ width: '80px' }}
+            />
+            <Button
+              icon={<BookmarkRegular />}
+              onClick={handleTcpConnect}
+              disabled={!tcpIpAddress.trim() || isTcpConnecting || isLoading}
+              appearance="primary"
+            >
+              {isTcpConnecting ? 'Adding...' : 'Add Bookmark'}
+            </Button>
+          </div>
+        </Field>
+      </CardPreview>
+
       <CardPreview className={styles.deviceListContainer}>
         {error && (
           <Body1 className={styles.messageArea}>Error: {error}</Body1> // Show error clearly
@@ -173,6 +348,13 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
               const isCurrentDeviceConnected = selectedDevice === device.id && isConnected
               const isConnectable = device.type === 'device' || device.type === 'emulator'
               const isKnownQuestDevice = device.isQuestDevice
+              const isTcpDevice = device.id.includes(':') // TCP devices have format IP:PORT
+              const isWifiBookmark = isWiFiBookmark(device)
+              const isConnectedBookmark = hasBookmarkData(device) && isTcpDevice && isConnectable // Merged bookmark with real TCP device
+              const isConnecting = connectingDeviceId === device.id
+              const isAlreadyBookmarked =
+                device.ipAddress && bookmarkedIpAddresses.includes(device.ipAddress)
+              const showConnectionError = connectionError && lastFailedDeviceId === device.id
 
               let deviceStatusMessage = ''
               if (device.type === 'offline') deviceStatusMessage = 'Offline'
@@ -181,30 +363,57 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
               else if (device.type === 'unknown') deviceStatusMessage = 'Unknown State'
 
               return (
-                <div key={device.id} className={styles.deviceItem}>
+                <div
+                  key={device.id}
+                  className={
+                    isWifiBookmark || isConnectedBookmark
+                      ? styles.wifiBookmarkDevice
+                      : styles.deviceItem
+                  }
+                >
                   <div className={styles.deviceInfo}>
-                    <DeviceMeetingRoomRegular fontSize={24} />
+                    {isWifiBookmark || isConnectedBookmark ? (
+                      <Wifi1Regular fontSize={24} />
+                    ) : (
+                      <DeviceMeetingRoomRegular fontSize={24} />
+                    )}
                     <div className={styles.deviceText}>
                       <Text weight="semibold" className={styles.deviceId}>
                         {device.friendlyModelName || device.model || device.id}
                       </Text>
-                      <Text size={200} className={styles.deviceType}>
-                        {device.friendlyModelName ? device.id : device.type}
+                      <Text
+                        size={200}
+                        className={
+                          isWifiBookmark || isConnectedBookmark
+                            ? styles.wifiDeviceType
+                            : styles.deviceType
+                        }
+                      >
+                        {isWifiBookmark
+                          ? 'WiFi Bookmark'
+                          : isConnectedBookmark
+                            ? 'WiFi Device (Connected)'
+                            : device.friendlyModelName
+                              ? device.id
+                              : device.type}
                         {!isConnectable && deviceStatusMessage && ` - ${deviceStatusMessage}`}
                       </Text>
 
                       {/* Warning for connectable non-Quest devices */}
-                      {isConnectable && !isKnownQuestDevice && (
-                        <div className={styles.warningText}>
-                          <WarningRegular fontSize={16} />
-                          <Text size={200}>
-                            Not a recognized Quest device. Connection may have unintended results.
-                          </Text>
-                        </div>
-                      )}
+                      {isConnectable &&
+                        !isKnownQuestDevice &&
+                        !isWifiBookmark &&
+                        !isConnectedBookmark && (
+                          <div className={styles.warningText}>
+                            <WarningRegular fontSize={16} />
+                            <Text size={200}>
+                              Not a recognized Quest device. Connection may have unintended results.
+                            </Text>
+                          </div>
+                        )}
 
                       {/* Status for non-connectable devices */}
-                      {!isConnectable && deviceStatusMessage && (
+                      {!isConnectable && deviceStatusMessage && !isWifiBookmark && (
                         <div className={styles.deviceStatusText}>
                           <ErrorCircleRegular fontSize={16} />
                           <Text size={200}>{deviceStatusMessage}</Text>
@@ -225,32 +434,102 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
                           </Text>
                         </div>
                       )}
+
+                      {device.ipAddress && (
+                        <div className={styles.deviceDetailsLine}>
+                          <PlugDisconnectedRegular fontSize={16} />
+                          <Text size={200}>IP: {device.ipAddress}</Text>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {isCurrentDeviceConnected ? (
-                    <Button
-                      icon={<DismissCircleRegular />}
-                      onClick={disconnectDevice}
-                      appearance="outline"
-                      aria-label="Disconnect device"
-                    >
-                      Disconnect
-                    </Button>
-                  ) : isConnectable ? (
-                    <Button
-                      icon={<PlugDisconnectedRegular />}
-                      appearance="outline"
-                      onClick={() => handleConnect(device.id)}
-                      disabled={isLoading}
-                    >
-                      Connect
-                    </Button>
-                  ) : (
-                    // No button for non-connectable devices, or a disabled one if preferred
-                    <Button icon={<PlugDisconnectedRegular />} appearance="outline" disabled={true}>
-                      Cannot Connect
-                    </Button>
-                  )}
+                  <div style={{ display: 'flex', gap: tokens.spacingHorizontalXS }}>
+                    {/* Bookmark button for devices with IP addresses */}
+                    {device.ipAddress && isConnectable && !isTcpDevice && !isWifiBookmark && (
+                      <Button
+                        icon={<BookmarkRegular />}
+                        onClick={() => handleBookmarkDevice(device)}
+                        appearance="subtle"
+                        size="small"
+                        aria-label="Bookmark device"
+                        disabled={isAlreadyBookmarked}
+                      >
+                        {isAlreadyBookmarked ? 'Bookmarked' : 'Bookmark'}
+                      </Button>
+                    )}
+
+                    {/* Show connection error if any */}
+                    {showConnectionError && (
+                      <Text size={200} style={{ color: tokens.colorPaletteRedForeground1 }}>
+                        {connectionError}
+                      </Text>
+                    )}
+
+                    {/* Delete button for WiFi bookmarks (both connected and disconnected) */}
+                    {(isWifiBookmark || isConnectedBookmark) && (
+                      <Button
+                        icon={<DismissCircleRegular />}
+                        onClick={() => handleDeleteBookmark(device)}
+                        appearance="subtle"
+                        size="small"
+                        aria-label="Delete bookmark"
+                      >
+                        Delete
+                      </Button>
+                    )}
+
+                    {isConnectedBookmark ||
+                    (isTcpDevice && isConnectable && isCurrentDeviceConnected) ? (
+                      <Button
+                        icon={<DismissCircleRegular />}
+                        onClick={async () => {
+                          const [ip, port] = device.id.split(':')
+                          await disconnectTcpDevice(ip, parseInt(port) || 5555)
+                        }}
+                        appearance="outline"
+                        aria-label="Disconnect TCP device"
+                      >
+                        Disconnect
+                      </Button>
+                    ) : isCurrentDeviceConnected ? (
+                      <Button
+                        icon={<DismissCircleRegular />}
+                        onClick={disconnectDevice}
+                        appearance="outline"
+                        aria-label="Disconnect device"
+                      >
+                        Disconnect
+                      </Button>
+                    ) : isWifiBookmark ? (
+                      <Button
+                        icon={<PlugDisconnectedRegular />}
+                        onClick={() => handleConnectBookmark(device)}
+                        appearance="outline"
+                        aria-label="Connect to bookmarked device"
+                        disabled={isConnecting}
+                      >
+                        {isConnecting ? 'Connecting...' : 'Connect'}
+                      </Button>
+                    ) : isConnectable ? (
+                      <Button
+                        icon={<PlugDisconnectedRegular />}
+                        appearance="outline"
+                        onClick={() => handleConnect(device.id)}
+                        disabled={isLoading || isConnecting}
+                      >
+                        {isConnecting ? 'Connecting...' : 'Connect'}
+                      </Button>
+                    ) : (
+                      // No button for non-connectable devices, or a disabled one if preferred
+                      <Button
+                        icon={<PlugDisconnectedRegular />}
+                        appearance="outline"
+                        disabled={true}
+                      >
+                        Cannot Connect
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )
             })}

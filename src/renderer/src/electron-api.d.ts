@@ -9,7 +9,8 @@ import {
   UpdateAPIRenderer,
   DependencyAPIRenderer,
   LogsAPIRenderer,
-  MirrorAPIRenderer
+  MirrorAPIRenderer,
+  WiFiBookmark
 } from '@shared/types'
 
 declare global {
@@ -30,6 +31,12 @@ declare global {
         showFilePicker: (options?: {
           filters?: { name: string; extensions: string[] }[]
         }) => Promise<string | null>
+      }
+      wifiBookmarks: {
+        getAll: () => Promise<WiFiBookmark[]>
+        add: (name: string, ipAddress: string, port: number) => Promise<boolean>
+        remove: (id: string) => Promise<boolean>
+        updateLastConnected: (id: string) => Promise<void>
       }
       onDependencyProgress: (
         callback: (status: DependencyStatus, progress: { name: string; percentage: number }) => void

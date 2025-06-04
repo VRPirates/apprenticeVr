@@ -19,7 +19,8 @@ import {
   DependencyAPIRenderer,
   LogsAPIRenderer,
   MirrorAPIRenderer,
-  Mirror
+  Mirror,
+  WiFiBookmark
 } from '@shared/types'
 import { typedIpcRenderer } from '@shared/ipc-utils'
 
@@ -31,6 +32,10 @@ const api = {
     listDevices: (): Promise<DeviceInfo[]> => typedIpcRenderer.invoke('adb:list-devices'),
     connectDevice: (serial: string): Promise<boolean> =>
       typedIpcRenderer.invoke('adb:connect-device', serial),
+    connectTcpDevice: (ipAddress: string, port?: number): Promise<boolean> =>
+      typedIpcRenderer.invoke('adb:connect-tcp-device', ipAddress, port),
+    disconnectTcpDevice: (ipAddress: string, port?: number): Promise<boolean> =>
+      typedIpcRenderer.invoke('adb:disconnect-tcp-device', ipAddress, port),
     getInstalledPackages: (serial: string): Promise<PackageInfo[]> =>
       typedIpcRenderer.invoke('adb:get-installed-packages', serial),
     uninstallPackage: (serial: string, packageName: string): Promise<boolean> =>
@@ -67,7 +72,9 @@ const api = {
     getUserName: (serial: string): Promise<string> =>
       typedIpcRenderer.invoke('adb:get-user-name', serial),
     setUserName: (serial: string, name: string): Promise<void> =>
-      typedIpcRenderer.invoke('adb:set-user-name', serial, name)
+      typedIpcRenderer.invoke('adb:set-user-name', serial, name),
+    getDeviceIp: (serial: string): Promise<string | null> =>
+      typedIpcRenderer.invoke('adb:get-device-ip', serial)
   } satisfies AdbAPIRenderer,
   games: {
     getGames: (): Promise<GameInfo[]> => typedIpcRenderer.invoke('games:get-games'),
@@ -224,6 +231,15 @@ const api = {
     showFilePicker: (options?: {
       filters?: { name: string; extensions: string[] }[]
     }): Promise<string | null> => typedIpcRenderer.invoke('dialog:show-file-picker', options)
+  },
+  // WiFi bookmarks API
+  wifiBookmarks: {
+    getAll: (): Promise<WiFiBookmark[]> => typedIpcRenderer.invoke('wifi-bookmarks:get-all'),
+    add: (name: string, ipAddress: string, port: number): Promise<boolean> =>
+      typedIpcRenderer.invoke('wifi-bookmarks:add', name, ipAddress, port),
+    remove: (id: string): Promise<boolean> => typedIpcRenderer.invoke('wifi-bookmarks:remove', id),
+    updateLastConnected: (id: string): Promise<void> =>
+      typedIpcRenderer.invoke('wifi-bookmarks:update-last-connected', id)
   },
   // Dependency Status Listeners
   onDependencyProgress: (

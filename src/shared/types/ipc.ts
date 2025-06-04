@@ -11,7 +11,8 @@ import {
   UpdateProgressInfo,
   BlacklistEntry,
   Mirror,
-  MirrorTestResult
+  MirrorTestResult,
+  WiFiBookmark
 } from './index'
 
 // Define types for all IPC channels between renderer and main
@@ -35,6 +36,9 @@ export interface IPCChannels {
   // ADB related channels
   'adb:list-devices': DefineChannel<[], DeviceInfo[]>
   'adb:connect-device': DefineChannel<[serial: string], boolean>
+  'adb:connect-tcp-device': DefineChannel<[ipAddress: string, port?: number], boolean>
+  'adb:disconnect-tcp-device': DefineChannel<[ipAddress: string, port?: number], boolean>
+  'adb:get-device-ip': DefineChannel<[serial: string], string | null>
   'adb:get-installed-packages': DefineChannel<[serial: string], PackageInfo[]>
   'adb:uninstallPackage': DefineChannel<[serial: string, packageName: string], boolean>
   'adb:get-application-label': DefineChannel<[serial: string, packageName: string], string | null>
@@ -96,6 +100,12 @@ export interface IPCChannels {
   'mirrors:test-all-mirrors': DefineChannel<[], MirrorTestResult[]>
   'mirrors:get-active-mirror': DefineChannel<[], Mirror | null>
   'mirrors:import-from-file': DefineChannel<[], string | null>
+
+  // WiFi bookmark related channels
+  'wifi-bookmarks:get-all': DefineChannel<[], WiFiBookmark[]>
+  'wifi-bookmarks:add': DefineChannel<[name: string, ipAddress: string, port: number], boolean>
+  'wifi-bookmarks:remove': DefineChannel<[id: string], boolean>
+  'wifi-bookmarks:update-last-connected': DefineChannel<[id: string], void>
 
   // Dialog related channels
   'dialog:show-directory-picker': DefineChannel<[], string | null>

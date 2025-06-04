@@ -40,7 +40,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     selectedDevice,
     selectedDeviceDetails
   } = useAdb()
-  const dependencyContext = useDependency()
+  const { isReady } = useDependency()
 
   const addGameToBlacklist = useCallback(
     async (packageName: string, version?: number | 'any'): Promise<void> => {
@@ -260,7 +260,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
 
   useEffect(() => {
     const initializeAndLoad = async (): Promise<void> => {
-      if (dependencyContext.isReady && !isInitialLoadComplete) {
+      if (isReady && !isInitialLoadComplete) {
         console.log('Dependencies ready, initializing game service and loading games...')
         try {
           setIsLoading(true)
@@ -274,7 +274,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
       }
     }
     initializeAndLoad()
-  }, [dependencyContext.isReady, loadGames, isInitialLoadComplete])
+  }, [isReady, loadGames, isInitialLoadComplete])
 
   const getNote = useCallback(async (releaseName: string): Promise<string> => {
     return await window.api.games.getNote(releaseName)

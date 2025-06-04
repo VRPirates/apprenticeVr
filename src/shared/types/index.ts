@@ -9,14 +9,46 @@ type Modify<T, R> = Omit<T, keyof R> & R
 // Device types
 export interface DeviceInfo {
   id: string
-  type: 'emulator' | 'device' | 'offline' | 'unauthorized' | 'unknown'
+  type: 'emulator' | 'device' | 'offline' | 'unauthorized' | 'unknown' | 'wifi-bookmark'
   model: string | null
   isQuestDevice: boolean
   batteryLevel: number | null
   storageTotal: string | null
   storageFree: string | null
   friendlyModelName: string | null
-  [key: string]: unknown
+  ipAddress: string | null
+}
+
+export interface WiFiBookmark {
+  id: string
+  name: string
+  ipAddress: string
+  port: number
+  dateAdded: Date
+  lastConnected?: Date
+}
+
+// Extended device type that includes bookmark data
+export interface DeviceWithBookmark extends DeviceInfo {
+  bookmarkData: WiFiBookmark
+}
+
+// Union type for devices that may or may not have bookmark data
+export type ExtendedDeviceInfo = DeviceInfo | DeviceWithBookmark
+
+// Type guard to check if a device has bookmark data
+export function hasBookmarkData(device: ExtendedDeviceInfo): device is DeviceWithBookmark {
+  return 'bookmarkData' in device && device.bookmarkData !== undefined
+}
+
+// Type guard to check if a device is a WiFi bookmark
+export function isWiFiBookmark(device: ExtendedDeviceInfo): boolean {
+  return device.type === 'wifi-bookmark'
+}
+
+// Type guard to check if a device is a TCP device (has IP:PORT format)
+export function isTcpDevice(device: ExtendedDeviceInfo): boolean {
+  return device.id.includes(':')
 }
 
 export interface PackageInfo {
@@ -156,6 +188,9 @@ export interface BlacklistEntry {
 export interface AdbAPI {
   listDevices: () => Promise<DeviceInfo[]>
   connectDevice: (serial: string) => Promise<boolean>
+  connectTcpDevice: (ipAddress: string, port?: number) => Promise<boolean>
+  disconnectTcpDevice: (ipAddress: string, port?: number) => Promise<boolean>
+  getDeviceIp: (serial: string) => Promise<string | null>
   getInstalledPackages: (serial: string) => Promise<PackageInfo[]>
   getApplicationLabel: (serial: string, packageName: string) => Promise<string | null>
   uninstallPackage: (serial: string, packageName: string) => Promise<boolean>

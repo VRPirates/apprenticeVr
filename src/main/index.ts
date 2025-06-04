@@ -10,6 +10,7 @@ import uploadService from './services/uploadService'
 import updateService from './services/updateService'
 import logsService from './services/logsService'
 import mirrorService from './services/mirrorService'
+import wifiBookmarksService from './services/wifiBookmarksService'
 import { typedIpcMain } from '@shared/ipc-utils'
 import settingsService from './services/settingsService'
 import { typedWebContentsSend } from '@shared/ipc-utils'
@@ -111,6 +112,10 @@ function createWindow(): void {
             await mirrorService.initialize()
             console.log('Mirror Service initialized.')
 
+            // Initialize WiFi Bookmarks Service
+            await wifiBookmarksService.initialize()
+            console.log('WiFi Bookmarks Service initialized.')
+
             // Initialize Update Service
             if (mainWindow) {
               updateService.initialize()
@@ -198,6 +203,12 @@ app.whenReady().then(async () => {
   typedIpcMain.handle('adb:connect-device', async (_event, serial) => {
     return await adbService.connectDevice(serial)
   })
+  typedIpcMain.handle('adb:connect-tcp-device', async (_event, ipAddress, port) => {
+    return await adbService.connectTcpDevice(ipAddress, port)
+  })
+  typedIpcMain.handle('adb:disconnect-tcp-device', async (_event, ipAddress, port) => {
+    return await adbService.disconnectTcpDevice(ipAddress, port)
+  })
   typedIpcMain.handle(
     'adb:get-installed-packages',
     async (_event, serial) => await adbService.getInstalledPackages(serial)
@@ -219,6 +230,9 @@ app.whenReady().then(async () => {
   })
   typedIpcMain.handle('adb:set-user-name', async (_event, serial, name) => {
     return await adbService.setUserName(serial, name)
+  })
+  typedIpcMain.handle('adb:get-device-ip', async (_event, serial) => {
+    return await adbService.getDeviceIp(serial)
   })
 
   // --- Game Handlers ---
@@ -382,6 +396,25 @@ app.whenReady().then(async () => {
       console.error('[IPC Handler Error] Log upload failed:', error)
       return null
     }
+  })
+
+  // --- WiFi Bookmark Handlers ---
+  typedIpcMain.handle('wifi-bookmarks:get-all', async () => {
+    return await wifiBookmarksService.getAllBookmarks()
+  })
+
+  typedIpcMain.handle('wifi-bookmarks:add', async (_event, name, ipAddress, port) => {
+    console.log(`[IPC] Adding WiFi bookmark: ${name} (${ipAddress}:${port})`)
+    return await wifiBookmarksService.addBookmark(name, ipAddress, port)
+  })
+
+  typedIpcMain.handle('wifi-bookmarks:remove', async (_event, id) => {
+    console.log(`[IPC] Removing WiFi bookmark: ${id}`)
+    return await wifiBookmarksService.removeBookmark(id)
+  })
+
+  typedIpcMain.handle('wifi-bookmarks:update-last-connected', async (_event, id) => {
+    await wifiBookmarksService.updateLastConnected(id)
   })
 
   // --- Mirror Handlers ---

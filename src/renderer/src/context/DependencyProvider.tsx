@@ -17,7 +17,6 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
     window.api.dependency.getStatus().then((status) => {
       console.log('Dependency status:', status)
       setStatus(status)
-      setIsReady(status.sevenZip.ready && status.rclone.ready && status.adb.ready)
     })
 
     // Setup listeners

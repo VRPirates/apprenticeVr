@@ -1,10 +1,10 @@
-import { PackageInfo } from '@shared/types'
-import { DeviceInfo } from '@shared/types'
+import { PackageInfo, ExtendedDeviceInfo } from '@shared/types'
 import { createContext } from 'react'
+
 export interface AdbContextType {
-  devices: DeviceInfo[]
+  devices: ExtendedDeviceInfo[]
   selectedDevice: string | null
-  selectedDeviceDetails: DeviceInfo | null
+  selectedDeviceDetails: ExtendedDeviceInfo | null
   isConnected: boolean
   isLoading: boolean
   error: string | null
@@ -13,6 +13,8 @@ export interface AdbContextType {
   userName: string
   loadingUserName: boolean
   connectToDevice: (serial: string) => Promise<boolean>
+  connectTcpDevice: (ipAddress: string, port?: number) => Promise<boolean>
+  disconnectTcpDevice: (ipAddress: string, port?: number) => Promise<boolean>
   refreshDevices: () => Promise<void>
   disconnectDevice: () => void
   loadPackages: () => Promise<void>
