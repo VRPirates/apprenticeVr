@@ -107,6 +107,10 @@ export function UpdateNotification(): React.ReactElement | null {
     }
   }
 
+  const handleViewReleases = (): void => {
+    window.api.updates?.openReleasesPage?.()
+  }
+
   const handleDismiss = (): void => {
     setIsDialogOpen(false)
   }
@@ -167,6 +171,21 @@ export function UpdateNotification(): React.ReactElement | null {
                 </div>
               </div>
             )}
+
+            <div style={{ marginTop: '12px', paddingTop: '8px', borderTop: '1px solid #e0e0e0' }}>
+              <Text size="small" style={{ color: '#666' }}>
+                Visit the{' '}
+                <Button
+                  appearance="transparent"
+                  size="small"
+                  onClick={() => window.api.updates?.openRepositoryPage?.()}
+                  style={{ padding: '0', height: 'auto', minHeight: 'auto' }}
+                >
+                  GitHub repository (https://github.com/jimzrt/apprenticeVr)
+                </Button>{' '}
+                for full changelog and project details.
+              </Text>
+            </div>
           </div>
         </div>
       </div>
@@ -198,6 +217,9 @@ export function UpdateNotification(): React.ReactElement | null {
               <>
                 <Button appearance="secondary" onClick={handleDismiss}>
                   Remind Me Later
+                </Button>
+                <Button appearance="secondary" onClick={handleViewReleases}>
+                  View Releases
                 </Button>
                 <Button
                   appearance="primary"

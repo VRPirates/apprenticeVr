@@ -157,6 +157,8 @@ const api = {
   updates: {
     checkForUpdates: (): Promise<void> => typedIpcRenderer.invoke('update:check-for-updates'),
     openDownloadPage: (url: string): void => typedIpcRenderer.send('update:download', url),
+    openReleasesPage: (): void => typedIpcRenderer.send('update:open-releases'),
+    openRepositoryPage: (): void => typedIpcRenderer.send('update:open-repository'),
     onCheckingForUpdate: (callback: () => void): (() => void) => {
       const listener = (): void => callback()
       typedIpcRenderer.on('update:checking-for-update', listener)

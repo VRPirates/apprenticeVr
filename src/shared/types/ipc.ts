@@ -125,6 +125,8 @@ export interface IPCSendChannels {
   'upload:remove': string
   'upload:cancel': string
   'update:download': string
+  'update:open-releases': void
+  'update:open-repository': void
 }
 
 // Types for events emitted from main to renderer

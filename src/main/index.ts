@@ -345,6 +345,16 @@ app.whenReady().then(async () => {
     updateService.openDownloadPage(url)
   })
 
+  typedIpcMain.on('update:open-releases', () => {
+    console.log('[IPC] Open releases page requested')
+    updateService.openReleasesPage()
+  })
+
+  typedIpcMain.on('update:open-repository', () => {
+    console.log('[IPC] Open repository page requested')
+    updateService.openRepositoryPage()
+  })
+
   // Set up update service event forwarding to renderer
   updateService.on('checking-for-update', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {

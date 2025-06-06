@@ -53,7 +53,9 @@ class UpdateService extends EventEmitter {
             const windowsAsset = assets.find((asset) => asset.name.endsWith('-setup.exe'))
             if (windowsAsset) downloadUrl = windowsAsset.browser_download_url
           } else if (process.platform === 'darwin') {
-            const macAsset = assets.find((asset) => asset.name.endsWith('.dmg'))
+            // Detect macOS architecture
+            const arch = process.arch === 'arm64' ? 'arm64' : 'x64'
+            const macAsset = assets.find((asset) => asset.name.endsWith(`-${arch}.dmg`))
             if (macAsset) downloadUrl = macAsset.browser_download_url
           } else if (process.platform === 'linux') {
             const linuxAsset = assets.find((asset) => asset.name.endsWith('.AppImage'))
@@ -84,6 +86,24 @@ class UpdateService extends EventEmitter {
   public openDownloadPage(url: string): void {
     console.log('Opening download page:', url)
     shell.openExternal(url)
+  }
+
+  /**
+   * Open releases page in browser
+   */
+  public openReleasesPage(): void {
+    const releasesUrl = 'https://github.com/jimzrt/apprenticeVr/releases'
+    console.log('Opening releases page:', releasesUrl)
+    shell.openExternal(releasesUrl)
+  }
+
+  /**
+   * Open repository page in browser
+   */
+  public openRepositoryPage(): void {
+    const repositoryUrl = 'https://github.com/jimzrt/apprenticeVr'
+    console.log('Opening repository page:', repositoryUrl)
+    shell.openExternal(repositoryUrl)
   }
 }
 

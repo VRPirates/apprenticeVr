@@ -278,6 +278,8 @@ export interface UploadAPIRenderer extends UploadAPI {
 export interface UpdateAPI {
   checkForUpdates: () => Promise<void>
   openDownloadPage: (url: string) => void
+  openReleasesPage: () => void
+  openRepositoryPage: () => void
 }
 
 export interface UpdateAPIRenderer extends UpdateAPI {
