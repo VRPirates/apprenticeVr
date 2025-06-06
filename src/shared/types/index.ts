@@ -145,11 +145,20 @@ export interface DownloadProgress {
 }
 
 // Update types
+export interface CommitInfo {
+  sha: string
+  message: string
+  author: string
+  date: string
+  url: string
+}
+
 export interface UpdateInfo {
   version: string
   releaseNotes?: string
   releaseDate?: string
   downloadUrl?: string
+  commits?: CommitInfo[]
 }
 
 export interface UpdateProgressInfo {

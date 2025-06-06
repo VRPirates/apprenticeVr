@@ -1,7 +1,7 @@
 import { app, shell } from 'electron'
 import { EventEmitter } from 'events'
 import axios from 'axios'
-import { UpdateInfo } from '@shared/types'
+import { UpdateInfo, CommitInfo } from '@shared/types'
 import { compareVersions } from 'compare-versions'
 
 class UpdateService extends EventEmitter {
@@ -16,6 +16,90 @@ class UpdateService extends EventEmitter {
    */
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   public initialize(): void {}
+
+  /**
+   * Fetch commits between two versions
+   */
+  private async fetchCommitsBetweenVersions(
+    currentVersion: string,
+    latestVersion: string
+  ): Promise<CommitInfo[]> {
+    try {
+      console.log(`Fetching commits between v${currentVersion} and v${latestVersion}`)
+
+      // Get the commit SHA for the current version tag
+      const currentTagResponse = await axios.get(
+        `https://api.github.com/repos/jimzrt/apprenticeVr/git/ref/tags/v${currentVersion}`
+      )
+
+      if (currentTagResponse.status !== 200) {
+        console.warn(`Could not find tag v${currentVersion}, falling back to commit comparison`)
+        return []
+      }
+
+      const currentTagSha = currentTagResponse.data.object.sha
+
+      // Get commits since the current version
+      const commitsResponse = await axios.get(
+        `https://api.github.com/repos/jimzrt/apprenticeVr/commits?since=${new Date(
+          Date.now() - 365 * 24 * 60 * 60 * 1000
+        ).toISOString()}&per_page=100`
+      )
+
+      if (commitsResponse.status !== 200) {
+        console.warn('Could not fetch commits')
+        return []
+      }
+
+      const allCommits = commitsResponse.data
+      const commits: CommitInfo[] = []
+
+      // Find commits between current tag and latest
+      let reachedCurrentVersion = false
+      for (const commit of allCommits) {
+        // Stop when we reach the current version's commit
+        if (commit.sha === currentTagSha || commit.sha.startsWith(currentTagSha.substring(0, 7))) {
+          reachedCurrentVersion = true
+          break
+        }
+
+        // Skip merge commits to keep changelog clean
+        if (commit.parents && commit.parents.length <= 1) {
+          commits.push({
+            sha: commit.sha.substring(0, 7),
+            message: commit.commit.message.split('\n')[0], // First line only
+            author: commit.commit.author.name,
+            date: commit.commit.author.date,
+            url: commit.html_url
+          })
+        }
+      }
+
+      // If we didn't find the current version tag, try alternative approach
+      if (!reachedCurrentVersion && commits.length === 0) {
+        console.log('Using alternative commit fetching approach')
+        // Get recent commits (last 20) as fallback
+        const recentCommits = allCommits.slice(0, 20)
+        for (const commit of recentCommits) {
+          if (commit.parents && commit.parents.length <= 1) {
+            commits.push({
+              sha: commit.sha.substring(0, 7),
+              message: commit.commit.message.split('\n')[0],
+              author: commit.commit.author.name,
+              date: commit.commit.author.date,
+              url: commit.html_url
+            })
+          }
+        }
+      }
+
+      console.log(`Found ${commits.length} commits between versions`)
+      return commits.reverse() // Show oldest to newest
+    } catch (error) {
+      console.error('Error fetching commits between versions:', error)
+      return []
+    }
+  }
 
   /**
    * Check for updates by fetching the latest release from GitHub
@@ -65,6 +149,12 @@ class UpdateService extends EventEmitter {
           // Add download URL to update info
           if (downloadUrl) {
             updateInfo.downloadUrl = downloadUrl
+          }
+
+          // Fetch commits between versions
+          const commits = await this.fetchCommitsBetweenVersions(this.currentVersion, latestVersion)
+          if (commits.length > 0) {
+            updateInfo.commits = commits
           }
 
           this.emit('update-available', updateInfo)
