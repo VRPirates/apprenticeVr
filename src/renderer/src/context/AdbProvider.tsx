@@ -127,11 +127,29 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
         setSelectedDevice(null)
         setIsConnected(false)
         setPackages([]) // Clear packages when device is removed
+        // Notify download service about disconnection
+        window.api.downloads.setAppConnectionState(null, false)
       }
     })
 
     const removeDeviceChanged = window.api.adb.onDeviceChanged(async (device) => {
       const mergedDevice = await mergeDeviceWithBookmarks(device)
+
+      // Check if the changed device is the currently selected device and is going offline
+      if (
+        selectedDevice === device.id &&
+        (device.type === 'offline' || device.type === 'unauthorized')
+      ) {
+        console.log(
+          `[AdbProvider] Currently selected device ${device.id} went ${device.type}, disconnecting from app`
+        )
+        setSelectedDevice(null)
+        setIsConnected(false)
+        setPackages([])
+        setUserNameState('')
+        // Notify download service about disconnection
+        window.api.downloads.setAppConnectionState(null, false)
+      }
 
       setDevices((prevDevices) => {
         const existingDeviceIndex = prevDevices.findIndex((d) => d.id === device.id)
@@ -366,12 +384,16 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
         setIsConnected(false)
         setPackages([])
         setUserNameState('')
+        // Notify download service about disconnection
+        window.api.downloads.setAppConnectionState(null, false)
       }
 
       const success = await window.api.adb.connectDevice(serial)
       if (success) {
         setSelectedDevice(serial)
         setIsConnected(true)
+        // Notify download service about connection state
+        window.api.downloads.setAppConnectionState(serial, true)
         return true
       } else {
         // Don't set global error for connection failures - let the UI handle it
@@ -404,12 +426,16 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
         setIsConnected(false)
         setPackages([])
         setUserNameState('')
+        // Notify download service about disconnection
+        window.api.downloads.setAppConnectionState(null, false)
       }
 
       const success = await window.api.adb.connectTcpDevice(ipAddress, port)
       if (success) {
         setSelectedDevice(deviceId)
         setIsConnected(true)
+        // Notify download service about connection state
+        window.api.downloads.setAppConnectionState(deviceId, true)
         // Refresh devices to show the new TCP connection
         await refreshDevices()
         return true
@@ -436,6 +462,8 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
         setIsConnected(false)
         setPackages([])
         setUserNameState('')
+        // Notify download service about disconnection
+        window.api.downloads.setAppConnectionState(null, false)
       }
 
       // Refresh devices to remove the disconnected TCP device
@@ -453,6 +481,8 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     setIsConnected(false)
     setPackages([])
     setUserNameState('')
+    // Notify download service about disconnection
+    window.api.downloads.setAppConnectionState(null, false)
   }
 
   const value = {

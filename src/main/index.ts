@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, protocol, dialog } from 'electron'
+import { app, shell, BrowserWindow, protocol, dialog, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -333,6 +333,13 @@ app.whenReady().then(async () => {
   typedIpcMain.on('download:set-download-path', (_event, path) =>
     downloadService.setDownloadPath(path)
   )
+
+  ipcMain.on('download:set-app-connection-state', (_event, selectedDevice, isConnected) => {
+    console.log(
+      `[IPC] Setting app connection state - Device: ${selectedDevice}, Connected: ${isConnected}`
+    )
+    downloadService.setAppConnectionState(selectedDevice, isConnected)
+  })
 
   // --- Update Handlers ---
   typedIpcMain.handle('update:check-for-updates', async () => {

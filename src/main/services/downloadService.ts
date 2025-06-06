@@ -26,6 +26,8 @@ class DownloadService extends EventEmitter implements DownloadAPI {
   private extractionProcessor: ExtractionProcessor
   private installationProcessor: InstallationProcessor
   private adbService: typeof adbService
+  private appSelectedDevice: string | null = null
+  private appIsConnected: boolean = false
 
   constructor() {
     super()
@@ -49,6 +51,32 @@ class DownloadService extends EventEmitter implements DownloadAPI {
 
   setDownloadPath(path: string): void {
     this.downloadsPath = path
+  }
+
+  setAppConnectionState(selectedDevice: string | null, isConnected: boolean): void {
+    console.log(
+      `[Service] App connection state updated - Device: ${selectedDevice}, Connected: ${isConnected}`
+    )
+    this.appSelectedDevice = selectedDevice
+    this.appIsConnected = isConnected
+  }
+
+  private getTargetDeviceForInstallation(): string | null {
+    console.log(
+      `[Service] Checking app connection state - Device: ${this.appSelectedDevice}, Connected: ${this.appIsConnected}`
+    )
+
+    // If the app is not connected to any device, don't install
+    if (!this.appIsConnected || !this.appSelectedDevice) {
+      console.log('[Service] App is not connected to any device, skipping installation')
+      return null
+    }
+
+    // Return the app's selected device for installation
+    console.log(
+      `[Service] Using app's connected device for installation: ${this.appSelectedDevice}`
+    )
+    return this.appSelectedDevice
   }
 
   async initialize(vrpConfig: VrpConfig): Promise<void> {
@@ -204,26 +232,7 @@ class DownloadService extends EventEmitter implements DownloadAPI {
       `[Service ProcessQueue] Processing next item: ${nextItem.releaseName}, setting isProcessing=true`
     )
 
-    let targetDeviceId: string | null = null
-    try {
-      const devices = await this.adbService.listDevices()
-      const authorizedDevices = devices.filter((d) => d.type === 'device')
-      if (authorizedDevices.length === 1) {
-        targetDeviceId = authorizedDevices[0].id
-        console.log(`[Service ProcessQueue] Found single authorized device: ${targetDeviceId}`)
-      } else if (authorizedDevices.length === 0) {
-        console.log(
-          '[Service ProcessQueue] No authorized devices found for potential installation.'
-        )
-      } else {
-        console.log(
-          `[Service ProcessQueue] Multiple authorized devices found (${authorizedDevices.length}). Installation requires a single target.`
-        )
-      }
-    } catch (err) {
-      console.error('[Service ProcessQueue] Error listing devices:', err)
-      // Proceed without device ID, installation step will be skipped
-    }
+    const targetDeviceId = this.getTargetDeviceForInstallation()
 
     try {
       const downloadResult = await this.downloadProcessor.startDownload(nextItem)
@@ -275,9 +284,11 @@ class DownloadService extends EventEmitter implements DownloadAPI {
         return
       }
 
-      if (!targetDeviceId) {
+      // Re-check connection state before installation (device might have disconnected during extraction)
+      const finalTargetDeviceId = this.getTargetDeviceForInstallation()
+      if (!finalTargetDeviceId) {
         console.warn(
-          `[Service ProcessQueue] Extraction successful for ${itemAfterExtraction.releaseName}, but no single authorized device found for installation.`
+          `[Service ProcessQueue] Extraction successful for ${itemAfterExtraction.releaseName}, but app is no longer connected to a device. Skipping installation.`
         )
         // Mark as Completed (download/extract), installation skipped.
         this.isProcessing = false
@@ -285,16 +296,25 @@ class DownloadService extends EventEmitter implements DownloadAPI {
         return
       }
 
+      if (targetDeviceId && targetDeviceId !== finalTargetDeviceId) {
+        console.warn(
+          `[Service ProcessQueue] Target device changed during processing. Was: ${targetDeviceId}, Now: ${finalTargetDeviceId}. Skipping installation.`
+        )
+        this.isProcessing = false
+        this.processQueue()
+        return
+      }
+
       console.log(
-        `[Service ProcessQueue] Extraction successful for ${itemAfterExtraction.releaseName}. Starting installation on ${targetDeviceId}...`
+        `[Service ProcessQueue] Extraction successful for ${itemAfterExtraction.releaseName}. Starting installation on ${finalTargetDeviceId}...`
       )
       const installationSuccess = await this.installationProcessor.startInstallation(
         itemAfterExtraction,
-        targetDeviceId
+        finalTargetDeviceId
       )
       if (installationSuccess) {
         // Emit event on successful installation
-        this.emit('installation:success', targetDeviceId)
+        this.emit('installation:success', finalTargetDeviceId)
       } else {
         // Error is already logged by the installation processor
         console.error(
@@ -568,13 +588,29 @@ class DownloadService extends EventEmitter implements DownloadAPI {
       return // Don't throw, just log and return. Main loop might pick it up later?
     }
 
-    // Check if the target device is still connected and authorized
+    // Check if the app is connected to the target device
+    const targetDeviceForInstall = this.getTargetDeviceForInstallation()
+    if (!targetDeviceForInstall) {
+      console.error(
+        `[Service installFromCompleted] App is not connected to any device. Cannot install ${releaseName}.`
+      )
+      throw new Error('App is not connected to any device.')
+    }
+
+    if (targetDeviceForInstall !== deviceId) {
+      console.error(
+        `[Service installFromCompleted] App is connected to ${targetDeviceForInstall} but installation requested for ${deviceId}.`
+      )
+      throw new Error(`App is connected to a different device (${targetDeviceForInstall}).`)
+    }
+
+    // Check if the target device is still connected and authorized at the ADB level
     try {
       const devices = await this.adbService.listDevices()
       const targetDevice = devices.find((d) => d.id === deviceId && d.type === 'device')
       if (!targetDevice) {
         console.error(
-          `[Service installFromCompleted] Target device ${deviceId} not found or not authorized.`
+          `[Service installFromCompleted] Target device ${deviceId} not found or not authorized at ADB level.`
         )
         throw new Error(`Target device ${deviceId} not found or not authorized.`)
       }

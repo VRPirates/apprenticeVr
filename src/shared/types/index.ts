@@ -253,6 +253,7 @@ export interface DownloadAPI {
   retryDownload: (releaseName: string) => void
   deleteDownloadedFiles: (releaseName: string) => Promise<boolean>
   setDownloadPath: (path: string) => void
+  setAppConnectionState: (selectedDevice: string | null, isConnected: boolean) => void
 }
 
 export interface DownloadAPIRenderer extends DownloadAPI {

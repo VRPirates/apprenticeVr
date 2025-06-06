@@ -1,4 +1,4 @@
-import { contextBridge, IpcRendererEvent } from 'electron'
+import { contextBridge, IpcRendererEvent, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import {
   GameInfo,
@@ -118,7 +118,9 @@ const api = {
       return () => typedIpcRenderer.removeListener('download:queue-updated', listener)
     },
     setDownloadPath: (path: string): void =>
-      typedIpcRenderer.send('download:set-download-path', path)
+      typedIpcRenderer.send('download:set-download-path', path),
+    setAppConnectionState: (selectedDevice: string | null, isConnected: boolean): void =>
+      ipcRenderer.send('download:set-app-connection-state', selectedDevice, isConnected)
   } satisfies DownloadAPIRenderer,
   // Upload APIs
   uploads: {
