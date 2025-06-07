@@ -666,6 +666,119 @@ class DownloadService extends EventEmitter implements DownloadAPI {
       throw error // Re-throw so the IPC handler logs it
     }
   }
+
+  public async installManualFile(filePath: string, deviceId: string): Promise<boolean> {
+    console.log(`[Service] Manual install requested for ${filePath} on device ${deviceId}`)
+
+    // Check if the app is connected to the target device
+    const targetDeviceForInstall = this.getTargetDeviceForInstallation()
+    if (!targetDeviceForInstall) {
+      console.error(
+        `[Service installManualFile] App is not connected to any device. Cannot install ${filePath}.`
+      )
+      return false
+    }
+
+    if (targetDeviceForInstall !== deviceId) {
+      console.error(
+        `[Service installManualFile] App is connected to ${targetDeviceForInstall} but installation requested for ${deviceId}.`
+      )
+      return false
+    }
+
+    // Check if the target device is still connected and authorized at the ADB level
+    try {
+      const devices = await this.adbService.listDevices()
+      const targetDevice = devices.find((d) => d.id === deviceId && d.type === 'device')
+      if (!targetDevice) {
+        console.error(
+          `[Service installManualFile] Target device ${deviceId} not found or not authorized at ADB level.`
+        )
+        return false
+      }
+    } catch (err) {
+      console.error(`[Service installManualFile] Error verifying target device ${deviceId}:`, err)
+      return false
+    }
+
+    // Check if the file/folder exists
+    if (!existsSync(filePath)) {
+      console.error(`[Service installManualFile] File/folder not found: ${filePath}`)
+      return false
+    }
+
+    try {
+      const stats = await fs.stat(filePath)
+
+      if (stats.isFile() && filePath.toLowerCase().endsWith('.apk')) {
+        // Single APK file installation
+        console.log(`[Service installManualFile] Installing single APK: ${filePath}`)
+        const success = await this.adbService.installPackage(deviceId, filePath, {
+          flags: ['-r', '-g']
+        })
+        if (success) {
+          console.log(`[Service installManualFile] Successfully installed APK: ${filePath}`)
+          this.emit('installation:success', deviceId)
+        }
+        return success
+      } else if (stats.isDirectory()) {
+        // Folder installation - create a temporary DownloadItem to use existing installation logic
+        console.log(`[Service installManualFile] Installing folder: ${filePath}`)
+
+        // Generate a unique identifier for this manual installation
+        const manualId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+
+        // Try to extract package name from folder structure if possible
+        let packageName = ''
+        try {
+          const folderContents = await fs.readdir(filePath)
+          const apkFiles = folderContents.filter((f) => f.toLowerCase().endsWith('.apk'))
+          if (apkFiles.length > 0) {
+            // Look for potential package directory (common pattern in extracted games)
+            const potentialPackageDirs = folderContents.filter((item) => {
+              // Common package name patterns
+              return item.includes('.') && !item.includes(' ') && item.length > 5
+            })
+            if (potentialPackageDirs.length === 1) {
+              packageName = potentialPackageDirs[0]
+            }
+          }
+        } catch (error) {
+          console.log(`[Service installManualFile] Could not analyze folder structure: ${error}`)
+        }
+
+        // Create a temporary DownloadItem
+        const tempItem: DownloadItem = {
+          gameId: manualId,
+          releaseName: manualId,
+          packageName: packageName,
+          gameName: `Manual Install: ${filePath.split(/[/\\]/).pop()}`,
+          status: 'Completed',
+          progress: 100,
+          extractProgress: 100,
+          addedDate: Date.now(),
+          downloadPath: filePath
+        }
+
+        // Use the installation processor to handle the folder
+        const success = await this.installationProcessor.startInstallation(tempItem, deviceId)
+        if (success) {
+          console.log(`[Service installManualFile] Successfully installed folder: ${filePath}`)
+          this.emit('installation:success', deviceId)
+        }
+        return success
+      } else {
+        console.error(`[Service installManualFile] Unsupported file type: ${filePath}`)
+        return false
+      }
+    } catch (error) {
+      console.error(
+        `[Service installManualFile] Error during manual installation of ${filePath}:`,
+        error
+      )
+      return false
+    }
+  }
 }
 
 export default new DownloadService()

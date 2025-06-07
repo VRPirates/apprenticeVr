@@ -114,6 +114,8 @@ const api = {
       typedIpcRenderer.invoke('download:delete-files', releaseName),
     installFromCompleted: (releaseName: string, deviceId: string): Promise<void> =>
       typedIpcRenderer.invoke('download:install-from-completed', releaseName, deviceId),
+    installManualFile: (filePath: string, deviceId: string): Promise<boolean> =>
+      typedIpcRenderer.invoke('downloads:install-manual', filePath, deviceId),
     onQueueUpdated: (callback: (queue: DownloadItem[]) => void): (() => void) => {
       const listener = (_: IpcRendererEvent, queue: DownloadItem[]): void => callback(queue)
       typedIpcRenderer.on('download:queue-updated', listener)
@@ -236,7 +238,13 @@ const api = {
       typedIpcRenderer.invoke('dialog:show-directory-picker'),
     showFilePicker: (options?: {
       filters?: { name: string; extensions: string[] }[]
-    }): Promise<string | null> => typedIpcRenderer.invoke('dialog:show-file-picker', options)
+    }): Promise<string | null> => typedIpcRenderer.invoke('dialog:show-file-picker', options),
+    showManualInstallPicker: (): Promise<string | null> =>
+      typedIpcRenderer.invoke('dialog:show-manual-install-picker'),
+    showApkFilePicker: (): Promise<string | null> =>
+      typedIpcRenderer.invoke('dialog:show-apk-file-picker'),
+    showFolderPicker: (): Promise<string | null> =>
+      typedIpcRenderer.invoke('dialog:show-folder-picker')
   },
   // WiFi bookmarks API
   wifiBookmarks: {

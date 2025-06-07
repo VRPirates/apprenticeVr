@@ -117,6 +117,12 @@ export interface IPCChannels {
     [options?: { filters?: { name: string; extensions: string[] }[] }],
     string | null
   >
+  'dialog:show-manual-install-picker': DefineChannel<[], string | null>
+  'dialog:show-apk-file-picker': DefineChannel<[], string | null>
+  'dialog:show-folder-picker': DefineChannel<[], string | null>
+
+  // Manual installation channels
+  'downloads:install-manual': DefineChannel<[filePath: string, deviceId: string], boolean>
 }
 
 // Types for send (no response) channels

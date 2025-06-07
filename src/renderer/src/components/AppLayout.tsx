@@ -62,7 +62,7 @@ const useStyles = makeStyles({
   header: {
     display: 'flex',
     alignItems: 'center',
-    padding: `${tokens.spacingVerticalL} ${tokens.spacingHorizontalL}`,
+    padding: `${tokens.spacingVerticalNone} ${tokens.spacingHorizontalL}`,
     borderBottom: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke1}`,
     backgroundColor: tokens.colorNeutralBackground3,
     gap: tokens.spacingHorizontalM,

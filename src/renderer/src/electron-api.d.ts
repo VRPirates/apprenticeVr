@@ -31,6 +31,9 @@ declare global {
         showFilePicker: (options?: {
           filters?: { name: string; extensions: string[] }[]
         }) => Promise<string | null>
+        showManualInstallPicker: () => Promise<string | null>
+        showApkFilePicker: () => Promise<string | null>
+        showFolderPicker: () => Promise<string | null>
       }
       wifiBookmarks: {
         getAll: () => Promise<WiFiBookmark[]>

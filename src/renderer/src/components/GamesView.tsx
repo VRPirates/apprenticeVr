@@ -28,7 +28,18 @@ import {
   Badge,
   ProgressBar,
   Spinner,
-  Title3
+  Title3,
+  Menu,
+  MenuTrigger,
+  MenuList,
+  MenuItem,
+  MenuPopover,
+  Dialog,
+  DialogSurface,
+  DialogBody,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@fluentui/react-components'
 import {
   ArrowClockwiseRegular,
@@ -39,7 +50,10 @@ import {
   BatteryChargeRegular,
   StorageRegular,
   PersonRegular,
-  EditRegular
+  EditRegular,
+  FolderAddRegular,
+  DocumentRegular,
+  ChevronDownRegular
 } from '@fluentui/react-icons'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import GameDetailsDialog from './GameDetailsDialog'
@@ -260,6 +274,10 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
   const [isEditingUserName, setIsEditingUserName] = useState<boolean>(false)
   const [editUserNameValue, setEditUserNameValue] = useState<string>('')
+  const [isManualInstalling, setIsManualInstalling] = useState<boolean>(false)
+  const [installStatusMessage, setInstallStatusMessage] = useState<string>('')
+  const [showInstallDialog, setShowInstallDialog] = useState<boolean>(false)
+  const [installSuccess, setInstallSuccess] = useState<boolean | null>(null)
 
   const counts = useMemo(() => {
     const total = games.length
@@ -894,7 +912,69 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     setEditUserNameValue('')
   }, [])
 
-  const isBusy = adbLoading || loadingGames || isLoading
+  const handleManualInstall = useCallback(
+    async (type: 'apk' | 'folder') => {
+      if (!isConnected || !selectedDevice) {
+        window.alert('Please connect to a device first.')
+        return
+      }
+
+      try {
+        let filePath: string | null = null
+        let itemName: string = ''
+
+        if (type === 'apk') {
+          filePath = await window.api.dialog.showApkFilePicker()
+          itemName = 'APK file'
+        } else {
+          filePath = await window.api.dialog.showFolderPicker()
+          itemName = 'folder'
+        }
+
+        if (!filePath) {
+          return // User cancelled the dialog
+        }
+
+        const fileName = filePath.split(/[/\\]/).pop() || filePath
+        console.log(`${itemName} install requested for: ${filePath}`)
+
+        // Show the installation dialog
+        setShowInstallDialog(true)
+        setIsManualInstalling(true)
+        setInstallStatusMessage(`Installing ${itemName}: ${fileName}...`)
+        setInstallSuccess(null)
+
+        const success = await window.api.downloads.installManualFile(filePath, selectedDevice)
+
+        setInstallSuccess(success)
+
+        if (success) {
+          console.log(`${itemName} installation successful for: ${filePath}`)
+          setInstallStatusMessage(`✅ "${fileName}" installed successfully!`)
+          // Refresh packages to update the UI
+          await loadPackages()
+        } else {
+          console.error(`${itemName} installation failed for: ${filePath}`)
+          setInstallStatusMessage(`❌ Failed to install "${fileName}"`)
+        }
+      } catch (error) {
+        console.error(`Error during ${type} installation:`, error)
+        setInstallStatusMessage('❌ Installation error occurred')
+        setInstallSuccess(false)
+      } finally {
+        setIsManualInstalling(false)
+      }
+    },
+    [isConnected, selectedDevice, loadPackages]
+  )
+
+  const closeInstallDialog = useCallback(() => {
+    setShowInstallDialog(false)
+    setInstallSuccess(null)
+    setInstallStatusMessage('')
+  }, [])
+
+  const isBusy = adbLoading || loadingGames || isLoading || isManualInstalling
 
   return (
     <div className={styles.root}>
@@ -1035,6 +1115,41 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             >
               {isBusy ? 'Working...' : 'Refresh Quest'}
             </Button>
+            <Menu>
+              <MenuTrigger disableButtonEnhancement>
+                <Button
+                  icon={<FolderAddRegular />}
+                  iconPosition="before"
+                  disabled={isBusy || !isConnected}
+                  title={
+                    !isConnected
+                      ? 'Connect a device to manually install files'
+                      : 'Install APK file or folder manually'
+                  }
+                >
+                  {isManualInstalling ? 'Installing...' : 'Manual Install'}
+                  <ChevronDownRegular />
+                </Button>
+              </MenuTrigger>
+              <MenuPopover>
+                <MenuList>
+                  <MenuItem
+                    icon={<DocumentRegular />}
+                    onClick={() => handleManualInstall('apk')}
+                    disabled={isManualInstalling}
+                  >
+                    Install APK File
+                  </MenuItem>
+                  <MenuItem
+                    icon={<FolderAddRegular />}
+                    onClick={() => handleManualInstall('folder')}
+                    disabled={isManualInstalling}
+                  >
+                    Install Folder
+                  </MenuItem>
+                </MenuList>
+              </MenuPopover>
+            </Menu>
             <span className="last-synced">Last synced: {formatDate(lastSyncTime)}</span>
             {isConnected && (
               <div className="filter-buttons">
@@ -1060,20 +1175,21 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
               </div>
             )}
           </div>
-          <div className="games-toolbar-right">
-            <span className="game-count">{table.getFilteredRowModel().rows.length} displayed</span>
-            <Input
-              value={globalFilter ?? ''}
-              onChange={(e) => setGlobalFilter(String(e.target.value))}
-              placeholder="Search name/package..."
-              type="search"
-            />
-          </div>
         </div>
-
+        <div className="games-toolbar-right">
+          <span className="game-count">{table.getFilteredRowModel().rows.length} displayed</span>
+          <Input
+            value={globalFilter ?? ''}
+            onChange={(e) => setGlobalFilter(String(e.target.value))}
+            placeholder="Search name/package..."
+            type="search"
+          />
+        </div>
         {isBusy && !loadingGames && !downloadProgress && !extractProgress && (
           <div className="loading-indicator">Processing...</div>
         )}
+
+        {installStatusMessage && <div className="loading-indicator">{installStatusMessage}</div>}
 
         {loadingGames && (downloadProgress > 0 || extractProgress > 0) && (
           <div className="download-progress">
@@ -1203,6 +1319,71 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                 isBusy={isBusy}
               />
             )}
+
+            {/* Manual Installation Progress Dialog */}
+            <Dialog
+              open={showInstallDialog}
+              onOpenChange={(_, data) => !data.open && closeInstallDialog()}
+            >
+              <DialogSurface>
+                <DialogBody>
+                  <DialogTitle>Manual Installation</DialogTitle>
+                  <DialogContent>
+                    <div style={{ marginBottom: tokens.spacingVerticalM }}>
+                      <Text>{installStatusMessage}</Text>
+                    </div>
+                    {isManualInstalling && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: tokens.spacingHorizontalS,
+                          marginBottom: tokens.spacingVerticalM
+                        }}
+                      >
+                        <Spinner size="small" />
+                        <Text>Installing...</Text>
+                      </div>
+                    )}
+                    {installSuccess !== null && (
+                      <div
+                        style={{
+                          marginTop: tokens.spacingVerticalM,
+                          padding: tokens.spacingVerticalS,
+                          borderRadius: tokens.borderRadiusMedium,
+                          backgroundColor: installSuccess
+                            ? tokens.colorPaletteGreenBackground1
+                            : tokens.colorPaletteRedBackground1,
+                          color: installSuccess
+                            ? tokens.colorPaletteGreenForeground1
+                            : tokens.colorPaletteRedForeground1
+                        }}
+                      >
+                        <Text weight="semibold">
+                          {installSuccess
+                            ? '✅ Installation Successful!'
+                            : '❌ Installation Failed'}
+                        </Text>
+                        {!installSuccess && (
+                          <div style={{ marginTop: tokens.spacingVerticalXS }}>
+                            <Text size={200}>Please check the logs for more details.</Text>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </DialogContent>
+                  <DialogActions>
+                    <Button
+                      appearance="primary"
+                      onClick={closeInstallDialog}
+                      disabled={isManualInstalling}
+                    >
+                      {isManualInstalling ? 'Installing...' : 'Close'}
+                    </Button>
+                  </DialogActions>
+                </DialogBody>
+              </DialogSurface>
+            </Dialog>
           </>
         )}
       </div>

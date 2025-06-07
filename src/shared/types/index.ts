@@ -263,6 +263,7 @@ export interface DownloadAPI {
 export interface DownloadAPIRenderer extends DownloadAPI {
   onQueueUpdated: (callback: (queue: DownloadItem[]) => void) => () => void
   installFromCompleted: (releaseName: string, deviceId: string) => Promise<void>
+  installManualFile: (filePath: string, deviceId: string) => Promise<boolean>
 }
 
 export interface UploadAPI {

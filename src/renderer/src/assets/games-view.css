@@ -41,8 +41,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
   border-bottom: 1px solid #e0e0e0;
   flex-shrink: 0; /* Prevent toolbar from shrinking */
 }
@@ -153,12 +153,14 @@
   display: flex;
   align-items: center;
   gap: 16px;
+  /* move to the right */
+  margin-left: auto;
 }
 
 .table-wrapper {
   overflow-y: auto; /* Make table body scrollable */
   flex-grow: 1;
-  margin-top: 16px;
+  margin-top: 8px;
   border: 1px solid var(--colorNeutralForeground2);
   border-radius: 4px;
   position: relative; /* Added: Needed for absolute positioning of children like popover */

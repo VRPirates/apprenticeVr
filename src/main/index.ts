@@ -539,6 +539,65 @@ app.whenReady().then(async () => {
     return filePaths[0]
   })
 
+  // Manual installation handlers
+  typedIpcMain.handle('dialog:show-manual-install-picker', async () => {
+    if (!mainWindow) return null
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile', 'openDirectory'],
+      title: 'Select APK file or folder to install',
+      filters: [
+        { name: 'APK Files', extensions: ['apk'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return null
+    }
+
+    return filePaths[0]
+  })
+
+  typedIpcMain.handle('dialog:show-apk-file-picker', async () => {
+    if (!mainWindow) return null
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      title: 'Select APK file to install',
+      filters: [
+        { name: 'APK Files', extensions: ['apk'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return null
+    }
+
+    return filePaths[0]
+  })
+
+  typedIpcMain.handle('dialog:show-folder-picker', async () => {
+    if (!mainWindow) return null
+
+    const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select folder to install'
+    })
+
+    if (canceled || filePaths.length === 0) {
+      return null
+    }
+
+    return filePaths[0]
+  })
+
+  typedIpcMain.handle('downloads:install-manual', async (_event, filePath, deviceId) => {
+    console.log(`[IPC] Manual install requested for ${filePath} on device ${deviceId}`)
+    return await downloadService.installManualFile(filePath, deviceId)
+  })
+
   // Validate that all IPC channels have handlers registered
   const allHandled = typedIpcMain.validateAllHandlersRegistered()
   if (!allHandled) {
