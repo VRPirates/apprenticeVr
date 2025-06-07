@@ -20,6 +20,7 @@ export interface AdbContextType {
   loadPackages: () => Promise<void>
   getUserName: () => Promise<string>
   setUserName: (name: string) => Promise<void>
+  pingDevice: (ipAddress: string) => Promise<{ reachable: boolean; responseTime?: number }>
 }
 
 export const AdbContext = createContext<AdbContextType | undefined>(undefined)

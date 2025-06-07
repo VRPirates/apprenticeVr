@@ -55,6 +55,7 @@
     "match-sorter": "^8.0.2",
     "node-7z": "^3.0.0",
     "node-wget-fetch": "^1.1.3",
+    "pingman": "^2.0.0",
     "react-youtube": "^10.1.0",
     "use-disposable": "^1.0.4",
     "when": "^3.7.8",

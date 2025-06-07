@@ -222,6 +222,7 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
       removeDeviceChanged()
       removeTrackerError()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDevice, isReady, mergeDeviceWithBookmarks])
 
   // Load installed packages from connected device
@@ -288,6 +289,66 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     }
   }, [isConnected, selectedDevice, loadPackages, getUserName])
 
+  // Helper function to ping WiFi devices and update their status
+  const pingWifiDevices = useCallback(
+    async (devicesToUpdate: ExtendedDeviceInfo[]): Promise<void> => {
+      // Find all devices that have IP addresses and should be pinged
+      const devicesToPing = devicesToUpdate.filter((device) => {
+        return device.ipAddress && (isTcpDevice(device) || device.type === 'wifi-bookmark')
+      })
+
+      if (devicesToPing.length === 0) return
+
+      // Set ping status to "checking" for all devices with IP addresses
+      setDevices((prevDevices) =>
+        prevDevices.map((device) => {
+          if (device.ipAddress && (isTcpDevice(device) || device.type === 'wifi-bookmark')) {
+            return { ...device, pingStatus: 'checking' as const }
+          }
+          return device
+        })
+      )
+
+      // Ping all devices in parallel
+      const pingPromises = devicesToPing.map(async (device) => {
+        try {
+          const result = await window.api.adb.pingDevice(device.ipAddress!)
+          return {
+            deviceId: device.id,
+            reachable: result.reachable,
+            responseTime: result.responseTime
+          }
+        } catch (error) {
+          console.error(`Error pinging ${device.ipAddress}:`, error)
+          return {
+            deviceId: device.id,
+            reachable: false,
+            responseTime: undefined
+          }
+        }
+      })
+
+      // Wait for all pings to complete
+      const pingResults = await Promise.all(pingPromises)
+
+      // Update device ping status with results
+      setDevices((prevDevices) =>
+        prevDevices.map((device) => {
+          const pingResult = pingResults.find((result) => result.deviceId === device.id)
+          if (pingResult) {
+            return {
+              ...device,
+              pingStatus: pingResult.reachable ? ('reachable' as const) : ('unreachable' as const),
+              pingResponseTime: pingResult.responseTime
+            }
+          }
+          return device
+        })
+      )
+    },
+    []
+  )
+
   const refreshDevices = async (): Promise<void> => {
     try {
       setIsLoading(true)
@@ -333,7 +394,8 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
             storageFree: null,
             friendlyModelName: bookmark.name,
             ipAddress: bookmark.ipAddress,
-            bookmarkData: bookmark
+            bookmarkData: bookmark,
+            pingStatus: 'unknown' as const
           } as DeviceWithBookmark
         }
       })
@@ -351,12 +413,18 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
       )
 
       // Combine devices in order: non-TCP → unmatched TCP → connected bookmarks → disconnected bookmarks
-      setDevices([
+      const allDevices = [
         ...nonTcpDevices,
         ...unmatchedTcpDevices,
         ...connectedBookmarkDevices,
         ...disconnectedBookmarkDevices
-      ])
+      ]
+
+      setDevices(allDevices)
+
+      // Start pinging WiFi devices after setting the initial device list
+      // Don't await this to avoid blocking the UI
+      pingWifiDevices(allDevices)
     } catch (err) {
       setError('Failed to load devices')
       console.error('Error loading devices:', err)
@@ -368,6 +436,52 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
   const connectToDevice = async (serial: string): Promise<boolean> => {
     try {
       setError(null)
+
+      // Check if this is a TCP device that might need a ping check
+      const device = devices.find((d) => d.id === serial)
+      if (device && isTcpDevice(device) && device.ipAddress) {
+        // For TCP devices that are offline or have unreachable ping status, do a ping check first
+        if (device.pingStatus === 'unreachable' || device.type === 'offline') {
+          console.log(
+            `[AdbProvider] Device ${serial} appears offline, checking connectivity first...`
+          )
+
+          // Update the device ping status to "checking"
+          setDevices((prevDevices) =>
+            prevDevices.map((d) =>
+              d.id === device.id ? { ...d, pingStatus: 'checking' as const } : d
+            )
+          )
+
+          const pingResult = await window.api.adb.pingDevice(device.ipAddress)
+
+          // Update ping status based on result
+          setDevices((prevDevices) =>
+            prevDevices.map((d) =>
+              d.id === device.id
+                ? {
+                    ...d,
+                    pingStatus: pingResult.reachable
+                      ? ('reachable' as const)
+                      : ('unreachable' as const),
+                    pingResponseTime: pingResult.responseTime
+                  }
+                : d
+            )
+          )
+
+          if (!pingResult.reachable) {
+            console.log(
+              `[AdbProvider] Ping to ${device.ipAddress} failed, cancelling connection attempt`
+            )
+            return false
+          }
+
+          console.log(
+            `[AdbProvider] Ping to ${device.ipAddress} successful, proceeding with connection`
+          )
+        }
+      }
 
       // If already connected to a device, disconnect first
       if (isConnected && selectedDevice && selectedDevice !== serial) {
@@ -410,6 +524,49 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     try {
       setError(null)
       const deviceId = `${ipAddress}:${port}`
+
+      // For TCP devices, always do a ping check first before attempting to connect
+      console.log(`[AdbProvider] Checking connectivity to ${ipAddress} before TCP connection...`)
+
+      // Find the device in our list to update its ping status
+      const device = devices.find(
+        (d) => d.id === deviceId || (hasBookmarkData(d) && d.bookmarkData.ipAddress === ipAddress)
+      )
+
+      if (device) {
+        // Update the device ping status to "checking"
+        setDevices((prevDevices) =>
+          prevDevices.map((d) =>
+            d.id === device.id ? { ...d, pingStatus: 'checking' as const } : d
+          )
+        )
+      }
+
+      const pingResult = await window.api.adb.pingDevice(ipAddress)
+
+      // Update ping status based on result
+      if (device) {
+        setDevices((prevDevices) =>
+          prevDevices.map((d) =>
+            d.id === device.id
+              ? {
+                  ...d,
+                  pingStatus: pingResult.reachable
+                    ? ('reachable' as const)
+                    : ('unreachable' as const),
+                  pingResponseTime: pingResult.responseTime
+                }
+              : d
+          )
+        )
+      }
+
+      if (!pingResult.reachable) {
+        console.log(`[AdbProvider] Ping to ${ipAddress} failed, cancelling TCP connection attempt`)
+        return false
+      }
+
+      console.log(`[AdbProvider] Ping to ${ipAddress} successful, proceeding with TCP connection`)
 
       // If already connected to a device, disconnect first
       if (isConnected && selectedDevice && selectedDevice !== deviceId) {
@@ -485,6 +642,18 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     window.api.downloads.setAppConnectionState(null, false)
   }
 
+  const pingDevice = useCallback(
+    async (ipAddress: string): Promise<{ reachable: boolean; responseTime?: number }> => {
+      try {
+        return await window.api.adb.pingDevice(ipAddress)
+      } catch (error) {
+        console.error('Error pinging device:', error)
+        return { reachable: false }
+      }
+    },
+    []
+  )
+
   const value = {
     devices,
     selectedDevice,
@@ -503,7 +672,8 @@ export const AdbProvider: React.FC<AdbProviderProps> = ({ children }) => {
     loadPackages,
     selectedDeviceDetails,
     getUserName,
-    setUserName
+    setUserName,
+    pingDevice
   } satisfies AdbContextType
 
   // if (!isInitialLoadComplete) {

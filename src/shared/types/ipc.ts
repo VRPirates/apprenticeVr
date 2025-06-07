@@ -44,6 +44,10 @@ export interface IPCChannels {
   'adb:get-application-label': DefineChannel<[serial: string, packageName: string], string | null>
   'adb:get-user-name': DefineChannel<[serial: string], string>
   'adb:set-user-name': DefineChannel<[serial: string, name: string], void>
+  'adb:ping-device': DefineChannel<
+    [ipAddress: string],
+    { reachable: boolean; responseTime?: number }
+  >
 
   // Game related channels
   'games:get-games': DefineChannel<[], GameInfo[]>

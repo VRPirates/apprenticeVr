@@ -5,6 +5,7 @@ import { EventEmitter } from 'events'
 import dependencyService from './dependencyService'
 import fs, { Dirent } from 'fs'
 import path from 'path'
+import ping from 'pingman'
 import { AdbAPI, DeviceInfo, PackageInfo, ServiceStatus } from '@shared/types'
 import { typedWebContentsSend } from '@shared/ipc-utils'
 
@@ -960,6 +961,36 @@ class AdbService extends EventEmitter implements AdbAPI {
     } catch (error) {
       console.error(`[AdbService] Error getting application label for ${packageName}:`, error)
       return null
+    }
+  }
+
+  public async pingDevice(
+    ipAddress: string
+  ): Promise<{ reachable: boolean; responseTime?: number }> {
+    console.log(`[ADB Service] Pinging ${ipAddress}...`)
+
+    try {
+      const response = await ping(ipAddress, {
+        timeout: 3, // 3 second timeout
+        numberOfEchos: 1 // Single ping
+      })
+
+      if (response.alive) {
+        const responseTime = response.time // time in ms for first successful ping
+        console.log(
+          `[ADB Service] Ping to ${ipAddress} successful (${responseTime || 'unknown'}ms)`
+        )
+        return {
+          reachable: true,
+          responseTime: responseTime ? Math.round(responseTime) : undefined
+        }
+      } else {
+        console.log(`[ADB Service] Ping to ${ipAddress} failed - host not alive`)
+        return { reachable: false }
+      }
+    } catch (error) {
+      console.error(`[ADB Service] Error pinging ${ipAddress}:`, error)
+      return { reachable: false }
     }
   }
 }

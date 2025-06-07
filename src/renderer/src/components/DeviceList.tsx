@@ -27,7 +27,10 @@ import {
   WarningRegular,
   ErrorCircleRegular,
   BookmarkRegular,
-  Wifi1Regular
+  Wifi1Regular,
+  CheckmarkCircleRegular,
+  DismissCircleRegular as DisconnectedCircleRegular,
+  ClockRegular
 } from '@fluentui/react-icons'
 
 interface DeviceListProps {
@@ -175,7 +178,13 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
         onConnected()
         setLastFailedDeviceId(null)
       } else {
-        setConnectionError(`Failed to connect to device ${serial}`)
+        // Check if the device ping status shows it's unreachable to provide better error message
+        const currentDevice = devices.find((d) => d.id === serial)
+        if (currentDevice?.pingStatus === 'unreachable') {
+          setConnectionError(`Device ${currentDevice.ipAddress || serial} is unreachable (offline)`)
+        } else {
+          setConnectionError(`Failed to connect to device ${serial}`)
+        }
         setLastFailedDeviceId(serial)
       }
     } catch {
@@ -246,7 +255,13 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
           onConnected()
         }
       } else {
-        setConnectionError(`Failed to connect to ${bookmarkData.ipAddress}:${bookmarkData.port}`)
+        // Check if the device ping status shows it's unreachable to provide better error message
+        const currentDevice = devices.find((d) => d.id === deviceId)
+        if (currentDevice?.pingStatus === 'unreachable') {
+          setConnectionError(`Device ${bookmarkData.ipAddress} is unreachable (offline)`)
+        } else {
+          setConnectionError(`Failed to connect to ${bookmarkData.ipAddress}:${bookmarkData.port}`)
+        }
         setLastFailedDeviceId(deviceId)
       }
     } catch {
@@ -458,9 +473,58 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
                       </Button>
                     )}
 
+                    {/* Show ping status for WiFi devices */}
+                    {(isWifiBookmark || isConnectedBookmark) && device.ipAddress && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: tokens.spacingHorizontalXXS
+                        }}
+                      >
+                        {device.pingStatus === 'checking' && (
+                          <>
+                            <ClockRegular
+                              fontSize={16}
+                              style={{ color: tokens.colorNeutralForeground3 }}
+                            />
+                            <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+                              Checking...
+                            </Text>
+                          </>
+                        )}
+                        {device.pingStatus === 'reachable' && (
+                          <>
+                            <CheckmarkCircleRegular
+                              fontSize={16}
+                              style={{ color: tokens.colorPaletteGreenForeground1 }}
+                            />
+                            <Text size={200} style={{ color: tokens.colorPaletteGreenForeground1 }}>
+                              Online{' '}
+                              {device.pingResponseTime ? `(${device.pingResponseTime}ms)` : ''}
+                            </Text>
+                          </>
+                        )}
+                        {device.pingStatus === 'unreachable' && (
+                          <>
+                            <DisconnectedCircleRegular
+                              fontSize={16}
+                              style={{ color: tokens.colorPaletteRedForeground1 }}
+                            />
+                            <Text size={200} style={{ color: tokens.colorPaletteRedForeground1 }}>
+                              Offline
+                            </Text>
+                          </>
+                        )}
+                      </div>
+                    )}
+
                     {/* Show connection error if any */}
                     {showConnectionError && (
-                      <Text size={200} style={{ color: tokens.colorPaletteRedForeground1 }}>
+                      <Text
+                        size={200}
+                        style={{ color: tokens.colorPaletteRedForeground1, padding: '10px' }}
+                      >
                         {connectionError}
                       </Text>
                     )}
@@ -478,7 +542,7 @@ const DeviceList: React.FC<DeviceListProps> = ({ onSkip, onConnected }) => {
                       </Button>
                     )}
 
-                    {isConnectedBookmark ||
+                    {(isConnectedBookmark && isCurrentDeviceConnected) ||
                     (isTcpDevice && isConnectable && isCurrentDeviceConnected) ? (
                       <Button
                         icon={<DismissCircleRegular />}

@@ -77,6 +77,9 @@ importers:
       node-wget-fetch:
         specifier: ^1.1.3
         version: 1.1.3(encoding@0.1.13)
+      pingman:
+        specifier: ^2.0.0
+        version: 2.0.0
       react-youtube:
         specifier: ^10.1.0
         version: 10.1.0(react@19.1.0)
@@ -3341,6 +3344,10 @@ packages:
   picomatch@4.0.2:
     resolution: {integrity: sha512-M7BAV6Rlcy5u+m6oPhAPFgJTzAioX/6B0DxyvDlo9l8+T3nLKbrczg2WLUyzd45L8RqfUMyGPzekbMvX2Ldkwg==}
     engines: {node: '>=12'}
+
+  pingman@2.0.0:
+    resolution: {integrity: sha512-7v2e+nk8LH8nTbzn71T/Et8Oxbmi/1lTQQHk9vy+FKM6Tu7bKnDa48vdDu4CeOGWYlwtbv0ZasFVsij8rTjkBw==}
+    engines: {node: '>=10'}
 
   pkce-challenge@5.0.0:
     resolution: {integrity: sha512-ueGLflrrnvwB3xuo/uGob5pd5FN7l0MsLf0Z87o/UQmRtwjvfylfc9MurIxRAWywCYTgrvpXBcqjV4OfCYGCIQ==}
@@ -8366,6 +8373,8 @@ snapshots:
   picomatch@2.3.1: {}
 
   picomatch@4.0.2: {}
+
+  pingman@2.0.0: {}
 
   pkce-challenge@5.0.0: {}
 

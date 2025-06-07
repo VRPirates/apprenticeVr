@@ -40,6 +40,8 @@ const api = {
       typedIpcRenderer.invoke('adb:get-installed-packages', serial),
     uninstallPackage: (serial: string, packageName: string): Promise<boolean> =>
       typedIpcRenderer.invoke('adb:uninstallPackage', serial, packageName),
+    pingDevice: (ipAddress: string): Promise<{ reachable: boolean; responseTime?: number }> =>
+      typedIpcRenderer.invoke('adb:ping-device', ipAddress),
     startTrackingDevices: (): void => typedIpcRenderer.send('adb:start-tracking-devices'),
     stopTrackingDevices: (): void => typedIpcRenderer.send('adb:stop-tracking-devices'),
     onDeviceAdded: (callback: (device: DeviceInfo) => void): (() => void) => {

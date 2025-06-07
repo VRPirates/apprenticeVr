@@ -17,6 +17,9 @@ export interface DeviceInfo {
   storageFree: string | null
   friendlyModelName: string | null
   ipAddress: string | null
+  // Ping status for WiFi devices
+  pingStatus?: 'checking' | 'reachable' | 'unreachable' | 'unknown'
+  pingResponseTime?: number // in milliseconds
 }
 
 export interface WiFiBookmark {
@@ -207,6 +210,7 @@ export interface AdbAPI {
   stopTrackingDevices: () => void
   getUserName: (serial: string) => Promise<string>
   setUserName: (serial: string, name: string) => Promise<void>
+  pingDevice: (ipAddress: string) => Promise<{ reachable: boolean; responseTime?: number }>
 }
 
 export interface DependencyAPI {
