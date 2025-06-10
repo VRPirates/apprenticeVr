@@ -92,7 +92,7 @@ export interface IPCChannels {
   'settings:set-color-scheme': DefineChannel<[scheme: 'light' | 'dark'], void>
 
   // Log upload related channels
-  'logs:upload-current': DefineChannel<[], string | null>
+  'logs:upload-current': DefineChannel<[], { url: string; password: string } | null>
 
   // Mirror related channels
   'mirrors:get-mirrors': DefineChannel<[], Mirror[]>

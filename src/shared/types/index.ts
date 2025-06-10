@@ -340,7 +340,7 @@ export interface SettingsAPIRenderer
 
 // Logs API
 export interface LogsAPI {
-  uploadCurrentLog: () => Promise<string | null>
+  uploadCurrentLog: () => Promise<{ url: string; password: string } | null>
 }
 
 export interface LogsAPIRenderer extends LogsAPI {}

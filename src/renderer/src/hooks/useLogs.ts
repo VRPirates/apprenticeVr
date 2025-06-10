@@ -5,6 +5,7 @@ export const useLogs = (): {
   uploadError: string | null
   uploadSuccess: boolean
   shareableUrl: string | null
+  password: string | null
   uploadCurrentLog: () => Promise<void>
   clearUploadState: () => void
 } => {
@@ -12,6 +13,7 @@ export const useLogs = (): {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [shareableUrl, setShareableUrl] = useState<string | null>(null)
+  const [password, setPassword] = useState<string | null>(null)
 
   const uploadCurrentLog = useCallback(async (): Promise<void> => {
     try {
@@ -19,11 +21,13 @@ export const useLogs = (): {
       setUploadError(null)
       setUploadSuccess(false)
       setShareableUrl(null)
+      setPassword(null)
 
-      const url = await window.api.logs.uploadCurrentLog()
+      const result = await window.api.logs.uploadCurrentLog()
 
-      if (url) {
-        setShareableUrl(url)
+      if (result) {
+        setShareableUrl(result.url)
+        setPassword(result.password)
         setUploadSuccess(true)
       } else {
         setUploadError('Failed to upload log file. Please try again.')
@@ -40,6 +44,7 @@ export const useLogs = (): {
     setUploadError(null)
     setUploadSuccess(false)
     setShareableUrl(null)
+    setPassword(null)
   }, [])
 
   return {
@@ -47,6 +52,7 @@ export const useLogs = (): {
     uploadError,
     uploadSuccess,
     shareableUrl,
+    password,
     uploadCurrentLog,
     clearUploadState
   }

@@ -266,6 +266,7 @@ const LogUploadSettings: React.FC = () => {
     uploadError,
     uploadSuccess,
     shareableUrl,
+    password,
     uploadCurrentLog,
     clearUploadState
   } = useLogs()
@@ -281,11 +282,17 @@ const LogUploadSettings: React.FC = () => {
     }
   }
 
+  const handleCopyPassword = (): void => {
+    if (password) {
+      navigator.clipboard.writeText(password)
+    }
+  }
+
   return (
     <Card className={styles.card}>
       <CardHeader description={<Subtitle1 weight="semibold">Log Upload</Subtitle1>} />
       <div className={styles.cardContent}>
-        <Text>Upload the current log file to https://filebin.net for sharing with support</Text>
+        <Text>Upload the current log file to https://pub.microbin.eu for sharing with support</Text>
 
         <div className={styles.formRow}>
           <Button
@@ -301,24 +308,51 @@ const LogUploadSettings: React.FC = () => {
 
         {uploadError && <Text className={styles.error}>{uploadError}</Text>}
 
-        {uploadSuccess && shareableUrl && (
+        {uploadSuccess && shareableUrl && password && (
           <div className={styles.success}>
             <CheckmarkCircleRegular />
-            <div
-              style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}
-            >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS }}>
               <Text>Log uploaded successfully!</Text>
+
               <div
-                style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}
+                style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}
               >
-                <Input
-                  value={shareableUrl}
-                  readOnly
-                  style={{ flexGrow: 1, fontFamily: 'monospace', fontSize: '12px' }}
-                />
-                <Button onClick={handleCopyUrl} size="small" appearance="secondary">
-                  Copy URL
-                </Button>
+                <Text weight="semibold">URL:</Text>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}
+                >
+                  <Input
+                    value={shareableUrl}
+                    readOnly
+                    style={{ flexGrow: 1, fontFamily: 'monospace', fontSize: '12px' }}
+                  />
+                  <Button onClick={handleCopyUrl} size="small" appearance="secondary">
+                    Copy URL
+                  </Button>
+                </div>
+              </div>
+
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}
+              >
+                <Text weight="semibold">Password:</Text>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}
+                >
+                  <Input
+                    value={password}
+                    readOnly
+                    style={{
+                      width: '200px',
+                      fontFamily: 'monospace',
+                      fontSize: '14px',
+                      fontWeight: 'bold'
+                    }}
+                  />
+                  <Button onClick={handleCopyPassword} size="small" appearance="secondary">
+                    Copy Password
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -326,8 +360,8 @@ const LogUploadSettings: React.FC = () => {
 
         <Text className={styles.hint}>
           <InfoRegular />
-          The uploaded log file will be available for 7 days and can be shared with support for
-          troubleshooting
+          The uploaded log file will be available for 3 days and requires the password to delete.
+          Share only the URL with support for troubleshooting.
         </Text>
       </div>
     </Card>

@@ -202,7 +202,8 @@ const api = {
   } satisfies SettingsAPIRenderer,
   // Logs APIs
   logs: {
-    uploadCurrentLog: (): Promise<string | null> => typedIpcRenderer.invoke('logs:upload-current')
+    uploadCurrentLog: (): Promise<{ url: string; password: string } | null> =>
+      typedIpcRenderer.invoke('logs:upload-current')
   } satisfies LogsAPIRenderer,
   // Mirror APIs
   mirrors: {
