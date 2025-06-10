@@ -779,6 +779,93 @@ class DownloadService extends EventEmitter implements DownloadAPI {
       return false
     }
   }
+
+  public async copyObbFolder(folderPath: string, deviceId: string): Promise<boolean> {
+    console.log(`[Service] OBB folder copy requested for ${folderPath} on device ${deviceId}`)
+
+    // Check if the app is connected to the target device
+    const targetDeviceForInstall = this.getTargetDeviceForInstallation()
+    if (!targetDeviceForInstall) {
+      console.error(
+        `[Service copyObbFolder] App is not connected to any device. Cannot copy OBB folder ${folderPath}.`
+      )
+      return false
+    }
+
+    if (targetDeviceForInstall !== deviceId) {
+      console.error(
+        `[Service copyObbFolder] App is connected to ${targetDeviceForInstall} but OBB copy requested for ${deviceId}.`
+      )
+      return false
+    }
+
+    // Check if the target device is still connected and authorized at the ADB level
+    try {
+      const devices = await this.adbService.listDevices()
+      const targetDevice = devices.find((d) => d.id === deviceId && d.type === 'device')
+      if (!targetDevice) {
+        console.error(
+          `[Service copyObbFolder] Target device ${deviceId} not found or not authorized at ADB level.`
+        )
+        return false
+      }
+    } catch (err) {
+      console.error(`[Service copyObbFolder] Error verifying target device ${deviceId}:`, err)
+      return false
+    }
+
+    // Check if the folder exists
+    if (!existsSync(folderPath)) {
+      console.error(`[Service copyObbFolder] Folder not found: ${folderPath}`)
+      return false
+    }
+
+    try {
+      const stats = await fs.stat(folderPath)
+      if (!stats.isDirectory()) {
+        console.error(`[Service copyObbFolder] Path is not a directory: ${folderPath}`)
+        return false
+      }
+
+      // Get the folder name to use as the target directory name in OBB
+      const folderName = folderPath.split(/[/\\]/).pop()
+      if (!folderName) {
+        console.error(
+          `[Service copyObbFolder] Could not extract folder name from path: ${folderPath}`
+        )
+        return false
+      }
+
+      // Ensure the OBB base directory exists on the device
+      const obbBasePath = '/sdcard/Android/obb'
+      const targetObbPath = `${obbBasePath}/${folderName}`
+
+      console.log(`[Service copyObbFolder] Creating OBB base directory: ${obbBasePath}`)
+      try {
+        await this.adbService.runShellCommand(deviceId, `mkdir -p "${obbBasePath}"`)
+      } catch (mkdirError) {
+        console.warn(
+          `[Service copyObbFolder] Could not ensure OBB base directory exists (may already exist):`,
+          mkdirError
+        )
+      }
+
+      // Copy the entire folder to the OBB directory
+      console.log(`[Service copyObbFolder] Copying folder ${folderPath} to ${targetObbPath}`)
+      const success = await this.adbService.pushFileOrFolder(deviceId, folderPath, targetObbPath)
+
+      if (success) {
+        console.log(`[Service copyObbFolder] Successfully copied OBB folder to ${targetObbPath}`)
+      } else {
+        console.error(`[Service copyObbFolder] Failed to copy OBB folder to ${targetObbPath}`)
+      }
+
+      return success
+    } catch (error) {
+      console.error(`[Service copyObbFolder] Error during OBB folder copy of ${folderPath}:`, error)
+      return false
+    }
+  }
 }
 
 export default new DownloadService()

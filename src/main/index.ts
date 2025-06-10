@@ -598,6 +598,11 @@ app.whenReady().then(async () => {
     return await downloadService.installManualFile(filePath, deviceId)
   })
 
+  typedIpcMain.handle('downloads:copy-obb-folder', async (_event, folderPath, deviceId) => {
+    console.log(`[IPC] OBB folder copy requested for ${folderPath} on device ${deviceId}`)
+    return await downloadService.copyObbFolder(folderPath, deviceId)
+  })
+
   // Validate that all IPC channels have handlers registered
   const allHandled = typedIpcMain.validateAllHandlersRegistered()
   if (!allHandled) {

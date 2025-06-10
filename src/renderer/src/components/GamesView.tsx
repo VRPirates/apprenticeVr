@@ -53,7 +53,8 @@ import {
   EditRegular,
   FolderAddRegular,
   DocumentRegular,
-  ChevronDownRegular
+  ChevronDownRegular,
+  CopyRegular
 } from '@fluentui/react-icons'
 import { ArrowLeftRegular } from '@fluentui/react-icons'
 import GameDetailsDialog from './GameDetailsDialog'
@@ -278,6 +279,8 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
   const [installStatusMessage, setInstallStatusMessage] = useState<string>('')
   const [showInstallDialog, setShowInstallDialog] = useState<boolean>(false)
   const [installSuccess, setInstallSuccess] = useState<boolean | null>(null)
+  const [showObbConfirmDialog, setShowObbConfirmDialog] = useState<boolean>(false)
+  const [obbFolderToConfirm, setObbFolderToConfirm] = useState<string | null>(null)
 
   const counts = useMemo(() => {
     const total = games.length
@@ -968,6 +971,107 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
     [isConnected, selectedDevice, loadPackages]
   )
 
+  const handleCopyObbFolder = useCallback(async () => {
+    if (!isConnected || !selectedDevice) {
+      window.alert('Please connect to a device first.')
+      return
+    }
+
+    try {
+      const folderPath = await window.api.dialog.showFolderPicker()
+
+      if (!folderPath) {
+        return // User cancelled the dialog
+      }
+
+      const folderName = folderPath.split(/[/\\]/).pop() || folderPath
+      console.log(`OBB folder copy requested for: ${folderPath}`)
+
+      // Check if there's a corresponding package installed
+      try {
+        const installedPackages = await window.api.adb.getInstalledPackages(selectedDevice)
+        const matchingPackage = installedPackages.find((pkg) => pkg.packageName === folderName)
+        console.log('installedPackages', installedPackages)
+        console.log('matchingPackage', matchingPackage)
+        if (!matchingPackage) {
+          // No matching package found, show confirmation dialog
+          console.log(`No matching package found for folder: ${folderName}`)
+          setObbFolderToConfirm(folderPath)
+          setShowObbConfirmDialog(true)
+          return
+        }
+
+        console.log(`Found matching package for folder: ${folderName}`)
+      } catch (error) {
+        console.error('Error checking installed packages:', error)
+        // If we can't check packages, show a warning but let user proceed
+        const proceed = window.confirm(
+          `Could not verify installed packages. Do you want to proceed with copying "${folderName}" to the OBB directory?`
+        )
+        if (!proceed) {
+          return
+        }
+      }
+
+      // Proceed with copying
+      await performObbCopy(folderPath)
+    } catch (error) {
+      console.error(`Error during OBB folder copy:`, error)
+      setInstallStatusMessage('❌ OBB copy error occurred')
+      setInstallSuccess(false)
+      setShowInstallDialog(true)
+      setIsManualInstalling(false)
+    }
+  }, [isConnected, selectedDevice])
+
+  const performObbCopy = useCallback(
+    async (folderPath: string) => {
+      if (!selectedDevice) return
+
+      const folderName = folderPath.split(/[/\\]/).pop() || folderPath
+
+      // Show the installation dialog
+      setShowInstallDialog(true)
+      setIsManualInstalling(true)
+      setInstallStatusMessage(`Copying OBB folder: ${folderName}...`)
+      setInstallSuccess(null)
+
+      try {
+        const success = await window.api.downloads.copyObbFolder(folderPath, selectedDevice)
+
+        setInstallSuccess(success)
+
+        if (success) {
+          console.log(`OBB folder copy successful for: ${folderPath}`)
+          setInstallStatusMessage(`✅ "${folderName}" copied to OBB directory successfully!`)
+        } else {
+          console.error(`OBB folder copy failed for: ${folderPath}`)
+          setInstallStatusMessage(`❌ Failed to copy "${folderName}" to OBB directory`)
+        }
+      } catch (error) {
+        console.error(`Error during OBB folder copy:`, error)
+        setInstallStatusMessage('❌ OBB copy error occurred')
+        setInstallSuccess(false)
+      } finally {
+        setIsManualInstalling(false)
+      }
+    },
+    [selectedDevice]
+  )
+
+  const handleObbConfirmCopy = useCallback(async () => {
+    if (!obbFolderToConfirm) return
+
+    setShowObbConfirmDialog(false)
+    await performObbCopy(obbFolderToConfirm)
+    setObbFolderToConfirm(null)
+  }, [obbFolderToConfirm, performObbCopy])
+
+  const handleObbCancelCopy = useCallback(() => {
+    setShowObbConfirmDialog(false)
+    setObbFolderToConfirm(null)
+  }, [])
+
   const closeInstallDialog = useCallback(() => {
     setShowInstallDialog(false)
     setInstallSuccess(null)
@@ -1146,6 +1250,13 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                     disabled={isManualInstalling}
                   >
                     Install Folder
+                  </MenuItem>
+                  <MenuItem
+                    icon={<CopyRegular />}
+                    onClick={handleCopyObbFolder}
+                    disabled={isManualInstalling}
+                  >
+                    Copy OBB Folder
                   </MenuItem>
                 </MenuList>
               </MenuPopover>
@@ -1327,7 +1438,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             >
               <DialogSurface>
                 <DialogBody>
-                  <DialogTitle>Manual Installation</DialogTitle>
+                  <DialogTitle>Manual Operation</DialogTitle>
                   <DialogContent>
                     <div style={{ marginBottom: tokens.spacingVerticalM }}>
                       <Text>{installStatusMessage}</Text>
@@ -1342,7 +1453,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                         }}
                       >
                         <Spinner size="small" />
-                        <Text>Installing...</Text>
+                        <Text>Processing...</Text>
                       </div>
                     )}
                     {installSuccess !== null && (
@@ -1360,9 +1471,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                         }}
                       >
                         <Text weight="semibold">
-                          {installSuccess
-                            ? '✅ Installation Successful!'
-                            : '❌ Installation Failed'}
+                          {installSuccess ? '✅ Operation Successful!' : '❌ Operation Failed'}
                         </Text>
                         {!installSuccess && (
                           <div style={{ marginTop: tokens.spacingVerticalXS }}>
@@ -1378,7 +1487,49 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                       onClick={closeInstallDialog}
                       disabled={isManualInstalling}
                     >
-                      {isManualInstalling ? 'Installing...' : 'Close'}
+                      {isManualInstalling ? 'Processing...' : 'Close'}
+                    </Button>
+                  </DialogActions>
+                </DialogBody>
+              </DialogSurface>
+            </Dialog>
+
+            {/* OBB Folder Confirmation Dialog */}
+            <Dialog
+              open={showObbConfirmDialog}
+              onOpenChange={(_, data) => !data.open && handleObbCancelCopy()}
+            >
+              <DialogSurface>
+                <DialogBody>
+                  <DialogTitle>Confirm OBB Folder Copy</DialogTitle>
+                  <DialogContent>
+                    <div style={{ marginBottom: tokens.spacingVerticalM }}>
+                      <Text>
+                        No corresponding package was found for folder &quot;
+                        {obbFolderToConfirm?.split(/[/\\]/).pop()}&quot;.
+                      </Text>
+                      <div style={{ marginTop: tokens.spacingVerticalS }}>
+                        <Text>
+                          Do you still want to copy this folder to the OBB directory? This is
+                          usually only useful if the matching app is already installed.
+                        </Text>
+                      </div>
+                    </div>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button
+                      appearance="primary"
+                      onClick={handleObbConfirmCopy}
+                      disabled={isManualInstalling}
+                    >
+                      Copy Anyway
+                    </Button>
+                    <Button
+                      appearance="secondary"
+                      onClick={handleObbCancelCopy}
+                      disabled={isManualInstalling}
+                    >
+                      Cancel
                     </Button>
                   </DialogActions>
                 </DialogBody>

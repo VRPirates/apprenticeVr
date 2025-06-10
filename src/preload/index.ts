@@ -116,6 +116,8 @@ const api = {
       typedIpcRenderer.invoke('download:install-from-completed', releaseName, deviceId),
     installManualFile: (filePath: string, deviceId: string): Promise<boolean> =>
       typedIpcRenderer.invoke('downloads:install-manual', filePath, deviceId),
+    copyObbFolder: (folderPath: string, deviceId: string): Promise<boolean> =>
+      typedIpcRenderer.invoke('downloads:copy-obb-folder', folderPath, deviceId),
     onQueueUpdated: (callback: (queue: DownloadItem[]) => void): (() => void) => {
       const listener = (_: IpcRendererEvent, queue: DownloadItem[]): void => callback(queue)
       typedIpcRenderer.on('download:queue-updated', listener)
