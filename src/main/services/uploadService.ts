@@ -28,6 +28,7 @@ class UploadService extends EventEmitter {
   private uploadsBasePath: string
   private configFilePath: string
   private activeUpload: ReturnType<typeof execa> | null = null
+  private activeCompression: SevenZip.ZipStream | null = null
   private isProcessing = false
   private uploadQueue: UploadItem[] = []
 
@@ -484,15 +485,17 @@ class UploadService extends EventEmitter {
       console.log(`Creating zip archive at ${zipFilePath}...`)
 
       await new Promise<void>((resolve, reject) => {
-        const myStream = SevenZip.add(zipFilePath, '.', {
+        const myStream = SevenZip.add(zipFilePath, `${packageFolderPath}/*`, {
           $bin: sevenZipPath,
-          workingDir: packageFolderPath,
           $progress: true
         })
 
         if (!myStream) {
           throw new Error('Failed to start 7zip compression process.')
         }
+
+        // Store the compression stream for cancellation
+        this.activeCompression = myStream
 
         // Set up progress tracking
         let lastProgress = 0
@@ -507,11 +510,13 @@ class UploadService extends EventEmitter {
 
         myStream.on('end', () => {
           console.log(`[Compression complete]: ${zipFilePath}`)
+          this.activeCompression = null
           resolve()
         })
 
         myStream.on('error', (error) => {
           console.error(`[Compression error]: ${error}`)
+          this.activeCompression = null
           reject(error)
         })
       })
@@ -638,11 +643,11 @@ class UploadService extends EventEmitter {
 
       // Clean up
 
-      // try {
-      //   await fs.unlink(zipFilePath)
-      // } catch (error) {
-      //   console.warn(`[UploadService] Failed to delete zip file: ${zipFilePath}`, error)
-      // }
+      try {
+        await fs.unlink(zipFilePath)
+      } catch (error) {
+        console.warn(`[UploadService] Failed to delete zip file: ${zipFilePath}`, error)
+      }
 
       this.activeUpload = null
       return true
@@ -661,18 +666,37 @@ class UploadService extends EventEmitter {
   }
 
   public cancelUpload(packageName: string): void {
+    let cancelled = false
+
+    // Cancel active compression if running
+    if (this.activeCompression) {
+      console.log(`[UploadService] Cancelling active compression`)
+      try {
+        this.activeCompression.destroy()
+        this.activeCompression = null
+        cancelled = true
+      } catch (error) {
+        console.error(`[UploadService] Error cancelling compression:`, error)
+      }
+    }
+
+    // Cancel active upload if running
     if (this.activeUpload) {
       console.log(`[UploadService] Cancelling active upload`)
       try {
         this.activeUpload.kill('SIGTERM')
         this.activeUpload = null
-        this.emitProgress(packageName, 'Cancelled', 0)
-        this.updateItemStatus(packageName, 'Cancelled', 0, 'Cancelled')
+        cancelled = true
       } catch (error) {
         console.error(`[UploadService] Error cancelling upload:`, error)
       }
+    }
+
+    if (cancelled) {
+      this.emitProgress(packageName, 'Cancelled', 0)
+      this.updateItemStatus(packageName, 'Cancelled', 0, 'Cancelled')
     } else {
-      console.log(`[UploadService] No active upload to cancel`)
+      console.log(`[UploadService] No active upload or compression to cancel`)
     }
   }
 }
