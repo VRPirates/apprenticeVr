@@ -27,12 +27,12 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 9 
+          version: 9
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x' 
+          node-version: '20.x'
           cache: 'pnpm'
 
       - name: Cache Electron binaries
@@ -95,7 +95,7 @@ jobs:
 
   create_release:
     name: Create GitHub Release
-    needs: build 
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required to create releases and upload assets
@@ -111,7 +111,7 @@ jobs:
       #     echo "Tag for release: ${{ github.ref_name }}"
 
       - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.2.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
