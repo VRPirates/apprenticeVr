@@ -68,7 +68,7 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
     }
 
     if (!selectedDeviceDetails?.isQuestDevice) {
-      return
+      //return
     }
 
     const candidates: UploadCandidate[] = []
@@ -146,6 +146,13 @@ export const GamesProvider: React.FC<GamesProviderProps> = ({ children }) => {
   useEffect(() => {
     checkForUploadCandidates()
   }, [installedPackages, rawGames, checkForUploadCandidates])
+
+  // Clear upload candidates when device disconnects
+  useEffect(() => {
+    if (!isDeviceConnected) {
+      setUploadCandidates([])
+    }
+  }, [isDeviceConnected])
 
   // enrich the games with the installed packages and the device version codes
   const games = useMemo((): GameInfo[] => {
