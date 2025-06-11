@@ -1088,7 +1088,27 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
             Devices selection
           </Button>
           <div style={{ display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalXS }}>
-            <Title3>{selectedDeviceDetails?.friendlyModelName || 'Games'}</Title3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalS }}>
+              <Title3>{selectedDeviceDetails?.friendlyModelName || 'Games'}</Title3>
+              {selectedDeviceDetails && (
+                <>
+                  {selectedDeviceDetails?.batteryLevel !== null && (
+                    <Badge
+                      appearance="outline"
+                      color={selectedDeviceDetails.batteryLevel > 20 ? 'success' : 'danger'}
+                      icon={<BatteryChargeRegular />}
+                    >
+                      {selectedDeviceDetails.batteryLevel}%
+                    </Badge>
+                  )}
+                  {selectedDeviceDetails?.storageFree && (
+                    <Badge appearance="outline" icon={<StorageRegular />}>
+                      {selectedDeviceDetails.storageFree} free
+                    </Badge>
+                  )}
+                </>
+              )}
+            </div>
             {isConnected && (
               <div
                 style={{ display: 'flex', alignItems: 'center', gap: tokens.spacingHorizontalXS }}
@@ -1104,7 +1124,7 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                     <Input
                       value={editUserNameValue}
                       onChange={(e) => setEditUserNameValue(e.target.value)}
-                      placeholder="Enter user name"
+                      placeholder="Enter your VR gaming name"
                       size="small"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
@@ -1133,40 +1153,41 @@ const GamesView: React.FC<GamesViewProps> = ({ onBackToDevices }) => {
                     </Button>
                   </div>
                 ) : (
-                  <Badge
-                    appearance="outline"
-                    icon={<PersonRegular />}
-                    style={{ cursor: 'pointer' }}
-                    onClick={handleEditUserName}
-                    title="Click to edit user name"
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: tokens.spacingHorizontalXS
+                    }}
                   >
-                    {userName || 'Set user name'}
-                    <EditRegular
-                      style={{ marginLeft: tokens.spacingHorizontalXXS, fontSize: '12px' }}
-                    />
-                  </Badge>
+                    <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
+                      Username in Multiplayer Games:
+                    </Text>
+                    <Button
+                      appearance="subtle"
+                      size="small"
+                      icon={<PersonRegular />}
+                      iconPosition="before"
+                      onClick={handleEditUserName}
+                      style={{
+                        minHeight: 'auto',
+                        padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalS}`,
+                        borderRadius: tokens.borderRadiusMedium,
+                        border: `1px solid ${tokens.colorNeutralStroke2}`,
+                        backgroundColor: tokens.colorNeutralBackground1
+                      }}
+                      title="Click to change your VR gaming name (appears in games and apps)"
+                    >
+                      {userName || 'Click to set'}
+                      <EditRegular
+                        style={{ marginLeft: tokens.spacingHorizontalXS, fontSize: '12px' }}
+                      />
+                    </Button>
+                  </div>
                 )}
               </div>
             )}
           </div>
-          {selectedDeviceDetails && (
-            <div className={styles.deviceInfoBar}>
-              {selectedDeviceDetails?.batteryLevel !== null && (
-                <Badge
-                  appearance="outline"
-                  color={selectedDeviceDetails.batteryLevel > 20 ? 'success' : 'danger'}
-                  icon={<BatteryChargeRegular />}
-                >
-                  {selectedDeviceDetails.batteryLevel}%
-                </Badge>
-              )}
-              {selectedDeviceDetails?.storageFree && (
-                <Badge appearance="outline" icon={<StorageRegular />}>
-                  {selectedDeviceDetails.storageFree} free
-                </Badge>
-              )}
-            </div>
-          )}
         </div>
         <div
           style={{
