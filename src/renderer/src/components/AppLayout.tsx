@@ -143,14 +143,64 @@ const MainContent: React.FC<MainContentProps> = ({
 
   if (!dependenciesReady) {
     if (dependencyError) {
+      // Check if this is a connectivity error
+      if (dependencyError.startsWith('CONNECTIVITY_ERROR|')) {
+        const failedUrls = dependencyError.replace('CONNECTIVITY_ERROR|', '').split('|')
+
+        return (
+          <div className={styles.loadingOrErrorContainer}>
+            <Text weight="semibold" style={{ color: tokens.colorPaletteRedForeground1 }}>
+              Network Connectivity Issues
+            </Text>
+            <Text>Cannot reach the following services:</Text>
+            <ul style={{ textAlign: 'left', marginTop: tokens.spacingVerticalS }}>
+              {failedUrls.map((url, index) => (
+                <li key={index} style={{ marginBottom: tokens.spacingVerticalXS }}>
+                  <Text style={{ fontFamily: 'monospace', fontSize: '12px' }}>{url}</Text>
+                </li>
+              ))}
+            </ul>
+            <Text style={{ marginTop: tokens.spacingVerticalM }}>
+              This is likely due to DNS or firewall restrictions. Please try:
+            </Text>
+            <ol style={{ textAlign: 'left', marginTop: tokens.spacingVerticalS }}>
+              <li style={{ marginBottom: tokens.spacingVerticalXS }}>
+                <Text>Change your DNS to Cloudflare (1.1.1.1) or Google (8.8.8.8)</Text>
+              </li>
+              <li style={{ marginBottom: tokens.spacingVerticalXS }}>
+                <Text>Use a VPN like ProtonVPN or 1.1.1.1 VPN</Text>
+              </li>
+              <li style={{ marginBottom: tokens.spacingVerticalXS }}>
+                <Text>Check your router/firewall settings</Text>
+              </li>
+            </ol>
+            <Text style={{ marginTop: tokens.spacingVerticalM }}>
+              For detailed troubleshooting, see:{' '}
+              <a
+                href="https://github.com/jimzrt/apprenticeVr#troubleshooting-guide"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: tokens.colorBrandForeground1 }}
+              >
+                Troubleshooting Guide
+              </a>
+            </Text>
+          </div>
+        )
+      }
+
+      // Handle other dependency errors
       const errorDetails: string[] = []
       if (!dependencyStatus?.sevenZip.ready) errorDetails.push('7zip')
+      if (!dependencyStatus?.rclone.ready) errorDetails.push('rclone')
+      if (!dependencyStatus?.adb.ready) errorDetails.push('adb')
+
       const failedDeps = errorDetails.length > 0 ? ` (${errorDetails.join(', ')})` : ''
 
       return (
         <div className={styles.loadingOrErrorContainer}>
           <Text weight="semibold" style={{ color: tokens.colorPaletteRedForeground1 }}>
-            Dependency Error{failedDeps}
+            Dependency Error {failedDeps}
           </Text>
           <Text>{dependencyError}</Text>
         </div>
@@ -159,7 +209,10 @@ const MainContent: React.FC<MainContentProps> = ({
     let progressText = 'Checking requirements...'
     console.log('dependencyStatus', dependencyStatus)
     console.log('dependencyProgress', dependencyProgress)
-    if (dependencyStatus?.rclone.downloading && dependencyProgress) {
+
+    if (dependencyProgress?.name === 'connectivity-check') {
+      progressText = `Checking network connectivity... ${dependencyProgress.percentage}%`
+    } else if (dependencyStatus?.rclone.downloading && dependencyProgress) {
       progressText = `Setting up ${dependencyProgress.name}... ${dependencyProgress.percentage}%`
       if (dependencyProgress.name === 'rclone-extract') {
         progressText = `Extracting ${dependencyProgress.name.replace('-extract', '')}...`

@@ -17,6 +17,12 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
     window.api.dependency.getStatus().then((status) => {
       console.log('Dependency status:', status)
       setStatus(status)
+      const allReady =
+        status.sevenZip.ready &&
+        status.rclone.ready &&
+        status.adb.ready &&
+        status.services === 'INITIALIZED'
+      setIsReady(allReady)
     })
 
     // Setup listeners
@@ -32,7 +38,10 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
       setStatus(finalStatus)
       // Determine overall readiness based on ALL dependencies
       const allReady =
-        finalStatus.sevenZip.ready && finalStatus.rclone.ready && finalStatus.adb.ready
+        finalStatus.sevenZip.ready &&
+        finalStatus.rclone.ready &&
+        finalStatus.adb.ready &&
+        finalStatus.services === 'INITIALIZED'
       setIsReady(allReady)
 
       let combinedError: string | null = null
@@ -43,6 +52,8 @@ export const DependencyProvider: React.FC<DependencyProviderProps> = ({ children
         if (!finalStatus.rclone.ready)
           errors.push(`rclone (${finalStatus.rclone.error || 'unknown error'})`)
         if (!finalStatus.adb.ready) errors.push(`adb (${finalStatus.adb.error || 'unknown error'})`)
+        if (finalStatus.services === 'ERROR')
+          errors.push(`Services (${finalStatus.services || 'unknown error'})`)
         combinedError = `Required dependencies failed: ${errors.join('; ')}`
       }
       setError(combinedError)

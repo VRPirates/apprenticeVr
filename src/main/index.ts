@@ -88,6 +88,7 @@ function createWindow(): void {
           // --- Initialize other services that depend on dependencies ---
           try {
             console.log('Dependencies ready, initializing dependent services...')
+            dependencyService.setDependencyServiceStatus('INITIALIZING')
             // Initialize ADB Service (needs adb path from dependencyService)
             await adbService.initialize()
             console.log('ADB Service initialized.')
@@ -115,6 +116,7 @@ function createWindow(): void {
             // Initialize WiFi Bookmarks Service
             await wifiBookmarksService.initialize()
             console.log('WiFi Bookmarks Service initialized.')
+            dependencyService.setDependencyServiceStatus('INITIALIZED')
 
             // Initialize Update Service
             if (mainWindow) {
@@ -134,6 +136,7 @@ function createWindow(): void {
             )
           } catch (serviceInitError) {
             console.error('Error initializing dependent services:', serviceInitError)
+            dependencyService.setDependencyServiceStatus('ERROR')
             // Optionally notify the renderer about this failure
             // if (mainWindow && !mainWindow.isDestroyed()) {
             //   typedWebContentsSend.send(mainWindow, 'service-init-error', {

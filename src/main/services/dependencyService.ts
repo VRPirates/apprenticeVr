@@ -2,8 +2,7 @@ import { app } from 'electron'
 import { join } from 'path'
 import { promises as fsPromises, existsSync, createWriteStream, chmodSync, copyFileSync } from 'fs'
 import axios, { AxiosProgressEvent } from 'axios'
-import { execa } from 'execa'
-import * as yauzl from 'yauzl'
+import SevenZip from 'node-7z'
 import { ServiceStatus } from '@shared/types'
 
 type ProgressCallback = (
@@ -29,6 +28,7 @@ export interface DependencyStatus {
   sevenZip: DependencyInfo
   rclone: RcloneDependencyInfo
   adb: AdbDependencyInfo
+  services: ServiceStatus
 }
 
 interface GitHubAsset {
@@ -51,7 +51,8 @@ class DependencyService {
     this.status = {
       sevenZip: { ready: false, path: null, error: null },
       rclone: { ready: false, path: null, error: null, downloading: false },
-      adb: { ready: false, path: null, error: null, downloading: false }
+      adb: { ready: false, path: null, error: null, downloading: false },
+      services: 'NOT_INITIALIZED'
     }
     this.serviceStatus = 'NOT_INITIALIZED'
   }
@@ -69,6 +70,9 @@ class DependencyService {
     console.log('Initializing DependencyService...')
     // Ensure userData bin directory exists for downloads like rclone
     await fsPromises.mkdir(this.binDir, { recursive: true })
+
+    // Check network connectivity first
+    await this.checkConnectivity(progressCallback)
 
     this.checkBundled7zip()
 
@@ -97,6 +101,63 @@ class DependencyService {
       throw new Error(errorMessage) // Propagate error to caller
     }
     return this.serviceStatus
+  }
+
+  // --- Connectivity Check ---
+
+  private async checkConnectivity(progressCallback?: ProgressCallback): Promise<void> {
+    console.log('Checking network connectivity...')
+    progressCallback?.(this.status, { name: 'connectivity-check', percentage: 0 })
+
+    const criticalUrls = [
+      { url: 'https://raw.githubusercontent.com', name: 'GitHub' },
+      { url: 'https://vrpirates.wiki', name: 'VRP Wiki' },
+      { url: 'https://go.vrpyourself.online', name: 'VRP Mirror' }
+    ]
+
+    const failedUrls: string[] = []
+    let completedChecks = 0
+
+    for (const { url, name } of criticalUrls) {
+      try {
+        console.log(`Testing connectivity to ${name}: ${url}`)
+        await axios.get(url, {
+          timeout: 10000, // 10 second timeout
+          validateStatus: (status) => status < 500, // Accept any non-server-error status
+          headers: {
+            'User-Agent': 'ApprenticeVR/1.0'
+          }
+        })
+        console.log(`✓ ${name} is reachable`)
+      } catch (error) {
+        console.error(
+          `✗ Failed to reach ${name} (${url}):`,
+          error instanceof Error ? error.message : String(error)
+        )
+        failedUrls.push(`${name} (${url})`)
+      }
+
+      completedChecks++
+      const percentage = Math.round((completedChecks / criticalUrls.length) * 100)
+      progressCallback?.(this.status, { name: 'connectivity-check', percentage })
+    }
+
+    if (failedUrls.length > 0) {
+      // Create a structured error message that the UI can format nicely
+      const errorMessage = `CONNECTIVITY_ERROR|${failedUrls.join('|')}`
+
+      console.error('Connectivity check failed. Cannot reach:', failedUrls)
+
+      // Set error on all dependencies since network is required
+      this.status.sevenZip.error = errorMessage
+      this.status.rclone.error = errorMessage
+      this.status.adb.error = errorMessage
+
+      throw new Error(errorMessage)
+    }
+
+    console.log('✓ All critical URLs are reachable')
+    progressCallback?.(this.status, { name: 'connectivity-check', percentage: 100 })
   }
 
   // --- 7zip ---
@@ -139,18 +200,11 @@ class DependencyService {
     const source7zPath = this.get7zPath() // Path in resources
     this.status.sevenZip.error = null // Clear previous errors
 
-    if (!source7zPath) {
-      this.status.sevenZip.ready = false
-      this.status.sevenZip.error = `Unsupported platform for bundled 7zip: ${process.platform}`
-      console.error(this.status.sevenZip.error)
-      return
-    }
-
     if (!existsSync(source7zPath)) {
       this.status.sevenZip.ready = false
       this.status.sevenZip.error = `Bundled 7zip NOT found at source path: ${source7zPath}. Check app packaging.`
       console.error(this.status.sevenZip.error)
-      return
+      throw new Error(this.status.sevenZip.error)
     }
 
     console.log(`Found bundled 7zip at source: ${source7zPath}`)
@@ -161,41 +215,35 @@ class DependencyService {
       this.status.sevenZip.ready = false
       this.status.sevenZip.error = `Could not determine binary name from path: ${source7zPath}`
       console.error(this.status.sevenZip.error)
-      return
+      throw new Error(this.status.sevenZip.error)
     }
 
     // Target path in the writable binDir (userData/bin)
     const target7zPath = join(this.binDir, binaryName)
     this.status.sevenZip.path = target7zPath // Update status to point to the new path
 
-    try {
-      // Check if the binary needs to be copied
-      if (!existsSync(target7zPath)) {
-        console.log(`Copying 7zip from ${source7zPath} to ${target7zPath}`)
-        copyFileSync(source7zPath, target7zPath)
-        console.log(`Successfully copied 7zip to ${target7zPath}`)
-      } else {
-        console.log(`7zip already exists at target path ${target7zPath}. Skipping copy.`)
-      }
+    // Check if the binary needs to be copied
+    if (!existsSync(target7zPath)) {
+      console.log(`Copying 7zip from ${source7zPath} to ${target7zPath}`)
+      copyFileSync(source7zPath, target7zPath)
+      console.log(`Successfully copied 7zip to ${target7zPath}`)
+    } else {
+      console.log(`7zip already exists at target path ${target7zPath}. Skipping copy.`)
+    }
 
-      this.status.sevenZip.ready = true // Mark as ready (either copied or already existed)
+    this.status.sevenZip.ready = true // Mark as ready (either copied or already existed)
 
-      // Ensure executable permissions on non-windows for the file at target7zPath
-      if (process.platform !== 'win32') {
-        try {
-          chmodSync(target7zPath, 0o755)
-          console.log(`Ensured execute permissions for ${target7zPath}`)
-        } catch (chmodError) {
-          console.warn(`Failed to ensure execute permissions for ${target7zPath}:`, chmodError)
-          this.status.sevenZip.ready = false // Mark as not ready if permissions fail
-          this.status.sevenZip.error = `Permission error on copied file: ${chmodError instanceof Error ? chmodError.message : String(chmodError)}`
-        }
+    // Ensure executable permissions on non-windows for the file at target7zPath
+    if (process.platform !== 'win32') {
+      try {
+        chmodSync(target7zPath, 0o755)
+        console.log(`Ensured execute permissions for ${target7zPath}`)
+      } catch (chmodError) {
+        console.warn(`Failed to ensure execute permissions for ${target7zPath}:`, chmodError)
+        this.status.sevenZip.ready = false // Mark as not ready if permissions fail
+        this.status.sevenZip.error = `Permission error on copied file: ${chmodError instanceof Error ? chmodError.message : String(chmodError)}`
+        throw new Error(this.status.sevenZip.error)
       }
-    } catch (error) {
-      console.error(`Error during 7zip setup (copying or permissioning):`, error)
-      this.status.sevenZip.ready = false
-      this.status.sevenZip.error = `Failed to set up 7zip: ${error instanceof Error ? error.message : String(error)}`
-      this.status.sevenZip.path = source7zPath // Revert path to source if copy/chmod fails for clarity
     }
   }
 
@@ -265,15 +313,33 @@ class DependencyService {
       progressCallback?.(this.status, { name: 'rclone-extract', percentage: 0 })
 
       // Use the bundled 7zip for extraction if it's ready
-      const sevenZipPath = this.status.sevenZip.ready ? this.status.sevenZip.path : null
-      if (!sevenZipPath) {
+      if (!this.status.sevenZip.ready) {
         throw new Error('Bundled 7zip is not available or ready, cannot extract rclone archive.')
       }
 
+      const sevenZipPath = this.get7zPath()
       console.log(`Using bundled 7zip at ${sevenZipPath} for extraction.`)
-      await execa(sevenZipPath, ['x', tempArchivePath, `-o${tempExtractDir}`, '-y'])
+      await new Promise<void>((resolve, reject) => {
+        const myStream = SevenZip.extractFull(tempArchivePath!, tempExtractDir!, {
+          $bin: sevenZipPath,
+          $progress: true
+        })
+
+        myStream.on('progress', (progress) => {
+          progressCallback?.(this.status, { name: 'rclone-extract', percentage: progress.percent })
+        })
+
+        myStream.on('end', () => {
+          console.log(`Archive extracted to ${tempExtractDir}`)
+          resolve()
+        })
+
+        myStream.on('error', (error) => {
+          console.error('7zip extraction error:', error)
+          reject(error)
+        })
+      })
       // await extract(tempArchivePath, { dir: tempExtractDir }) // Old extract-zip method
-      console.log(`Archive extracted to ${tempExtractDir}`)
 
       // Find the binary within the extracted files (usually in a subdirectory)
       const binaryName = process.platform === 'win32' ? 'rclone.exe' : 'rclone'
@@ -451,7 +517,7 @@ class DependencyService {
     progressCallback?.(this.status, { name: 'adb', percentage: 0 })
 
     let tempArchivePath: string | null = null
-    // let tempExtractDir: string | null = null // No longer needed with direct yauzl extraction logic
+    let tempExtractDir: string | null = null
 
     try {
       const platform = process.platform
@@ -491,97 +557,73 @@ class DependencyService {
       console.log(`adb platform-tools download complete: ${tempArchivePath}`)
       progressCallback?.(this.status, { name: 'adb', percentage: 100 })
 
-      // --- Extraction Step using yauzl ---
-      console.log(`Extracting adb from archive: ${tempArchivePath} directly to ${this.binDir}`)
-      progressCallback?.(this.status, { name: 'adb-extract', percentage: 0 }) // Indicate start of extraction
+      // --- Extraction Step using SevenZip ---
+      tempExtractDir = join(app.getPath('temp'), `adb-extract-${Date.now()}`)
+      console.log(`Extracting adb from archive: ${tempArchivePath} to ${tempExtractDir}`)
+      progressCallback?.(this.status, { name: 'adb-extract', percentage: 0 })
 
+      // Use the bundled 7zip for extraction if it's ready
+      if (!this.status.sevenZip.ready) {
+        throw new Error('Bundled 7zip is not available or ready, cannot extract adb archive.')
+      }
+
+      const sevenZipPath = this.get7zPath()
+      console.log(`Using bundled 7zip at ${sevenZipPath} for adb extraction.`)
+
+      await new Promise<void>((resolve, reject) => {
+        const myStream = SevenZip.extractFull(tempArchivePath!, tempExtractDir!, {
+          $bin: sevenZipPath,
+          $progress: true
+        })
+
+        myStream.on('progress', (progress) => {
+          progressCallback?.(this.status, { name: 'adb-extract', percentage: progress.percent })
+        })
+
+        myStream.on('end', () => {
+          console.log(`ADB archive extracted to ${tempExtractDir}`)
+          resolve()
+        })
+
+        myStream.on('error', (error) => {
+          console.error('7zip adb extraction error:', error)
+          reject(error)
+        })
+      })
+
+      // Copy required files from extracted platform-tools directory to binDir
       const isWindows = platform === 'win32'
       const adbBinaryName = isWindows ? 'adb.exe' : 'adb'
       const requiredFilesBaseNames = isWindows
         ? [adbBinaryName, 'AdbWinApi.dll', 'AdbWinUsbApi.dll', 'libwinpthread-1.dll']
         : [adbBinaryName]
 
-      // Use a Set to track which required files have been successfully extracted
-      const extractedFiles = new Set<string>()
+      const platformToolsDir = join(tempExtractDir, 'platform-tools')
 
-      await new Promise<void>((resolve, reject) => {
-        yauzl.open(tempArchivePath!, { lazyEntries: true }, (err, zipfile) => {
-          if (err || !zipfile) return reject(err || new Error('Failed to open zip file'))
+      if (!existsSync(platformToolsDir)) {
+        throw new Error(
+          `Platform-tools directory not found in extracted archive: ${platformToolsDir}`
+        )
+      }
 
-          zipfile.readEntry() // Start reading entries
+      console.log(`Copying required ADB files from ${platformToolsDir} to ${this.binDir}`)
 
-          zipfile.on('entry', (entry: yauzl.Entry) => {
-            const baseFileName = entry.fileName.split('/').pop() ?? ''
-            const isRequiredFile =
-              !entry.fileName.endsWith('/') && // Not a directory
-              entry.fileName.startsWith('platform-tools/') && // Inside the platform-tools folder
-              requiredFilesBaseNames.includes(baseFileName) // Is one of the files we need
+      for (const fileName of requiredFilesBaseNames) {
+        const sourcePath = join(platformToolsDir, fileName)
+        const targetPath = join(this.binDir, fileName)
 
-            if (!isRequiredFile) {
-              // Skip this entry, read the next one
-              zipfile.readEntry()
-              return
-            }
+        if (!existsSync(sourcePath)) {
+          throw new Error(`Required file not found in platform-tools: ${fileName}`)
+        }
 
-            // This is a file we need to extract
-            const targetPath = join(this.binDir, baseFileName) // Extract directly to binDir
-            console.log(
-              `Found required file ${baseFileName} in zip. Extracting to ${targetPath}...`
-            )
+        await fsPromises.copyFile(sourcePath, targetPath)
+        console.log(`Copied ${fileName} to ${targetPath}`)
+      }
 
-            zipfile.openReadStream(entry, (streamErr, readStream) => {
-              if (streamErr || !readStream) {
-                zipfile.close()
-                return reject(
-                  streamErr || new Error(`Failed to open read stream for ${baseFileName}`)
-                )
-              }
-
-              const writeStream = createWriteStream(targetPath)
-              readStream.pipe(writeStream)
-
-              readStream.on('error', (readErr) => {
-                console.error(`Error reading zip stream for ${baseFileName}:`, readErr)
-                writeStream.close() // Ensure write stream is closed on read error
-                zipfile.close()
-                reject(readErr)
-              })
-
-              writeStream.on('finish', () => {
-                console.log(`Successfully extracted ${baseFileName} to ${targetPath}`)
-                extractedFiles.add(baseFileName) // Mark this file as extracted
-                // Continue reading entries
-                zipfile.readEntry()
-              })
-              writeStream.on('error', (writeErr) => {
-                console.error(`Error writing extracted file ${baseFileName}:`, writeErr)
-                readStream.destroy() // Stop reading if write fails
-                zipfile.close()
-                reject(writeErr)
-              })
-            })
-          })
-
-          zipfile.on('end', () => {
-            console.log('Finished processing zip file entries.')
-            // Check if all required files were extracted
-            if (extractedFiles.size === requiredFilesBaseNames.length) {
-              resolve()
-            } else {
-              const missingFiles = requiredFilesBaseNames.filter((f) => !extractedFiles.has(f))
-              reject(
-                new Error(
-                  `Extraction incomplete. Missing files: ${missingFiles.join(', ')} from the archive.`
-                )
-              )
-            }
-          })
-
-          zipfile.on('error', (zipErr) => {
-            reject(zipErr)
-          })
-        })
-      })
+      // Clean up temp extraction directory
+      console.log(`Cleaning up temporary extraction directory: ${tempExtractDir}`)
+      await fsPromises.rm(tempExtractDir, { recursive: true, force: true })
+      tempExtractDir = null
 
       // Clean up temp archive
       console.log(`Cleaning up temporary archive: ${tempArchivePath}`)
@@ -614,11 +656,15 @@ class DependencyService {
       this.status.adb.downloading = false
       this.status.adb.error =
         error instanceof Error ? error.message : 'Unknown download/extraction error'
-      // Clean up temp archive on error if it exists
+      // Clean up temp files on error if they exist
       try {
         if (tempArchivePath && existsSync(tempArchivePath)) {
           await fsPromises.unlink(tempArchivePath)
           console.log(`Cleaned up adb temp archive on error: ${tempArchivePath}`)
+        }
+        if (tempExtractDir && existsSync(tempExtractDir)) {
+          await fsPromises.rm(tempExtractDir, { recursive: true, force: true })
+          console.log(`Cleaned up adb temp extraction directory on error: ${tempExtractDir}`)
         }
       } catch (cleanupError) {
         console.error('Failed to cleanup adb temp files on error:', cleanupError)
@@ -632,6 +678,10 @@ class DependencyService {
 
   getStatus(): DependencyStatus {
     return { ...this.status } // Return a copy to avoid direct modification
+  }
+
+  setDependencyServiceStatus(status: ServiceStatus): void {
+    this.status.services = status
   }
 }
 

@@ -190,6 +190,7 @@ export interface DependencyStatus {
     error: string | null
     downloading: boolean
   }
+  services: ServiceStatus
 }
 
 export interface BlacklistEntry {
