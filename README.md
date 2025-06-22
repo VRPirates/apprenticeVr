@@ -86,7 +86,7 @@ If ApprenticeVR is unable to connect, follow the steps below to identify and res
 ## ✅ Use the Latest Version
 
 Make sure you're using the latest version of ApprenticeVR:  
-➡️ [https://github.com/jimzrt/appenticevr](https://github.com/jimzrt/appenticevr)
+➡️ [https://github.com/jimzrt/apprenticevr](https://github.com/jimzrt/apprenticevr)
 
 ---
 
